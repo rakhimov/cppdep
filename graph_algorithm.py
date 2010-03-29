@@ -27,39 +27,25 @@ def is_reachable(digraph, nodeA, nodeB):
     assert(0)
     return False
 
-def strip_redundant_edges(digraph, key_edge=None):
-    '''DiGraph.edges() may return different order of edges among several runs. 
-    This may cause different edges being considered as redundant. 
-    key_edge!=None means sorting edges befor iterating them in order to avoid above randomness. 
-    '''
-    redundant_edges = list()
-    edges = digraph.edges()
-    if(key_edge):
-        edges.sort(key=key_edge)
-    for edge in edges:
-        digraph.remove_edge(edge[0], edge[1])
-        if(edge[0] == edge[1]):
-            redundant_edges.append(edge)
-            continue
-        reachable = is_reachable(digraph, edge[0], edge[1])
-        if(reachable):
-            redundant_edges.append(edge)
-        else:
-            digraph.add_edge(edge[0], edge[1])
-    return redundant_edges
-
-def strip_cycles(digraph, key_node=None):
-    '''Make out a DAG. Only one node in each cycle is kep in graph, others are removed.
-    DiGraph.nodes() may return different order of nodes. key_node!=None means sorting nodes to avoid above randomness.
+def make_DAG(digraph, key_node=None):
+    '''Make out a DAG. 
+    Only one node in each cycle is kept in the original graph. That node is used as the key of cycle subgraphs. 
+    key_node!=None indicates selecting the minimal one among all nodes of the cycle per key_node.
+    Otherwise which one being selected is an implementation specific behavior.
+    Note: Selfloop edges will be stripped silently.
     '''
     cycles = dict()
     dict_node2cycle = dict()
     for node in digraph.nodes_iter():
         dict_node2cycle[node] = None
+    # Strip all selfloop edges silently.
+    digraph.remove_edges_from(digraph.selfloop_edges())
     subgraphs = nx.strongly_connected_component_subgraphs(digraph)
     for ind in range(len(subgraphs)-1, -1, -1):
         subgraph = subgraphs[ind]
-        if(len(subgraph)==1):
+        if(subgraph.number_of_nodes()==1):
+            # Selfloop edges have been stripped.
+            assert(subgraph.number_of_edges()==0)
             del subgraphs[ind]
         else:
             nodes = subgraph.nodes()
@@ -88,10 +74,14 @@ def strip_cycles(digraph, key_node=None):
             digraph.remove_node(node)
     return(cycles, dict_node2cycle)
 
-def layering(digraph, key_node=None):
-    '''Assumption: All redundant edges and all cycles have been stripped.'''
+def layering_DAG(digraph, key_node=None):
+    '''
+    Layering all nodes and strip redundant edges in the graph.
+    Assumption: digraph is a DAG(Directed Acyclic Graph).
+    '''
     layers = list()
     dict_layer_no = dict()
+    redundant_edges = list()
     nodes = digraph.nodes()
     if(len(nodes)==0):
         return (layers, dict_layer_no)
@@ -111,13 +101,13 @@ def layering(digraph, key_node=None):
     layers.append(nodes_layer0)
     cur_layer_no = 1
     while(1):
-        nodes_layer1 = list()
+        nodes_layer1 = set()
         for node in nodes_layer0:
             pre_nodes = digraph.predecessors(node)
             for pre_node in pre_nodes:
                 dict_out_degrees[pre_node] -= 1
-                if(pre_node not in nodes_layer1):
-                    nodes_layer1.append(pre_node)
+                nodes_layer1.add(pre_node)
+        nodes_layer1 = list(nodes_layer1)
         for ind in range(len(nodes_layer1)-1, -1, -1):
             node = nodes_layer1[ind]
             if(dict_out_degrees[node] > 0):
@@ -131,7 +121,19 @@ def layering(digraph, key_node=None):
         layers.append(nodes_layer1)
         nodes_layer0 = nodes_layer1
         cur_layer_no += 1
-    return (layers, dict_layer_no)
+    for ind in range(1,len(layers)):
+        for node in layers[ind]:
+            for suc_node in digraph.successors(node):
+                # Edges between adjacent layers are always non-redundant if the graph is a DAG(ie. no cycles).
+                if(dict_layer_no[suc_node]==ind-1):
+                    continue
+                digraph.remove_edge(node, suc_node)
+                reachable = is_reachable(digraph, node, suc_node)
+                if(reachable):
+                    redundant_edges.append((node, suc_node))
+                    continue
+                digraph.add_edge(node, suc_node)
+    return (layers, dict_layer_no, redundant_edges)
 
 def calc_ccd(digraph, cycles, layers):
     ccd = 0
@@ -164,7 +166,7 @@ def output_graph(digraph):
 if __name__ == '__main__':
     digraph = nx.DiGraph()
     edges1 = [(1,1), (1,2), (2,4), (2,6), (6,2), (6,7), (7,6)]
-    edges2 = [(1,3), (3,4), (3,5), (3,8), (8,9), (9,3)]
+    edges2 = [(1,3), (1,5), (3,4), (3,5), (3,8), (8,9), (9,3)]
     edges3 = [(10,11), (10, 12), (11,12), (12,11)]
     digraph.add_edges_from(edges1)
     digraph.add_edges_from(edges2)
@@ -172,23 +174,20 @@ if __name__ == '__main__':
     print '='*80
     print 'original digraph: '
     output_graph(digraph);
-    strip_redundant_edges(digraph)
-    print '='*80
-    print 'after stripping redundant edges: '
-    output_graph(digraph);
-    (cycles, dict_cycle_no) = strip_cycles(digraph)
+    (cycles, dict_cycle_no) = make_DAG(digraph)
     print '='*80
     print 'after stripping cycles: '
     output_graph(digraph);
     for (min_node, cycle) in cycles.items():
         print 'cycle %s: '%(str(min_node))
         output_graph(cycle)
-    (layers, dict_layer_no) = layering(digraph)
+    (layers, dict_layer_no, redundant_edges) = layering_DAG(digraph)
     print '='*80
     print 'after layering: '
     output_graph(digraph)
     for ind in range(0, len(layers)):
         print 'layer %d: '%(ind) + repr(layers[ind])
+    print 'redundant edges stripped:', redundant_edges
     (ccd, dict_cd) = calc_ccd(digraph, cycles, layers)
     print '='*80
     size = len(dict_cd)

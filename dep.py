@@ -344,21 +344,17 @@ def calculate_graph(digraph):
         return
     key_node = str
     key_edge = lambda x: str(x[0])+'->'+str(x[1])
-    strip_redundant_edges(digraph, key_edge)
-    #print '='*80
-    #print 'edges after strip_redundant_edges()(%d):'%digraph.number_of_edges()
-    #print ' '.join(sorted(map(lambda x: str(x[0])+'->'+str(x[1]), digraph.edges())))
-    (cycles, dict_node2cycle) = strip_cycles(digraph, key_node)
-    (layers, dict_layer_no) = layering(digraph, key_node)
+    (cycles, dict_node2cycle) = make_DAG(digraph, key_node)
+    (layers, dict_layer_no, redundant_edges) = layering_DAG(digraph, key_node)
     (ccd, dict_cd) = calc_ccd(digraph, cycles, layers)
     print '='*80
-    print 'cycles: '
+    print 'cycles stripped: '
     for min_node in sorted(cycles.keys(), key=str):
         cycle= cycles[min_node]
-        message = 'nodes of cycle %s(%d): '%(str(min_node),cycle.number_of_nodes())
+        message = 'nodes of cycle %s(%d nodes): '%(str(min_node),cycle.number_of_nodes())
         message += ' '.join(sorted(map(key_node, cycle.nodes())))
         print message
-        message = 'edges of cycle %s(%d): '%(str(min_node),cycle.number_of_edges())
+        message = 'edges of cycle %s(%d edges): '%(str(min_node),cycle.number_of_edges())
         message += ' '.join(sorted(map(key_edge, cycle.edges())))
         print message
     print '='*80
@@ -376,6 +372,8 @@ def calculate_graph(digraph):
             layer_msgs.append(str_node)
         message += ' '.join(sorted(layer_msgs))
         print message
+#    print 'redundant edges stripped(%d edges): '%len(redundant_edges)
+#    print ' '.join(sorted(map(key_edge, redundant_edges)))
     # CCD_fullBTree = (N+1)*log2(N+1)-N
     # ACD = CCD/N
     # NCCD = CCD/CCD_fullBTree
