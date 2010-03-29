@@ -1,17 +1,8 @@
 #!/usr/bin/env python
 
-import sys
-import os.path
-import re
-import hashlib
-import math
-import time
-# ElementTree is introduced in by Python 2.5.
-from xml.etree import ElementTree
-
 '''
 This a rewrite of dep_utils(adep/cdep/ldep) mentioned at the book of Large-Scale C++ Software Design.
-The location of dep_utils source code mentioned at the book is outdated and I only find a copy of it at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
+The location of dep_utils source code mentioned at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
 
 Differences to original dep_utils:
 1) More maintainable. Rewite in Python.
@@ -38,8 +29,17 @@ Dependencies of this tool:
 2) NetworkX from http://networkx.lanl.gov/.
 '''
 
+import sys
+import os.path
+import re
+import hashlib
+import math
+import time
+# ElementTree is introduced in by Python 2.5.
+from xml.etree import ElementTree
+
 import networkx as nx
-from graph_algorithm import *
+from networkx_ext import *
 
 def md5sum(fpath):
     m = hashlib.md5()
