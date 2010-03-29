@@ -1,0 +1,26 @@
+This a rewrite of dep_utils(adep/cdep/ldep) mentioned at the book of Large-Scale C++ Software Design.
+The location of dep_utils source code mentioned at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
+
+Differences to original dep_utils:
+1) More maintainable. Rewite in Python.
+2) Easier to use. Only one simple XML config file need. Unified adep/dep/cdep into one.
+3) Remove file alias support since the file name length limitation is much relax the 20 years ago.
+4) Add support of multiple package groups and packages
+
+The objective of this tool is to detect following cases in source code:
+1) unmatched dotH and dotC.
+2) the first docH inclued in the dotC doesn't belong to the component.
+3) Some dotH included directly or indirectly don't exist.
+4) cycle dependencies among components/packages/package groups.
+
+Each of them is considered as a quality flaw and should be removed by revising the code.
+
+BUGS:
+1) Can not detect dependency indicated by declarations of global variable or function such as "extern int printf();".
+
+Features TODO:
+1) Add support to Graphviz output
+
+Dependencies of this tool:
+1) Python 2.6
+2) NetworkX from http://networkx.lanl.gov/.
