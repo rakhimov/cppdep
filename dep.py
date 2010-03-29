@@ -10,8 +10,32 @@ import time
 from xml.etree import ElementTree
 
 '''
-A Python Graph API? http://wiki.python.org/moin/PythonGraphApi
-It seems that the best one is NetworkX(http://networkx.lanl.gov/).
+This a rewrite of dep_utils(adep/cdep/ldep) mentioned at the book of Large-Scale C++ Software Design.
+The location of dep_utils source code mentioned at the book is outdated and I only find a copy of it at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
+
+Differences to original dep_utils:
+1) More maintainable. Rewite in Python.
+2) Easier to use. Only one simple XML config file need. Unified adep/dep/cdep into one.
+3) Remove file alias support since the file name length limitation is much relax the 20 years ago.
+4) Add support of multiple package groups and packages
+
+The objective of this tool is to detect following cases in source code:
+1) unmatched dotH and dotC.
+2) the first docH inclued in the dotC doesn't belong to the component.
+3) Some dotH included directly or indirectly don't exist.
+4) cycle dependencies among components/packages/package groups.
+
+Each of them is considered as a quality flaw and should be removed by revising the code.
+
+BUGS:
+1) Can not detect dependency indicated by declarations of global variable or function such as "extern int printf();".
+
+Features TODO:
+1) Add support to Graphviz output
+
+Dependencies of this tool:
+1) Python 2.6
+2) NetworkX from http://networkx.lanl.gov/.
 '''
 
 import networkx as nx
@@ -350,30 +374,31 @@ def calculate_graph(digraph):
     (layers, dict_layer_no, redundant_edges) = layering_DAG(digraph, key_node)
     (ccd, dict_cd) = calc_ccd(digraph, cycles, layers)
     print '='*80
-    print 'cycles stripped: '
+    print 'cycles detected(%d cycles): '%len(cycles)
     for min_node in sorted(cycles.keys(), key=str):
         cycle= cycles[min_node]
-        message = 'nodes of cycle %s(%d nodes): '%(str(min_node),cycle.number_of_nodes())
+        message = '[cycle]%s nodes(%d nodes): '%(str(min_node),cycle.number_of_nodes())
         message += ' '.join(sorted(map(key_node, cycle.nodes())))
         print message
-        message = 'edges of cycle %s(%d edges): '%(str(min_node),cycle.number_of_edges())
+        message = '[cycle]%s edges(%d edges): '%(str(min_node),cycle.number_of_edges())
         message += ' '.join(sorted(map(key_edge, cycle.edges())))
         print message
     print '='*80
-    print 'layers:'
+    print 'layers(%d layers):'%len(layers)
+    def repr_node(node):
+        cycle_key = dict_node2cycle[node]
+        if(cycle_key):
+            assert(node==cycle_key)
+            str_node = '[cycle]' + str(node)
+        else:
+            str_node = str(node)
+        return str_node
     for ind in range(0, len(layers)):
-        message = 'layer %d: '%(ind)
-        layer_msgs = list()
+        print 'layer %d(%d nodes): '%(ind, len(layers[ind]))
         for node in layers[ind]:
-            cycle_key = dict_node2cycle[node]
-            if(cycle_key):
-                assert(node==cycle_key)
-                str_node = '[cycle]' + str(node)
-            else:
-                str_node = str(node)
-            layer_msgs.append(str_node)
-        message += ' '.join(sorted(layer_msgs))
-        print message
+            message = repr_node(node) + ' -> '
+            message += ' '.join(sorted(map(repr_node, digraph.successors(node))))
+            print message
 #    print 'redundant edges stripped(%d edges): '%len(redundant_edges)
 #    print ' '.join(sorted(map(key_edge, redundant_edges)))
     # CCD_fullBTree = (N+1)*log2(N+1)-N
@@ -384,7 +409,7 @@ def calculate_graph(digraph):
     nccd = ccd/ccd_fullBTree
     print '='*80
     print 'SUMMARY:'
-    print 'Nodes: %d\t Layers: %d'%(size_graph, len(layers))
+    print 'Nodes: %d\t Cycles: %d\t Layers: %d'%(size_graph, len(cycles), len(layers))
     print 'CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])'%(ccd, acd, nccd)
     
 
