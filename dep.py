@@ -102,10 +102,12 @@ def parse_conf():
     root = ElementTree.parse('dep_conf.xml').getroot()
     for pkg_group in root.findall('outside_package_group'):
         group_name = pkg_group.get('name')
+        group_path = pkg_group.get('path')
         dict_outside_conf[group_name] = dict()
         for pkg in pkg_group.findall('package'):
             pkg_name = pkg.get('name')
             inc_paths = pkg.text.strip().split()
+            inc_paths = map(lambda x: os.path.normpath(os.path.join(group_path, x)), inc_paths)
             dict_outside_conf[group_name][pkg_name] = inc_paths
     for pkg_group in root.findall('our_package_group'):
         group_name = pkg_group.get('name')
