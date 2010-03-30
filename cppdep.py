@@ -162,7 +162,7 @@ def warn_fnbase_conflict(path1, path2):
         same_diff = 'same'
     else:
         same_diff = 'different'
-    print 'warning: following files have the same basename(%s content): %s, %s'%(same_diff, path1, path2)
+    print 'warning: a file-basename conflict detected(%s content): %s, %s'%(same_diff, path1, path2)
 
 def make_components():
     '''pair hfiles and cfiles.'''
@@ -249,6 +249,9 @@ def make_cdep():
         if(hfiles[0]!=hfile):
             print 'warning: the first header of %s is %s, but %s expected.'%(cpath, hfiles[0], hfile)
         for hfile in hfiles:
+            if(hfile in dict_outside_hfiles):
+                comp.dep_outside_hfiles.add(hfile)
+                continue
             if(hfile in dict_hfile_deps):
                 (set1, set2, set3) = dict_hfile_deps[hfile]
             else:
