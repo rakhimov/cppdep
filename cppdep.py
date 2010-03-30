@@ -48,6 +48,9 @@ def md5sum(fpath):
     f.close()
     return m.digest()
 
+def fn_base(fn):
+    return os.path.splitext(fn)[0]
+
 def grep(pattern, file_obj):
     grepper = re.compile(pattern)
     for line_num, line in enumerate(file_obj):
@@ -78,26 +81,34 @@ def find(path, file_name):
                 full_path = os.path.join(root, entry)
                 yield (entry, full_path)
 
-def fn_base(path):
-    return os.path.splitext(os.path.basename(path))[0]
+def find_hfiles_blindly(path):
+    hfiles = list()
+    file_name = '(?i).*\.h(xx|\+\+|h|pp|)$'
+    for (hfile,hpath) in find(path, file_name):
+        hfiles.append(hfile)
+    return hfiles
 
 def find_hfiles(path):
     hfiles = dict()
-    file_name = '(?i).*\.h(xx|\+\+|h|pp|)$'
-    for elem in find(path, file_name):
-        basename = fn_base(elem[0])
-        hpath = elem[1]
-        hfiles[basename] = hpath
-    return hfiles
+    hbases = dict()
+    patt_fn = '(?i).*\.h(xx|\+\+|h|pp|)$'
+    for (hfile,hpath) in find(path, patt_fn):
+        hfiles[hfile] = hpath
+        hbase = fn_base(hfile)
+        if(hbase in hbases):
+            warn_fnbase_conflict(hbases[hbase], hpath)
+        hbases[hbase] = hpath
+    return (hbases, hfiles)
 
 def find_cfiles(path):
-    cfiles = dict()
-    file_name = '(?i).*\.c(xx|\+\+|c|pp|)$'
-    for elem in find(path, file_name):
-        basename = fn_base(elem[0])
-        cpath = elem[1]
-        cfiles[basename] = cpath
-    return cfiles
+    cbases = dict()
+    patt_fn = '(?i).*\.c(xx|\+\+|c|pp|)$'
+    for (cfile,cpath) in find(path, patt_fn):
+        cbase = fn_base(cfile)
+        if(cbase in cbases):
+            warn_fnbase_conflict(cbases[cbase], cpath)
+        cbases[cbase] = cpath
+    return cbases
 
 class component(object):
     def __init__(self, name, hpath, cpath):
@@ -118,6 +129,7 @@ dict_our_conf = dict()
 
 dict_outside_hfiles = dict()
 dict_our_hfiles = dict()
+dict_our_hbases = dict()
 dict_pkgs  = dict()
 dict_comps = dict()
 
@@ -143,51 +155,56 @@ def parse_conf():
             pkg_name = os.path.basename(pkg_path)
             dict_our_conf[group_name][pkg_name] = pkg_path
 
+def warn_fnbase_conflict(path1, path2):
+    digest1 = md5sum(path1)
+    digest2 = md5sum(path2)
+    if(digest1==digest2):
+        same_diff = 'same'
+    else:
+        same_diff = 'different'
+    print 'warning: following files have the same basename(%s content): %s, %s'%(same_diff, path1, path2)
+
 def make_components():
     '''pair hfiles and cfiles.'''
     global dict_outside_hfiles
     global dict_our_hfiles
+    global dict_our_hbases
     global dict_pkgs
     global dict_comps
     for group_name in dict_outside_conf:
         for pkg_name in dict_outside_conf[group_name]:
             pkg = (group_name, pkg_name)
             for inc_path in dict_outside_conf[group_name][pkg_name]:
-                hfiles = find_hfiles(inc_path)
-                for item in hfiles.items():
-                    dict_outside_hfiles[item[0]] = pkg
+                hfiles = find_hfiles_blindly(inc_path)
+                for hfile in hfiles:
+                    dict_outside_hfiles[hfile] = pkg
     for group_name in dict_our_conf:
         dict_pkgs[group_name] = dict()
         for pkg_name in dict_our_conf[group_name]:
             pkg_path = dict_our_conf[group_name][pkg_name]
             dict_pkgs[group_name][pkg_name] = list()
-            hfiles = find_hfiles(pkg_path)
-            cfiles = find_cfiles(pkg_path)
-            for key in hfiles.keys():
-                if(key in dict_our_hfiles):
-                    digest1 = md5sum(dict_our_hfiles[key])
-                    digest2 = md5sum(hfiles[key])
-                    if(digest1==digest2):
-                        same_diff = 'same'
-                    else:
-                        same_diff = 'different'
-                    print 'warning: following headers have the same basename(%s content): %s, %s'%(same_diff, dict_our_hfiles[key], hfiles[key])
+            hbases, hfiles = find_hfiles(pkg_path)
+            cbases = find_cfiles(pkg_path)
+            for key in hbases.keys():
+                if(key in dict_our_hbases):
+                    warn_fnbase_conflict(dict_our_hbases[key], hbases[key])
             dict_our_hfiles.update(hfiles)
-            keys = list(cfiles.keys())
+            dict_our_hbases.update(hbases)
+            keys = list(cbases.keys())
             for key in keys:
-                if(key in hfiles):
-                    comp = component(key, hfiles[key], cfiles[key])
+                if(key in hbases):
+                    comp = component(key, hbases[key], cbases[key])
                     dict_pkgs[group_name][pkg_name].append(comp)
                     comp.package = (group_name, pkg_name)
                     dict_comps[key] = comp
-                    del hfiles[key]
-                    del cfiles[key]
-            if(len(hfiles) or len(cfiles)):
+                    del hbases[key]
+                    del cbases[key]
+            if(len(hbases) or len(cbases)):
                 message = 'warning: failed to put follow files into any components (in package %s.%s): '%(group_name, pkg_name)
-                if(len(hfiles)):
-                    message += ', '.join(map(os.path.basename, hfiles.values()))
-                if(len(cfiles)):
-                    message += ', '.join(map(os.path.basename, cfiles.values()))
+                if(len(hbases)):
+                    message += ', '.join(map(os.path.basename, hbases.values()))
+                if(len(cbases)):
+                    message += ', '.join(map(os.path.basename, cbases.values()))
                 print message
 
 def expand_hfile_deps(hfile):
@@ -198,12 +215,11 @@ def expand_hfile_deps(hfile):
     set_next_hfiles = set()
     while(1):
         for hfile in set_current_hfiles:
-            hfile_base = fn_base(hfile)
-            if(hfile_base in dict_our_hfiles):
+            if(hfile in dict_our_hfiles):
                 set_dep_our_hfiles.add(hfile)
-                hpath = dict_our_hfiles[hfile_base]
+                hpath = dict_our_hfiles[hfile]
                 set_next_hfiles.update(grep_hfiles(hpath))
-            elif(hfile_base in dict_outside_hfiles):
+            elif(hfile in dict_outside_hfiles):
                 set_dep_outside_hfiles.add(hfile)
             else:
                 set_dep_bad_hfiles.add(hfile)
@@ -250,19 +266,18 @@ def make_ldep():
         key = item[0]
         comp = item[1]
         for hfile in comp.dep_our_hfiles:
-            hfile_base = fn_base(hfile)
-            assert(hfile_base in dict_our_hfiles)
-            if(hfile_base in dict_comps):
-                comp2 = dict_comps[hfile_base]
+            assert(hfile in dict_our_hfiles)
+            hbase = fn_base(hfile)
+            if(hbase in dict_comps):
+                comp2 = dict_comps[hbase]
                 if(comp2!=comp):
                     comp.dep_comps.add(comp2)
             else:
                 #This our header doesn't belong to any component. We've ever warned it at make_components().
                 pass
         for hfile in comp.dep_outside_hfiles:
-            hfile_base = fn_base(hfile)
-            assert(hfile_base in dict_outside_hfiles)
-            outside_pkg = dict_outside_hfiles[hfile_base]
+            assert(hfile in dict_outside_hfiles)
+            outside_pkg = dict_outside_hfiles[hfile]
             comp.dep_outside_pkgs.add(outside_pkg)
 
 
