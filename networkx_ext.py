@@ -10,20 +10,23 @@ It seems that the best one is NetworkX(http://networkx.lanl.gov/).
 import networkx as nx
 
 def is_reachable(digraph, nodeA, nodeB):
+    if(nodeA==nodeB):
+        return False
     set_rch_nodes = set([nodeA])
     set_current_nodes = set([nodeA])
+    set_next_nodes = set()
     while(1):
-        if(nodeB in set_current_nodes):
-            return True
-        set_next_nodes = set()
         for node in set_current_nodes:
             suc_nodes = digraph.successors(node)
             set_next_nodes.update(suc_nodes)
+        if(nodeB in set_next_nodes):
+            return True
         set_next_nodes.difference_update(set_rch_nodes)
         if(len(set_next_nodes)==0):
             return False
         set_rch_nodes.update(set_next_nodes)
-        set_current_nodes = set_next_nodes
+        set_current_nodes, set_next_nodes = set_next_nodes, set_current_nodes
+        set_next_nodes.clear()
     assert(0)
     return False
 

@@ -195,8 +195,8 @@ def expand_hfile_deps(hfile):
     set_dep_outside_hfiles = set()
     set_dep_bad_hfiles = set()
     set_current_hfiles = set([hfile])
+    set_next_hfiles = set()
     while(1):
-        set_next_hfiles = set()
         for hfile in set_current_hfiles:
             hfile_base = fn_base(hfile)
             if(hfile_base in dict_our_hfiles):
@@ -212,9 +212,9 @@ def expand_hfile_deps(hfile):
         set_next_hfiles.difference_update(set_dep_bad_hfiles)
         if(len(set_next_hfiles)==0):
             break
-        set_current_hfiles = set_next_hfiles
+        set_current_hfiles, set_next_hfiles = set_next_hfiles, set_current_hfiles
+        set_next_hfiles.clear()
     return (set_dep_our_hfiles, set_dep_outside_hfiles, set_dep_bad_hfiles)
-    
 
 def make_cdep():
     '''determine all hfiles on which a cfile depends.
