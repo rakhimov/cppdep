@@ -105,8 +105,9 @@ class component(object):
         self.name = name
         self.hpath = hpath
         self.cpath = cpath
-        self.dep_hfiles = list()
-        self.dep_comps = list()
+        self.dep_our_hfiles = set()
+        self.dep_outside_hfiles = set()
+        self.dep_comps = set()
         self.dep_outside_pkgs = set()
     def __str__(self):
         return self.name
@@ -189,10 +190,37 @@ def make_components():
                     message += ', '.join(map(os.path.basename, cfiles.values()))
                 print message
 
+def expand_hfile_deps(hfile):
+    set_dep_our_hfiles = set()
+    set_dep_outside_hfiles = set()
+    set_dep_bad_hfiles = set()
+    set_current_hfiles = set([hfile])
+    while(1):
+        set_next_hfiles = set()
+        for hfile in set_current_hfiles:
+            hfile_base = fn_base(hfile)
+            if(hfile_base in dict_our_hfiles):
+                set_dep_our_hfiles.add(hfile)
+                hpath = dict_our_hfiles[hfile_base]
+                set_next_hfiles.update(grep_hfiles(hpath))
+            elif(hfile_base in dict_outside_hfiles):
+                set_dep_outside_hfiles.add(hfile)
+            else:
+                set_dep_bad_hfiles.add(hfile)
+        set_next_hfiles.difference_update(set_dep_our_hfiles)
+        set_next_hfiles.difference_update(set_dep_outside_hfiles)
+        set_next_hfiles.difference_update(set_dep_bad_hfiles)
+        if(len(set_next_hfiles)==0):
+            break
+        set_current_hfiles = set_next_hfiles
+    return (set_dep_our_hfiles, set_dep_outside_hfiles, set_dep_bad_hfiles)
+    
+
 def make_cdep():
     '''determine all hfiles on which a cfile depends.
     Note: Recursively parsing does not work since there may be a cycle dependency among headers.'''
     set_bad_hfiles = set()
+    dict_hfile_deps = dict()
     for item in dict_comps.items():
         key = item[0]
         comp = item[1]
@@ -204,27 +232,15 @@ def make_cdep():
         hfile = os.path.basename(comp.hpath)
         if(hfiles[0]!=hfile):
             print 'warning: the first header of %s is %s, but %s expected.'%(cpath, hfiles[0], hfile)
-        ind = 0
-        while(1):
-            if(ind>=len(hfiles)):
-                break
-            hfile = hfiles[ind]
-            hfile_base = fn_base(hfile)
-            hpath = None
-            if(hfile_base in dict_our_hfiles):
-                hpath = dict_our_hfiles[hfile_base]
-                hfiles2 = grep_hfiles(hpath)
-                for hfile2 in hfiles2:
-                    if(hfile2 not in hfiles):
-                        hfiles.append(hfile2)
-                ind += 1
-            elif(hfile_base in dict_outside_hfiles):
-                # Dependencies on outside packages will be checked at make_ldep().
-                ind += 1
+        for hfile in hfiles:
+            if(hfile in dict_hfile_deps):
+                (set1, set2, set3) = dict_hfile_deps[hfile]
             else:
-                set_bad_hfiles.add(hfile)
-                del hfiles[ind]
-        comp.dep_hfiles = hfiles
+                (set1, set2, set3) = expand_hfile_deps(hfile)
+                dict_hfile_deps[hfile] = (set1, set2, set3)
+            comp.dep_our_hfiles.update(set1)
+            comp.dep_outside_hfiles.update(set2)
+            set_bad_hfiles.update(set3)
     if(len(set_bad_hfiles)!=0):
         print 'warning: failed to locate following headers when analyzing compilation dependencies: ', ' '.join(set_bad_hfiles)
 
@@ -233,22 +249,22 @@ def make_ldep():
     for item in dict_comps.items():
         key = item[0]
         comp = item[1]
-        for hfile in comp.dep_hfiles:
+        for hfile in comp.dep_our_hfiles:
             hfile_base = fn_base(hfile)
-            if(hfile_base in dict_our_hfiles):
-                if(hfile_base in dict_comps):
-                    comp2 = dict_comps[hfile_base]
-                    if((comp2.name!=comp.name) and (comp2 not in comp.dep_comps)):
-                        comp.dep_comps.append(comp2)
-                else:
-                    #This our header doesn't belong to any component. We've ever warned it at make_components().
-                    pass
-            elif(hfile_base in dict_outside_hfiles):
-                outside_pkg = dict_outside_hfiles[hfile_base]
-                comp.dep_outside_pkgs.add(outside_pkg)
+            assert(hfile_base in dict_our_hfiles)
+            if(hfile_base in dict_comps):
+                comp2 = dict_comps[hfile_base]
+                if(comp2!=comp):
+                    comp.dep_comps.add(comp2)
             else:
-                # We've removed and warned all bad(failed to locate) hfiles at make_cdep().
-                assert(0)
+                #This our header doesn't belong to any component. We've ever warned it at make_components().
+                pass
+        for hfile in comp.dep_outside_hfiles:
+            hfile_base = fn_base(hfile)
+            assert(hfile_base in dict_outside_hfiles)
+            outside_pkg = dict_outside_hfiles[hfile_base]
+            comp.dep_outside_pkgs.add(outside_pkg)
+
 
 def output_ldep():
     for group_name in sorted(dict_pkgs.keys()):
