@@ -1,22 +1,24 @@
-This a rewrite of dep_utils(adep/cdep/ldep) mentioned at the book of Large-Scale C++ Software Design.
-The location of dep_utils source code mentioned at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
+This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
+The location of dep_utils source code indicated at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
 
 Differences to original dep_utils:
-1) More maintainable. Rewite in Python.
+1) More maintainable. Rewrite in Python.
 2) Easier to use. Only one simple XML config file need. Unified adep/dep/cdep into one.
 3) Remove file alias support since the file name length limitation is much relax the 20 years ago.
 4) Add support of multiple package groups and packages
 
 The objective of this tool is to detect following cases in source code:
-1) unmatched dotH and dotC.
-2) the first docH inclued in the dotC doesn't belong to the component.
-3) Some dotH included directly or indirectly don't exist.
-4) cycle dependencies among components/packages/package groups.
+1) Several dotH(or dotC) files have the same basename, such as (libA/def.h, libB/def.h) and (libA/main.cc, libB/main.c). 
+2) Failed to put some dotH and dotC files into any component.
+3) The first docH included in the dotC file doesn't belong to the component.
+4) Some dotH included directly or indirectly don't exist.
+5) cycle dependencies among components/packages/package groups.
+Note: A component consists of a pair of one dotH and one dotC, and the basenames of them match. For example, (Foo.h, Foo.cpp).
 
-Each of them is considered as a quality flaw and should be removed by revising the code.
+Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
 BUGS:
-1) Can not detect dependency indicated by declarations of global variable or function such as "extern int printf();".
+1) Can not detect dependency indicated by declarations of global variable or function in dotC, such as "extern int printf();" in main.c.
 
 Features TODO:
 1) Add support to Graphviz output
