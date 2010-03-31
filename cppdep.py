@@ -24,10 +24,10 @@ Each of above cases is considered as a quality flaw and should be removed by rev
 Limitation/Bugs:
 1) Can not detect dependency indicated by declarations of global variable or function in dotC, such as "extern int printf();" in main.c.
 
-Dependencies of this tool:
+Requires:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
-3) (Optional) Pydot or PyGraphviz.
+3) (Optional) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
 
 Here's how to convert a Graphviz dot file to PNG or PostScript format.
 $ dot -Tpng graph1.dot -o graph1.png
@@ -215,7 +215,7 @@ def make_components():
                 if(len(hbases)):
                     message += ', '.join(map(os.path.basename, hbases.values()))
                 if(len(cbases)):
-                    message += ', '.join(map(os.path.basename, cbases.values()))
+                    message += ' ' + ', '.join(map(os.path.basename, cbases.values()))
                 print message
 
 def expand_hfile_deps(hfile):
@@ -490,7 +490,7 @@ if __name__ == '__main__':
     print 'dependencies on outside packages:'
     for item in dict_node2outsidepkgs.items():
         print str(item[0])+': '+' '.join(map(lambda x: '.'.join(x), list(item[1])))
-    calculate_graph(digraph)
+    calculate_graph(digraph, 'all_pkggrps.dot')
 
     for group_name in dict_pkgs:
         print '@'*80
@@ -500,14 +500,14 @@ if __name__ == '__main__':
         print 'dependencies on outside packages:'
         for item in dict_node2outsidepkgs.items():
             print str(item[0])+': '+' '.join(map(lambda x: '.'.join(x), list(item[1])))
-        calculate_graph(digraph)
+        calculate_graph(digraph, group_name+'.dot')
 
     for group_name in dict_pkgs:
         for pkg_name in dict_pkgs[group_name]:
             print '@'*80
             print 'analyzing dependencies among components in the specified pakcage %s.%s ...'%(group_name, pkg_name)
             digraph = create_graph_pkg_comp(group_name, pkg_name)
-            calculate_graph(digraph)
+            calculate_graph(digraph, group_name+'.'+pkg_name+'.dot')
 
     time_end = time.time()
     print 'analyzing done in %s minutes.'%str((time_end-time_start)/60.0)

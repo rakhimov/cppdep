@@ -21,7 +21,7 @@ Each of above cases is considered as a quality flaw and should be removed by rev
 Limitation/Bugs:
 1) Can not detect dependency indicated by declarations of global variable or function in dotC, such as "extern int printf();" in main.c.
 
-Dependencies of this tool:
+Requires:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
 3) (Optional) Pydot or PyGraphviz.
