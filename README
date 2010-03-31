@@ -5,24 +5,27 @@ Differences to original dep_utils:
 1) More maintainable. Rewrite in Python.
 2) Easier to use. Only one simple XML config file need. Unified adep/dep/cdep into one.
 3) Remove file alias support since the file name length limitation is much relax the 20 years ago.
-4) Add support of multiple package groups and packages
+4) Support multiple package groups and packages
+5) Support exporting final dependency graph to Graphviz dot format.
 
 The objective of this tool is to detect following cases in source code:
 1) Several dotH(or dotC) files have the same basename, such as (libA/def.h, libB/def.h) and (libA/main.cc, libB/main.c). 
 2) Failed to put some dotH and dotC files into any component.
 3) The first docH included in the dotC file doesn't belong to the component.
 4) Some dotH included directly or indirectly don't exist.
-5) cycle dependencies among components/packages/package groups.
+5) Cycle dependencies among components/packages/package groups.
 Note: A component consists of a pair of one dotH and one dotC, and the basenames of them match. For example, (Foo.h, Foo.cpp).
 
 Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
-BUGS:
+Limitation/Bugs:
 1) Can not detect dependency indicated by declarations of global variable or function in dotC, such as "extern int printf();" in main.c.
-
-Features TODO:
-1) Add support to Graphviz output
 
 Dependencies of this tool:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
+3) (Optional) Pydot or PyGraphviz.
+
+Here's how to convert a Graphviz dot file to PNG or PostScript format.
+$ dot -Tpng graph1.dot -o graph1.png
+$ dot -Tps graph1.dot -o graph1.ps

@@ -8,27 +8,30 @@ Differences to original dep_utils:
 1) More maintainable. Rewrite in Python.
 2) Easier to use. Only one simple XML config file need. Unified adep/dep/cdep into one.
 3) Remove file alias support since the file name length limitation is much relax the 20 years ago.
-4) Add support of multiple package groups and packages
+4) Support multiple package groups and packages
+5) Support exporting final dependency graph to Graphviz dot format.
 
 The objective of this tool is to detect following cases in source code:
 1) Several dotH(or dotC) files have the same basename, such as (libA/def.h, libB/def.h) and (libA/main.cc, libB/main.c). 
 2) Failed to put some dotH and dotC files into any component.
 3) The first docH included in the dotC file doesn't belong to the component.
 4) Some dotH included directly or indirectly don't exist.
-5) cycle dependencies among components/packages/package groups.
+5) Cycle dependencies among components/packages/package groups.
 Note: A component consists of a pair of one dotH and one dotC, and the basenames of them match. For example, (Foo.h, Foo.cpp).
 
 Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
-BUGS:
+Limitation/Bugs:
 1) Can not detect dependency indicated by declarations of global variable or function in dotC, such as "extern int printf();" in main.c.
-
-Features TODO:
-1) Add support to Graphviz output
 
 Dependencies of this tool:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
+3) (Optional) Pydot or PyGraphviz.
+
+Here's how to convert a Graphviz dot file to PNG or PostScript format.
+$ dot -Tpng graph1.dot -o graph1.png
+$ dot -Tps graph1.dot -o graph1.ps
 '''
 
 import sys
@@ -74,8 +77,17 @@ def grep_hfiles(src_file):
     f.close()
     return hfiles
 
-def find(path, file_name):
-    fnmatcher = re.compile(file_name)
+patt_hfile = re.compile('(?i).*\.h(xx|\+\+|h|pp|)$')
+patt_cfile = re.compile('(?i).*\.c(xx|\+\+|c|pp|)$')
+
+def find(path, fnmatcher):
+    if(os.path.isfile(path)):
+        fn = os.path.basename(path)
+        m = fnmatcher.match(fn)
+        if m:
+            yield (fn, path)
+        else:
+            return
     for root,dirs,files in os.walk(path):
         for entry in files:
             m = fnmatcher.match(entry)
@@ -85,32 +97,24 @@ def find(path, file_name):
 
 def find_hfiles_blindly(path):
     hfiles = list()
-    file_name = '(?i).*\.h(xx|\+\+|h|pp|)$'
-    for (hfile,hpath) in find(path, file_name):
+    for (hfile,hpath) in find(path, patt_hfile):
         hfiles.append(hfile)
     return hfiles
 
-def find_hfiles(path):
-    hfiles = dict()
-    hbases = dict()
-    patt_fn = '(?i).*\.h(xx|\+\+|h|pp|)$'
-    for (hfile,hpath) in find(path, patt_fn):
+def find_hfiles(path, hbases, hfiles):
+    for (hfile,hpath) in find(path, patt_hfile):
         hfiles[hfile] = hpath
         hbase = fn_base(hfile)
         if(hbase in hbases):
             warn_fnbase_conflict(hbases[hbase], hpath)
         hbases[hbase] = hpath
-    return (hbases, hfiles)
 
-def find_cfiles(path):
-    cbases = dict()
-    patt_fn = '(?i).*\.c(xx|\+\+|c|pp|)$'
-    for (cfile,cpath) in find(path, patt_fn):
+def find_cfiles(path, cbases):
+    for (cfile,cpath) in find(path, patt_cfile):
         cbase = fn_base(cfile)
         if(cbase in cbases):
             warn_fnbase_conflict(cbases[cbase], cpath)
         cbases[cbase] = cpath
-    return cbases
 
 class component(object):
     def __init__(self, name, hpath, cpath):
@@ -139,23 +143,22 @@ def parse_conf():
     global dict_outside_conf
     global dict_our_conf
     root = ElementTree.parse('dep_conf.xml').getroot()
-    for pkg_group in root.findall('outside_package_group'):
+    for pkg_group in root.findall('package_group'):
+        dict_conf = dict_our_conf
+        attr_outside = pkg_group.get('outside')
+        if(attr_outside and attr_outside.lower().startswith('y')):
+            dict_conf = dict_outside_conf
         group_name = pkg_group.get('name')
         group_path = pkg_group.get('path')
-        dict_outside_conf[group_name] = dict()
+        dict_conf[group_name] = dict()
         for pkg in pkg_group.findall('package'):
             pkg_name = pkg.get('name')
-            inc_paths = pkg.text.strip().split()
-            inc_paths = map(lambda x: os.path.normpath(os.path.join(group_path, x)), inc_paths)
-            dict_outside_conf[group_name][pkg_name] = inc_paths
-    for pkg_group in root.findall('our_package_group'):
-        group_name = pkg_group.get('name')
-        group_path = pkg_group.get('path')
-        dict_our_conf[group_name] = dict()
+            src_paths = pkg.text.strip().split()
+            dict_conf[group_name][pkg_name] = map(lambda x:os.path.normpath(os.path.join(group_path, x)), src_paths)
         for pkg_path in pkg_group.text.strip().split():
             pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
             pkg_name = os.path.basename(pkg_path)
-            dict_our_conf[group_name][pkg_name] = pkg_path
+            dict_conf[group_name][pkg_name] = [pkg_path]
 
 def warn_fnbase_conflict(path1, path2):
     digest1 = md5sum(path1)
@@ -176,17 +179,23 @@ def make_components():
     for group_name in dict_outside_conf:
         for pkg_name in dict_outside_conf[group_name]:
             pkg = (group_name, pkg_name)
-            for inc_path in dict_outside_conf[group_name][pkg_name]:
-                hfiles = find_hfiles_blindly(inc_path)
+            for src_path in dict_outside_conf[group_name][pkg_name]:
+                hfiles = find_hfiles_blindly(src_path)
                 for hfile in hfiles:
                     dict_outside_hfiles[hfile] = pkg
+    hbases = dict()
+    hfiles = dict()
+    cbases = dict()
     for group_name in dict_our_conf:
         dict_pkgs[group_name] = dict()
         for pkg_name in dict_our_conf[group_name]:
-            pkg_path = dict_our_conf[group_name][pkg_name]
             dict_pkgs[group_name][pkg_name] = list()
-            hbases, hfiles = find_hfiles(pkg_path)
-            cbases = find_cfiles(pkg_path)
+            hbases.clear()
+            hfiles.clear()
+            cbases.clear()
+            for src_path in dict_our_conf[group_name][pkg_name]:
+                find_hfiles(src_path, hbases, hfiles)
+                find_cfiles(src_path, cbases)
             for key in hbases.keys():
                 if(key in dict_our_hbases):
                     warn_fnbase_conflict(dict_our_hbases[key], hbases[key])
@@ -239,9 +248,7 @@ def make_cdep():
     Note: Recursively parsing does not work since there may be a cycle dependency among headers.'''
     set_bad_hfiles = set()
     dict_hfile_deps = dict()
-    for item in dict_comps.items():
-        key = item[0]
-        comp = item[1]
+    for comp in dict_comps.values():
         cpath = comp.cpath
         #print 'cpath: %s'%cpath
         hfiles = grep_hfiles(cpath)
@@ -267,9 +274,7 @@ def make_cdep():
 
 def make_ldep():
     '''determine all components on which a component depends.'''
-    for item in dict_comps.items():
-        key = item[0]
-        comp = item[1]
+    for comp in dict_comps.values():
         for hfile in comp.dep_our_hfiles:
             assert(hfile in dict_our_hfiles)
             hbase = fn_base(hfile)
@@ -309,9 +314,7 @@ Retrun Value:
 '''
 def create_graph_all_comp():
     digraph = nx.DiGraph()
-    for item in dict_comps.items():
-        key = item[0]
-        comp = item[1]
+    for comp in dict_comps.values():
         digraph.add_node(comp)
         for comp2 in comp.dep_comps:
             digraph.add_edge(comp, comp2)
@@ -321,8 +324,7 @@ def create_graph_all_pkg():
     digraph = nx.DiGraph()
     dict_edge2deps = dict()
     dict_node2outsidepkgs = dict()
-    for item in dict_comps.items():
-        comp = item[1]
+    for comp in dict_comps.values():
         pkg = '.'.join(comp.package)
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(pkg)
@@ -400,7 +402,7 @@ def create_graph_pkg_comp(group_name, pkg_name):
             digraph.add_edge(comp, comp2)
     return digraph
 
-def calculate_graph(digraph):
+def calculate_graph(digraph, dot_path=None):
     size_graph = digraph.number_of_nodes()
     if(size_graph==0):
         return
@@ -435,8 +437,8 @@ def calculate_graph(digraph):
             message = repr_node(node) + ' -> '
             message += ' '.join(sorted(map(repr_node, digraph.successors(node))))
             print message
-#    print 'redundant edges stripped(%d edges): '%len(redundant_edges)
-#    print ' '.join(sorted(map(key_edge, redundant_edges)))
+    print 'redundant edges stripped(%d edges): '%len(redundant_edges)
+    print ' '.join(sorted(map(key_edge, redundant_edges)))
     # CCD_fullBTree = (N+1)*log2(N+1)-N
     # ACD = CCD/N
     # NCCD = CCD/CCD_fullBTree
@@ -447,7 +449,8 @@ def calculate_graph(digraph):
     print 'SUMMARY:'
     print 'Nodes: %d\t Cycles: %d\t Layers: %d'%(size_graph, len(cycles), len(layers))
     print 'CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])'%(ccd, acd, nccd)
-    
+    if(dot_path):
+        nx.write_dot(digraph, dot_path)
 
 def test():
     cfile = '/home/zhichyu/work/probe/v6/atca/src/monApi/libMaAtm/src/MaAal2IntFrame.cc'
@@ -478,7 +481,7 @@ if __name__ == '__main__':
     print 'dependencies on outside packages:'
     for item in dict_node2outsidepkgs.items():
         print str(item[0])+': '+' '.join(map(lambda x: '.'.join(x), list(item[1])))
-    calculate_graph(digraph)
+    calculate_graph(digraph, 'all_packages.dot')
 
     print '@'*80
     print 'analyzing dependencies among all package groups ...'

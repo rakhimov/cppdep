@@ -1,11 +1,11 @@
 <xml>
-  <outside_package_group name="STD" path="/inet/opt/INETdev/V6.9.0b4">
+  <package_group outside="Y" name="STD" path="/inet/opt/INETdev/V6.9.0b4">
     <package name="C_C++_LIB">
 target/x86_pentium3/usr/include
 target/xscale_be/usr/include
     </package>
-  </outside_package_group>
-  <our_package_group name="INETatca" path="/home/zhichyu/work/probe/v6">
+  </package_group>
+  <package_group name="INETatca" path="/home/zhichyu/work/probe/v6">
 ./os/src/libSysApi
 ./os/src/libSmartheap
 ./os/src/libIKill
@@ -86,8 +86,6 @@ target/xscale_be/usr/include
 ./atca/src/mon/drivers/libTmx84
 ./atca/src/mon/libHdlcPmcCommon
 ./atca/src/monApi/libpcap
-./atca/src/monApi/libMaAtm
-./atca/src/monApi/libMaIp
 ./atca/src/monApi/libMaSctp
 ./atca/src/monApi/libMaUtran
 ./atca/src/monApi/libMaBearer
@@ -111,5 +109,13 @@ target/xscale_be/usr/include
 ./atca/src/db/libDbSys
 ./atca/src/db/libDbHwConfig
 ./atca/src/resManager/libRm
-  </our_package_group>
+    <package name="libMaAtm">
+./atca/src/monApi/libMaAtm
+./atca/src/mon/me/dataProcessing/src/MaL2Defs.h
+    </package>
+    <package name="libMaIp">
+./atca/src/monApi/libMaIp
+./atca/src/mon/me/dataProcessing/src/MaIpDefs.h
+    </package>
+  </package_group>
 </xml>
