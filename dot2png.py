@@ -1,4 +1,11 @@
 #!/usr/bin/env python2.6
+'''
+Convert Graphviz dot files to PNG files.
+Requires:
+1) Python 2.6
+2) Graphviz from http://www.graphviz.org/
+'''
+
 import os.path
 import os
 import re

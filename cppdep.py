@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.6
 
 '''
+cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
 This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
 The location of dep_utils source code indicated at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
 
@@ -22,7 +23,11 @@ Note: A component consists of a pair of one dotH and one dotC, and the basenames
 Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
 Limitation/Bugs:
-1) Can not detect dependency indicated by declarations of global variable or function in dotC, such as "extern int printf();" in main.c.
+1) Warning 1 often results incorrect dependencies, especailly when those conflict files' context are different.
+2) Warning 2 results lost dependencies. 
+3) Warning 4 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
+4) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
+5) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
 
 Requires:
 1) Python 2.6
@@ -42,6 +47,7 @@ import math
 import time
 # ElementTree is introduced in by Python 2.5.
 from xml.etree import ElementTree
+from optparse import OptionParser
 
 import networkx as nx
 from networkx_ext import *
@@ -107,6 +113,7 @@ def find_hfiles(path, hbases, hfiles):
         hbase = fn_base(hfile)
         if(hbase in hbases):
             warn_fnbase_conflict(hbases[hbase], hpath)
+            continue
         hbases[hbase] = hpath
 
 def find_cfiles(path, cbases):
@@ -114,6 +121,7 @@ def find_cfiles(path, cbases):
         cbase = fn_base(cfile)
         if(cbase in cbases):
             warn_fnbase_conflict(cbases[cbase], cpath)
+            continue
         cbases[cbase] = cpath
 
 class component(object):
@@ -139,10 +147,10 @@ dict_our_hbases = dict()
 dict_pkgs  = dict()
 dict_comps = dict()
 
-def parse_conf():
+def parse_conf(path_conf):
     global dict_outside_conf
     global dict_our_conf
-    root = ElementTree.parse('dep_conf.xml').getroot()
+    root = ElementTree.parse(path_conf).getroot()
     for pkg_group in root.findall('package_group'):
         dict_conf = dict_our_conf
         attr_outside = pkg_group.get('outside')
@@ -488,9 +496,17 @@ def test():
     for elem in find_cfiles('/home/zhichyu/work/probe/v6/atca/src/monApi'):
         print repr(elem)
 
-if __name__ == '__main__':
+def main():
+    usage = '''cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
+cppdep.py [-f path_conf]'''
+    parser = OptionParser(usage)
+    parser.add_option('-f', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code struct of a C/C++ project')
+    (options,args) = parser.parse_args()
+    if(not os.path.isfile(options.path_conf)):
+        parser.error('a XML configuration file needed!')
+
     time_start = time.time()
-    parse_conf()
+    parse_conf(options.path_conf)
     make_components()
     make_cdep()
     make_ldep()
@@ -528,3 +544,6 @@ if __name__ == '__main__':
 
     time_end = time.time()
     print 'analyzing done in %s minutes.'%str((time_end-time_start)/60.0)
+
+if __name__ == '__main__':
+    main()

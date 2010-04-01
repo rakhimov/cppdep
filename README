@@ -1,3 +1,4 @@
+cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
 This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
 The location of dep_utils source code indicated at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
 
@@ -19,7 +20,11 @@ Note: A component consists of a pair of one dotH and one dotC, and the basenames
 Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
 Limitation/Bugs:
-1) Can not detect dependency indicated by declarations of global variable or function in dotC, such as "extern int printf();" in main.c.
+1) Warning 1 often results incorrect dependencies, especailly when those conflict files' context are different.
+2) Warning 2 results lost dependencies. 
+3) Warning 4 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
+4) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
+5) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
 
 Requires:
 1) Python 2.6
