@@ -13,7 +13,7 @@ Differences to original dep_utils:
 5) Support exporting final dependency graph to Graphviz dot format.
 
 The objective of this tool is to detect following cases in source code:
-1) Several dotH(or dotC) files have the same basename, such as (libA/def.h, libB/def.h) and (libA/main.cc, libB/main.c). 
+1) Several dotH(or dotC) files have the same basename, such as (libA/def.h, libB/def.hpp, outside/libC/def.h) and (libA/main.cc, libB/main.c). 
 2) Failed to put some dotH and dotC files into any component.
 3) The first docH included in the dotC file doesn't belong to the component.
 4) Some dotH included directly or indirectly don't exist.
@@ -111,6 +111,7 @@ def find_hfiles(path, hbases, hfiles):
     for (hfile,hpath) in find(path, patt_hfile):
         hfiles[hfile] = hpath
         hbase = fn_base(hfile)
+        # Detect conflicts among our headers
         if(hbase in hbases):
             warn_fnbase_conflict(hbases[hbase], hpath)
             continue
@@ -119,6 +120,7 @@ def find_hfiles(path, hbases, hfiles):
 def find_cfiles(path, cbases):
     for (cfile,cpath) in find(path, patt_cfile):
         cbase = fn_base(cfile)
+        # Detect conflicts among our dotCs
         if(cbase in cbases):
             warn_fnbase_conflict(cbases[cbase], cpath)
             continue
@@ -205,6 +207,7 @@ def make_components():
                 find_hfiles(src_path, hbases, hfiles)
                 find_cfiles(src_path, cbases)
             for key in hbases.keys():
+                # Detect conflicts among our headers
                 if(key in dict_our_hbases):
                     warn_fnbase_conflict(dict_our_hbases[key], hbases[key])
             dict_our_hfiles.update(hfiles)
@@ -225,6 +228,13 @@ def make_components():
                 if(len(cbases)):
                     message += ' ' + ', '.join(map(os.path.basename, cbases.values()))
                 print message
+    # Detect conflicts between outside and our headers
+    set_outside_hfiles = set(dict_outside_hfiles.keys())
+    set_our_hfiles = set(dict_our_hfiles.keys())
+    set_common = set_our_hfiles.intersection(set_outside_hfiles)
+    for hfile in set_common:
+        print 'warning: a file-basename conflict between our and outside headers detected: %s, %s in %s.'%(dict_our_hfiles[hfile], hfile, '.'.join(dict_outside_hfiles[hfile]))
+        del dict_outside_hfiles[hfile]
 
 def expand_hfile_deps(hfile):
     set_dep_our_hfiles = set()
@@ -485,16 +495,6 @@ def calculate_graph(digraph, dot_basename=None):
                 g.add_edges_from(cycle.edges_iter())
             nx.write_dot(g, dot_basename+'_cycles.dot')
         nx.write_dot(digraph, dot_basename+'_final.dot')
-
-def test():
-    cfile = '/home/zhichyu/work/probe/v6/atca/src/monApi/libMaAtm/src/MaAal2IntFrame.cc'
-    hfiles = grep_hfiles(cfile)
-    for elem in hfiles:
-        print repr(elem)
-    for elem in find_hfiles('/home/zhichyu/work/probe/v6/atca/src/monApi'):
-        print repr(elem)
-    for elem in find_cfiles('/home/zhichyu/work/probe/v6/atca/src/monApi'):
-        print repr(elem)
 
 def main():
     usage = '''cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
