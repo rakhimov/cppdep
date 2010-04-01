@@ -24,7 +24,7 @@ Limitation/Bugs:
 Requires:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
-3) (Optional) Pydot or PyGraphviz.
+3) (Optional) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
 
 Here's how to convert a Graphviz dot file to PNG or PostScript format.
 $ dot -Tpng graph1.dot -o graph1.png

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.6
 
 '''
 This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
@@ -402,10 +402,31 @@ def create_graph_pkg_comp(group_name, pkg_name):
             digraph.add_edge(comp, comp2)
     return digraph
 
-def calculate_graph(digraph, dot_path=None):
+def output_original_graph_info(dict_edge2deps,dict_node2outsidepkgs):
+    print '='*80
+    print 'each edge in the original graph logically consists of some inter-component dependencies:'
+    for item in dict_edge2deps.items():
+        message = '->'.join(item[0])+': '
+        num_deps = len(item[1])
+        abbreviated = False
+        if(num_deps > 5):
+            num_deps = 5
+            abbreviated = True
+        message += ' '.join(map(lambda x: str(x[0])+'->'+str(x[1]), item[1][0:num_deps]))
+        if(abbreviated):
+            message += ' ...'
+        print message
+    print '='*80
+    print 'each node in the original graph depends on some outside packages:'
+    for item in dict_node2outsidepkgs.items():
+        print str(item[0])+': '+' '.join(map(lambda x: '.'.join(x), list(item[1])))
+
+def calculate_graph(digraph, dot_basename=None):
     size_graph = digraph.number_of_nodes()
     if(size_graph==0):
         return
+    if(dot_basename):
+        nx.write_dot(digraph, dot_basename+'_orig.dot')
     key_node = str
     key_edge = lambda x: str(x[0])+'->'+str(x[1])
     (cycles, dict_node2cycle) = make_DAG(digraph, key_node)
@@ -449,8 +470,13 @@ def calculate_graph(digraph, dot_path=None):
     print 'SUMMARY:'
     print 'Nodes: %d\t Cycles: %d\t Layers: %d'%(size_graph, len(cycles), len(layers))
     print 'CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])'%(ccd, acd, nccd)
-    if(dot_path):
-        nx.write_dot(digraph, dot_path)
+    if(dot_basename):
+        if(len(cycles)):
+            g = nx.DiGraph()
+            for cycle in cycles.values():
+                g.add_edges_from(cycle.edges_iter())
+            nx.write_dot(g, dot_basename+'_cycles.dot')
+        nx.write_dot(digraph, dot_basename+'_final.dot')
 
 def test():
     cfile = '/home/zhichyu/work/probe/v6/atca/src/monApi/libMaAtm/src/MaAal2IntFrame.cc'
@@ -477,37 +503,28 @@ if __name__ == '__main__':
     print '@'*80
     print 'analyzing dependencies among all packages ...'
     digraph,dict_edge2deps,dict_node2outsidepkgs = create_graph_all_pkg()
-    print '='*80
-    print 'dependencies on outside packages:'
-    for item in dict_node2outsidepkgs.items():
-        print str(item[0])+': '+' '.join(map(lambda x: '.'.join(x), list(item[1])))
-    calculate_graph(digraph, 'all_packages.dot')
+    output_original_graph_info(dict_edge2deps,dict_node2outsidepkgs)
+    calculate_graph(digraph, 'all_packages')
 
     print '@'*80
     print 'analyzing dependencies among all package groups ...'
     digraph,dict_edge2deps,dict_node2outsidepkgs = create_graph_all_pkggrp()
-    print '='*80
-    print 'dependencies on outside packages:'
-    for item in dict_node2outsidepkgs.items():
-        print str(item[0])+': '+' '.join(map(lambda x: '.'.join(x), list(item[1])))
-    calculate_graph(digraph, 'all_pkggrps.dot')
+    output_original_graph_info(dict_edge2deps,dict_node2outsidepkgs)
+    calculate_graph(digraph, 'all_pkggrps')
 
     for group_name in dict_pkgs:
         print '@'*80
         print 'analyzing dependencies among packages in the specified package group %s ...'%group_name
         digraph,dict_edge2deps,dict_node2outsidepkgs = create_graph_pkggrp_pkg(group_name)
-        print '='*80
-        print 'dependencies on outside packages:'
-        for item in dict_node2outsidepkgs.items():
-            print str(item[0])+': '+' '.join(map(lambda x: '.'.join(x), list(item[1])))
-        calculate_graph(digraph, group_name+'.dot')
+        output_original_graph_info(dict_edge2deps,dict_node2outsidepkgs)
+        calculate_graph(digraph, group_name)
 
     for group_name in dict_pkgs:
         for pkg_name in dict_pkgs[group_name]:
             print '@'*80
             print 'analyzing dependencies among components in the specified pakcage %s.%s ...'%(group_name, pkg_name)
             digraph = create_graph_pkg_comp(group_name, pkg_name)
-            calculate_graph(digraph, group_name+'.'+pkg_name+'.dot')
+            calculate_graph(digraph, group_name+'.'+pkg_name)
 
     time_end = time.time()
     print 'analyzing done in %s minutes.'%str((time_end-time_start)/60.0)

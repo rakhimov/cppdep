@@ -33,5 +33,8 @@ def convert(paths):
 
 if __name__ == '__main__':
     paths = sys.argv[1:]
+    if(len(paths)==0):
+        print 'Usage: dot2png.py <path-to-dot>'
+        sys.exit()
     convert(paths)
 

@@ -1,8 +1,7 @@
 <xml>
-  <package_group outside="Y" name="STD" path="/inet/opt/INETdev/V6.9.0b4">
+  <package_group outside="Y" name="STD" path="/">
     <package name="C_C++_LIB">
-target/x86_pentium3/usr/include
-target/xscale_be/usr/include
+/usr/include
     </package>
   </package_group>
   <package_group name="INETatca" path="/home/zhichyu/work/probe/v6">
