@@ -5,7 +5,7 @@ import re
 import commands
 import sys
 
-patt_dot = re.compile('(?i).*\.dot')
+patt_dot = re.compile('(?i).*\.dot$')
 
 def find(path, fnmatcher):
     if(os.path.isfile(path)):
