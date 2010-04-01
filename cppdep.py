@@ -92,8 +92,7 @@ def find(path, fnmatcher):
         m = fnmatcher.match(fn)
         if m:
             yield (fn, path)
-        else:
-            return
+        return
     for root,dirs,files in os.walk(path):
         for entry in files:
             m = fnmatcher.match(entry)
@@ -235,6 +234,40 @@ def make_components():
     for hfile in set_common:
         print 'warning: a file-basename conflict between our and outside headers detected: %s, %s in %s.'%(dict_our_hfiles[hfile], hfile, '.'.join(dict_outside_hfiles[hfile]))
         del dict_outside_hfiles[hfile]
+
+def show_hfile_deps(hfile, depth, set_dep_hfiles):
+    if(hfile in set_dep_hfiles):
+        print '+'*depth + '%s (duplicated)'%hfile
+        return
+    set_dep_hfiles.add(hfile)
+    if(hfile in dict_our_hfiles):
+        hpath = dict_our_hfiles[hfile]
+        hbase = fn_base(hfile)
+        str_comp = None
+        if hbase in dict_comps:
+            comp = dict_comps[hbase]
+            str_comp = 'associates with %s in %s.%s'%(comp.name, comp.package[0], comp.package[1])
+        else:
+            str_comp = 'does not associate with none component'
+        print '+'*depth + '%s (%s, %s)'%(hfile, hpath, str_comp)
+        for hfile2 in grep_hfiles(hpath):
+            show_hfile_deps(hfile2, depth+1, set_dep_hfiles)
+    elif(hfile in dict_outside_hfiles):
+        print '+'*depth + '%s (in outside package %s)'%(hfile, '.'.join(dict_outside_hfiles[hfile]))
+    else:
+        print '+'*depth + '%s (failed to locate)'%hfile
+
+def show_details_of_comp(comp_name):
+    '''determine all hfiles on which the specific component depends. Very useful when you try to understand why a inter-component dependency occurs.'''
+    if(not comp_name in dict_comps):
+        print 'component %s does not exist.'%comp_name
+        return
+    depth = 0
+    set_dep_hfiles = set()
+    comp = dict_comps[comp_name]
+    print '%s (%s in package %s.%s):'%(comp.name, comp.cpath, comp.package[0], comp.package[1])
+    for hfile in grep_hfiles(comp.cpath):
+        show_hfile_deps(hfile, depth, set_dep_hfiles)
 
 def expand_hfile_deps(hfile):
     set_dep_our_hfiles = set()
@@ -498,9 +531,10 @@ def calculate_graph(digraph, dot_basename=None):
 
 def main():
     usage = '''cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
-cppdep.py [-f path_conf]'''
+cppdep.py [-f path_conf] [-d component]'''
     parser = OptionParser(usage)
-    parser.add_option('-f', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code struct of a C/C++ project')
+    parser.add_option('-f', '--conf', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code struct of a C/C++ project')
+    parser.add_option('-d', '--details-of-comp', dest='details_of_comp', default=None, help='show details of a component')
     (options,args) = parser.parse_args()
     if(not os.path.isfile(options.path_conf)):
         parser.error('a XML configuration file needed!')
@@ -508,6 +542,9 @@ cppdep.py [-f path_conf]'''
     time_start = time.time()
     parse_conf(options.path_conf)
     make_components()
+    if(options.details_of_comp):
+        show_details_of_comp(options.details_of_comp)
+        sys.exit()
     make_cdep()
     make_ldep()
 
