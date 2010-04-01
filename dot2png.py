@@ -11,6 +11,7 @@ import os
 import re
 import commands
 import sys
+from optparse import OptionParser
 
 patt_dot = re.compile('(?i).*\.dot$')
 
@@ -30,6 +31,10 @@ def find(path, fnmatcher):
 
 def convert(paths):
     for path in paths:
+        if(not os.path.exists(path)):
+            print '%s does not exist.'%path
+            return
+    for path in paths:
         for (fn_dot, path_dot) in find(path, patt_dot):
             path_png = os.path.splitext(path_dot)[0] + '.png'
             cmd = 'dot -Tpng %s -o %s'%(path_dot, path_png)
@@ -38,10 +43,14 @@ def convert(paths):
             if(len(output)):
                 print output
 
-if __name__ == '__main__':
-    paths = sys.argv[1:]
-    if(len(paths)==0):
-        print 'Usage: dot2png.py <path-to-dot>'
-        sys.exit()
-    convert(paths)
+def main():
+    usage = '''dot2png.py is designed for recursively converting Graphviz dot files under specified paths to PNG files.
+dot2png.py [dot_paths] '''
+    parser = OptionParser(usage)
+    (options,args) = parser.parse_args()
+    if(len(args)==0):
+        parser.error('at least one path expected.')
+    convert(args)
 
+if __name__ == '__main__':
+    main()
