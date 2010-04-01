@@ -257,17 +257,15 @@ def show_hfile_deps(hfile, depth, set_dep_hfiles):
     else:
         print '+'*depth + '%s (failed to locate)'%hfile
 
-def show_details_of_comp(comp_name):
+def show_details_of_comps():
     '''determine all hfiles on which the specific component depends. Very useful when you try to understand why a inter-component dependency occurs.'''
-    if(not comp_name in dict_comps):
-        print 'component %s does not exist.'%comp_name
-        return
-    depth = 0
-    set_dep_hfiles = set()
-    comp = dict_comps[comp_name]
-    print '%s (%s in package %s.%s):'%(comp.name, comp.cpath, comp.package[0], comp.package[1])
-    for hfile in grep_hfiles(comp.cpath):
-        show_hfile_deps(hfile, depth, set_dep_hfiles)
+    for comp in dict_comps.values():
+        depth = 0
+        set_dep_hfiles = set()
+        print '-'*80
+        print '%s (%s in package %s.%s):'%(comp.name, comp.cpath, comp.package[0], comp.package[1])
+        for hfile in grep_hfiles(comp.cpath):
+            show_hfile_deps(hfile, depth, set_dep_hfiles)
 
 def expand_hfile_deps(hfile):
     set_dep_our_hfiles = set()
@@ -534,7 +532,7 @@ def main():
 cppdep.py [-f path_conf] [-d component]'''
     parser = OptionParser(usage)
     parser.add_option('-f', '--conf', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code struct of a C/C++ project')
-    parser.add_option('-d', '--details-of-comp', dest='details_of_comp', default=None, help='show details of a component')
+    parser.add_option('-d', '--details-of-comps', dest='details_of_comps', action='store_true', default=False, help='show details of every component and then exit')
     (options,args) = parser.parse_args()
     if(not os.path.isfile(options.path_conf)):
         parser.error('a XML configuration file needed!')
@@ -542,9 +540,9 @@ cppdep.py [-f path_conf] [-d component]'''
     time_start = time.time()
     parse_conf(options.path_conf)
     make_components()
-    if(options.details_of_comp):
-        show_details_of_comp(options.details_of_comp)
-        sys.exit()
+    if(options.details_of_comps):
+        show_details_of_comps()
+        return
     make_cdep()
     make_ldep()
 
