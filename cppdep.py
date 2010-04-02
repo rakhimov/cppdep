@@ -239,18 +239,18 @@ def make_components():
                 find_hfiles(src_path, hbases, hfiles)
                 find_cfiles(src_path, cbases)
             # Detect conflicts among our headers inter-packages
-            for hbase in hbases.keys():
+            for hbase in list(hbases.keys()):
                 if(hbase in dict_our_hbases):
                     if(hbase not in dict_our_conflict_hbases):
                         dict_our_conflict_hbases[hbase] = [dict_our_hbases[hbase]]
                     dict_our_conflict_hbases[hbase].append(hbases[hbase])
-                    hfile = os.path.basename(hbases[hbase])
                     del hbases[hbase]
+            for hfile in list(hfiles.keys()):
+                if hfile in dict_our_hfiles:
                     del hfiles[hfile]
             dict_our_hfiles.update(hfiles)
             dict_our_hbases.update(hbases)
-            keys = list(cbases.keys())
-            for key in keys:
+            for key in list(cbases.keys()):
                 if(key in hbases):
                     # Detect conflicts among our dotCs inter-packages
                     # In fact, only check between registering components and registered components.
@@ -416,7 +416,10 @@ def show_hfile_deps(hfile, depth, set_dep_hfiles):
         str_comp = None
         if hbase in dict_comps:
             comp = dict_comps[hbase]
-            str_comp = 'associates with %s in %s.%s'%(comp.name, comp.package[0], comp.package[1])
+            if(os.path.basename(comp.hpath)==hfile):
+                str_comp = 'associates with %s in %s.%s'%(comp.name, comp.package[0], comp.package[1])
+            else:
+                str_comp = 'basename conflicts with %s in %s.%s'%(comp.name, comp.package[0], comp.package[1])
         else:
             str_comp = 'does not associate with any component'
         print '+'*depth + '%s %s(%s, %s)'%(hfile, flag_conflict, hpath, str_comp)
@@ -445,10 +448,11 @@ def make_ldep():
             hbase = fn_base(hfile)
             if(hbase in dict_comps):
                 comp2 = dict_comps[hbase]
-                if(comp2!=comp):
+                # We've reported hfile basename conflicts at make_components().
+                if(comp2!=comp and os.path.basename(comp2.hpath)==hfile):
                     comp.dep_comps.add(comp2)
             else:
-                #This our header doesn't belong to any component. We've ever warned it at make_components().
+                # This our header doesn't belong to any component. We've ever warned it at make_components().
                 pass
         for hfile in comp.dep_outside_hfiles:
             assert(hfile in dict_outside_hfiles)
