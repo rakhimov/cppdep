@@ -13,26 +13,33 @@ Differences to original dep_utils:
 5) Support exporting final dependency graph to Graphviz dot format.
 
 The objective of this tool is to detect following cases in source code:
-1) Several dotH(or dotC) files have the same basename, such as (libA/def.h, libB/def.hpp, outside/libC/def.h) and (libA/main.cc, libB/main.c). 
-2) Failed to put some dotH and dotC files into any component.
-3) The first docH included in the dotC file doesn't belong to the component.
-4) Some dotH included directly or indirectly don't exist.
-5) Cycle dependencies among components/packages/package groups.
+1) Failed to associate some headers/dotC files with any component.
+2) File name conflicts. 
+2.1) File basename conflicts among our headers. For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
+2.2) File basename conflicts among our dotCs. For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
+3.3) File name conflicts between our and outside headers. For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
+3) Including issues:
+3.1) Some headers included directly or indirectly don't exist.
+3.2) DotC does not depend on its associated header.
+3.3) DotC does not include its associated header directly.
+3.4) DotC does not include its associated header before other headers.
+4) Cycle dependencies among components/packages/package groups.
 Note: A component consists of a pair of one dotH and one dotC, and the basenames of them match. For example, (Foo.h, Foo.cpp).
 
 Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
 Limitation/Bugs:
-1) Warning 1 often results incorrect dependencies, especailly when those conflict files' context are different.
-2) Warning 2 results lost dependencies. 
-3) Warning 4 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
-4) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
-5) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
+1) Warning 1 results lost dependencies. 
+2) Warning 2 often results incorrect dependencies, especailly when those conflict files' context are different.
+3) Warning 3.1 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
+4) Warning 3.2 often results incorrect dependencies.
+5) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
+6) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
 
 Requires:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
-3) (Optional) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
+3) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
 
 Here's how to convert a Graphviz dot file to PNG or PostScript format.
 $ dot -Tpng graph1.dot -o graph1.png
@@ -52,12 +59,28 @@ from optparse import OptionParser
 import networkx as nx
 from networkx_ext import *
 
+'''
+Several ways to convert byte string into hex string:
+
+def byte2hex(byte_str):
+    return ''.join( [ "%02X" % ord( x ) for x in byteStr ] )
+
+>>>  import binascii
+>>> binascii.hexlify('ABC123...\x01\x02\x03')
+'4142433132332e2e2e010203'
+
+Here's the best way:
+>>> '\xcb\xdb\xbe\xef'.encode('hex')
+'cbdbbeef'
+>>> 'cbdbbeef'.decode('hex')
+'\xcb\xdb\xbe\xef'
+'''
 def md5sum(fpath):
     m = hashlib.md5()
     f = open(fpath, 'rb')
     m.update(f.read())
     f.close()
-    return m.digest()
+    return m.digest().encode('hex')
 
 def fn_base(fn):
     return os.path.splitext(fn)[0]
@@ -106,26 +129,7 @@ def find_hfiles_blindly(path):
         hfiles.append(hfile)
     return hfiles
 
-def find_hfiles(path, hbases, hfiles):
-    for (hfile,hpath) in find(path, patt_hfile):
-        hfiles[hfile] = hpath
-        hbase = fn_base(hfile)
-        # Detect conflicts among our headers
-        if(hbase in hbases):
-            warn_fnbase_conflict(hbases[hbase], hpath)
-            continue
-        hbases[hbase] = hpath
-
-def find_cfiles(path, cbases):
-    for (cfile,cpath) in find(path, patt_cfile):
-        cbase = fn_base(cfile)
-        # Detect conflicts among our dotCs
-        if(cbase in cbases):
-            warn_fnbase_conflict(cbases[cbase], cpath)
-            continue
-        cbases[cbase] = cpath
-
-class component(object):
+class Component(object):
     def __init__(self, name, hpath, cpath):
         self.package = ('anonymous', 'anonymous')
         self.name = name
@@ -145,8 +149,38 @@ dict_our_conf = dict()
 dict_outside_hfiles = dict()
 dict_our_hfiles = dict()
 dict_our_hbases = dict()
+dict_our_conflict_hbases = dict()
+dict_our_outside_conflict_hfiles = dict()
+dict_our_conflict_cbases = dict()
 dict_pkgs  = dict()
 dict_comps = dict()
+
+
+def find_hfiles(path, hbases, hfiles):
+    for (hfile,hpath) in find(path, patt_hfile):
+        # Detect conflicts among our headers inside a package
+        if(hfile not in hfiles):
+            hfiles[hfile] = hpath
+        hbase = fn_base(hfile)
+        # Detect conflicts among our headers inside a package
+        if(hbase in hbases):
+            if(hbase not in dict_our_conflict_hbases):
+                dict_our_conflict_hbases[hbase] = [hbases[hbase]]
+            dict_our_conflict_hbases[hbase].append(hpath)
+            continue
+        hbases[hbase] = hpath
+
+def find_cfiles(path, cbases):
+    for (cfile,cpath) in find(path, patt_cfile):
+        cbase = fn_base(cfile)
+        # Detect conflicts among our dotCs inside a package
+        if(cbase in cbases):
+            if(cbase not in dict_our_conflict_cbases):
+                dict_our_conflict_cbases[cbase] = [cbases[cbase], cpath]
+            else:
+                dict_our_conflict_cbases[cbase].append(cpath)
+            continue
+        cbases[cbase] = cpath
 
 def parse_conf(path_conf):
     global dict_outside_conf
@@ -169,15 +203,6 @@ def parse_conf(path_conf):
             pkg_name = os.path.basename(pkg_path)
             dict_conf[group_name][pkg_name] = [pkg_path]
 
-def warn_fnbase_conflict(path1, path2):
-    digest1 = md5sum(path1)
-    digest2 = md5sum(path2)
-    if(digest1==digest2):
-        same_diff = 'same'
-    else:
-        same_diff = 'different'
-    print 'warning: a file-basename conflict detected(%s content): %s, %s'%(same_diff, path1, path2)
-
 def make_components():
     '''pair hfiles and cfiles.'''
     global dict_outside_hfiles
@@ -195,6 +220,7 @@ def make_components():
     hbases = dict()
     hfiles = dict()
     cbases = dict()
+    message = ''
     for group_name in dict_our_conf:
         dict_pkgs[group_name] = dict()
         for pkg_name in dict_our_conf[group_name]:
@@ -205,67 +231,81 @@ def make_components():
             for src_path in dict_our_conf[group_name][pkg_name]:
                 find_hfiles(src_path, hbases, hfiles)
                 find_cfiles(src_path, cbases)
-            for key in hbases.keys():
-                # Detect conflicts among our headers
-                if(key in dict_our_hbases):
-                    warn_fnbase_conflict(dict_our_hbases[key], hbases[key])
+            # Detect conflicts among our headers inter-packages
+            for hbase in hbases.keys():
+                if(hbase in dict_our_hbases):
+                    if(hbase not in dict_our_conflict_hbases):
+                        dict_our_conflict_hbases[hbase] = [dict_our_hbases[hbase]]
+                    dict_our_conflict_hbases[hbase].append(hbases[hbase])
+                    hfile = os.path.basename(hbases[hbase])
+                    del hbases[hbase]
+                    del hfiles[hfile]
             dict_our_hfiles.update(hfiles)
             dict_our_hbases.update(hbases)
             keys = list(cbases.keys())
             for key in keys:
                 if(key in hbases):
-                    comp = component(key, hbases[key], cbases[key])
-                    dict_pkgs[group_name][pkg_name].append(comp)
-                    comp.package = (group_name, pkg_name)
-                    dict_comps[key] = comp
+                    # Detect conflicts among our dotCs inter-packages
+                    # In fact, only check between registering components and registered components.
+                    # For example, suppose both libA/main.cc and libB/main.cpp failed to be registered as a component,
+                    # the basename conflict between them will be ignored.
+                    if(key in dict_comps):
+                        if(key not in dict_our_conflict_cbases):
+                            dict_our_conflict_cbases[key] = [dict_comps[key].cpath]
+                        dict_our_conflict_cbases[key].append(cbases[key])
+                    else:
+                        comp = Component(key, hbases[key], cbases[key])
+                        dict_pkgs[group_name][pkg_name].append(comp)
+                        comp.package = (group_name, pkg_name)
+                        dict_comps[key] = comp
                     del hbases[key]
                     del cbases[key]
+            # Detect files failed to associated with any component
             if(len(hbases) or len(cbases)):
-                message = 'warning: failed to put follow files into any components (in package %s.%s): '%(group_name, pkg_name)
+                message += 'in package %s.%s: '%(group_name, pkg_name)
                 if(len(hbases)):
                     message += ', '.join(map(os.path.basename, hbases.values()))
                 if(len(cbases)):
                     message += ' ' + ', '.join(map(os.path.basename, cbases.values()))
-                print message
-    # Detect conflicts between outside and our headers
+                message += '\n'
+    # Report files failed to associated with any component
+    if(len(message)):
+        print '-'*80
+        print 'warning: detected files failed to associate with any component (all will be ignored): '
+        print message
+    # Report conflicts among our headers
+    if(len(dict_our_conflict_hbases)):
+        message = 'warning: detected file basename conflicts among our headers (all except the first one will be ignored):\n'
+        for hbase in dict_our_conflict_hbases:
+            message += '%s: '%hbase
+            for hpath in dict_our_conflict_hbases[hbase]:
+                digest = md5sum(hpath)
+                message += '%s(%s) '%(hpath, digest)
+            message += '\n'
+        print '-'*80
+        print message
+    # Report conflicts among our dotCs
+    if(len(dict_our_conflict_cbases)):
+        message = 'warning: detected file basename conflicts among our dotCs (all except the first one will be ignored):\n'
+        for cbase in dict_our_conflict_cbases:
+            message += '%s: '%cbase
+            for cpath in dict_our_conflict_cbases[cbase]:
+                digest = md5sum(cpath)
+                message += '%s(%s) '%(cpath, digest)
+            message += '\n'
+        print '-'*80
+        print message
+    # Detect and report conflicts between outside and our headers
     set_outside_hfiles = set(dict_outside_hfiles.keys())
     set_our_hfiles = set(dict_our_hfiles.keys())
-    set_common = set_our_hfiles.intersection(set_outside_hfiles)
-    for hfile in set_common:
-        print 'warning: a file-basename conflict between our and outside headers detected: %s, %s in %s.'%(dict_our_hfiles[hfile], hfile, '.'.join(dict_outside_hfiles[hfile]))
-        del dict_outside_hfiles[hfile]
-
-def show_hfile_deps(hfile, depth, set_dep_hfiles):
-    if(hfile in set_dep_hfiles):
-        print '+'*depth + '%s (duplicated)'%hfile
-        return
-    set_dep_hfiles.add(hfile)
-    if(hfile in dict_our_hfiles):
-        hpath = dict_our_hfiles[hfile]
-        hbase = fn_base(hfile)
-        str_comp = None
-        if hbase in dict_comps:
-            comp = dict_comps[hbase]
-            str_comp = 'associates with %s in %s.%s'%(comp.name, comp.package[0], comp.package[1])
-        else:
-            str_comp = 'does not associate with none component'
-        print '+'*depth + '%s (%s, %s)'%(hfile, hpath, str_comp)
-        for hfile2 in grep_hfiles(hpath):
-            show_hfile_deps(hfile2, depth+1, set_dep_hfiles)
-    elif(hfile in dict_outside_hfiles):
-        print '+'*depth + '%s (in outside package %s)'%(hfile, '.'.join(dict_outside_hfiles[hfile]))
-    else:
-        print '+'*depth + '%s (failed to locate)'%hfile
-
-def show_details_of_comps():
-    '''determine all hfiles on which the specific component depends. Very useful when you try to understand why a inter-component dependency occurs.'''
-    for comp in dict_comps.values():
-        depth = 0
-        set_dep_hfiles = set()
+    set_common_hfiles = set_our_hfiles.intersection(set_outside_hfiles)
+    if(len(set_common_hfiles)):
+        message = 'warning: detected file name conflicts between our and outside headers (outside ones will be ignored): \n'
+        for hfile in set_common_hfiles:
+            message += '%s (in outside package %s): %s\n'%(hfile, '.'.join(dict_outside_hfiles[hfile]), dict_our_hfiles[hfile])
         print '-'*80
-        print '%s (%s in package %s.%s):'%(comp.name, comp.cpath, comp.package[0], comp.package[1])
-        for hfile in grep_hfiles(comp.cpath):
-            show_hfile_deps(hfile, depth, set_dep_hfiles)
+        print message
+        del dict_outside_hfiles[hfile]
 
 def expand_hfile_deps(hfile):
     set_dep_our_hfiles = set()
@@ -282,6 +322,7 @@ def expand_hfile_deps(hfile):
             elif(hfile in dict_outside_hfiles):
                 set_dep_outside_hfiles.add(hfile)
             else:
+                # Detect headers failed to locate.
                 set_dep_bad_hfiles.add(hfile)
         set_next_hfiles.difference_update(set_dep_our_hfiles)
         set_next_hfiles.difference_update(set_dep_outside_hfiles)
@@ -294,18 +335,26 @@ def expand_hfile_deps(hfile):
 
 def make_cdep():
     '''determine all hfiles on which a cfile depends.
-    Note: Recursively parsing does not work since there may be a cycle dependency among headers.'''
+    Note: Simple recursively parsing does not work since there may be a cycle dependency among headers.'''
     set_bad_hfiles = set()
     dict_hfile_deps = dict()
+    message = ''
+    message2 = ''
+    message3 = ''
     for comp in dict_comps.values():
         cpath = comp.cpath
-        #print 'cpath: %s'%cpath
         hfiles = grep_hfiles(cpath)
         if(len(hfiles)==0):
             continue
-        hfile = os.path.basename(comp.hpath)
-        if(hfiles[0]!=hfile):
-            print 'warning: the first header of %s is %s, but %s expected.'%(cpath, hfiles[0], hfile)
+        comp_hfile = os.path.basename(comp.hpath)
+        # Detect first header issues issues.
+        ind_comp_hfile = -1
+        try:
+            ind_comp_hfile = hfiles.index(comp_hfile)
+            if(ind_comp_hfile != 0):
+                message += '%s: %s, should be %s.\n'%(cpath, hfiles[0], comp_hfile)
+        except ValueError,e:
+            pass
         for hfile in hfiles:
             if(hfile in dict_outside_hfiles):
                 comp.dep_outside_hfiles.add(hfile)
@@ -318,8 +367,68 @@ def make_cdep():
             comp.dep_our_hfiles.update(set1)
             comp.dep_outside_hfiles.update(set2)
             set_bad_hfiles.update(set3)
+        # Detect indirectly including issues, and non-dependent issues.
+        if(ind_comp_hfile <0):
+            if(comp_hfile in comp.dep_our_hfiles):
+                message2 += '%s: does not include %s directly.\n'%(cpath, comp_hfile)
+            else:
+                message3 += '%s: does not depend on %s.\n'%(cpath, comp_hfile)
+    # Report headers failed to locate.
     if(len(set_bad_hfiles)!=0):
-        print 'warning: failed to locate following headers when analyzing compilation dependencies: ', ' '.join(set_bad_hfiles)
+        print '-'*80
+        print 'warning: failed to locate following headers: '
+        print ' '.join(set_bad_hfiles)
+    # Report non-dependent issues.
+    if(len(message3)):
+        print '-'*80
+        print 'warning: following every dotC does not depend on its associated header: '
+        print message3
+    # Report indirectly including issues.
+    if(len(message2)):
+        print '-'*80
+        print 'warning: following every dotC does not include its associated header directly: '
+        print message2
+    # Report first header issues.
+    if(len(message)):
+        print '-'*80
+        print 'warning: following every dotC does not include its associated header before other headers: '
+        print message
+
+
+def show_hfile_deps(hfile, depth, set_dep_hfiles):
+    if(hfile in set_dep_hfiles):
+        print '+'*depth + '%s (duplicated)'%hfile
+        return
+    set_dep_hfiles.add(hfile)
+    if(hfile in dict_our_hfiles):
+        hpath = dict_our_hfiles[hfile]
+        hbase = fn_base(hfile)
+        flag_conflict = ''
+        if((hbase in dict_our_conflict_hbases) or (hfile in dict_our_outside_conflict_hfiles)):
+            flag_conflict = '*'
+        str_comp = None
+        if hbase in dict_comps:
+            comp = dict_comps[hbase]
+            str_comp = 'associates with %s in %s.%s'%(comp.name, comp.package[0], comp.package[1])
+        else:
+            str_comp = 'does not associate with any component'
+        print '+'*depth + '%s %s(%s, %s)'%(hfile, flag_conflict, hpath, str_comp)
+        for hfile2 in grep_hfiles(hpath):
+            show_hfile_deps(hfile2, depth+1, set_dep_hfiles)
+    elif(hfile in dict_outside_hfiles):
+        print '+'*depth + '%s (in outside package %s)'%(hfile, '.'.join(dict_outside_hfiles[hfile]))
+    else:
+        print '+'*depth + '%s (failed to locate)'%hfile
+
+def show_details_of_comps():
+    '''determine all hfiles on which the specific component depends. Very useful when you try to understand why a inter-component dependency occurs.'''
+    for comp in dict_comps.values():
+        depth = 1
+        set_dep_hfiles = set()
+        print '-'*80
+        print '%s (%s in package %s.%s):'%(comp.name, comp.cpath, comp.package[0], comp.package[1])
+        for hfile in grep_hfiles(comp.cpath):
+            show_hfile_deps(hfile, depth, set_dep_hfiles)
 
 def make_ldep():
     '''determine all components on which a component depends.'''
@@ -532,7 +641,7 @@ def main():
 cppdep.py [-f path_conf] [-d component]'''
     parser = OptionParser(usage)
     parser.add_option('-f', '--conf', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code struct of a C/C++ project')
-    parser.add_option('-d', '--details-of-comps', dest='details_of_comps', action='store_true', default=False, help='show details of every component and then exit')
+    parser.add_option('-d', '--details-of-comps', dest='details_of_comps', action='store_true', default=False, help='show all warnings and details of every component, then exit')
     (options,args) = parser.parse_args()
     if(not os.path.isfile(options.path_conf)):
         parser.error('a XML configuration file needed!')
@@ -540,10 +649,12 @@ cppdep.py [-f path_conf] [-d component]'''
     time_start = time.time()
     parse_conf(options.path_conf)
     make_components()
+    make_cdep()
     if(options.details_of_comps):
         show_details_of_comps()
+        time_end = time.time()
+        print 'analyzing done in %s minutes.'%str((time_end-time_start)/60.0)
         return
-    make_cdep()
     make_ldep()
 
     print '@'*80
