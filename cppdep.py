@@ -202,6 +202,13 @@ def parse_conf(path_conf):
             pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
             pkg_name = os.path.basename(pkg_path)
             dict_conf[group_name][pkg_name] = [pkg_path]
+        config_error = False
+        for pkg_path in dict_conf[group_name][pkg_name]:
+            if(not os.path.exists(pkg_path)):
+                print 'detected a config error for package %s.%s: %s does not exist!'%(group_name, pkg_name, pkg_path)
+                config_error = True
+        if(config_error):
+                sys.exit()
 
 def make_components():
     '''pair hfiles and cfiles.'''
