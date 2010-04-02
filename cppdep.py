@@ -41,9 +41,9 @@ Requires:
 2) NetworkX from http://networkx.lanl.gov/.
 3) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
 
-Here's how to convert a Graphviz dot file to PNG or PostScript format.
-$ dot -Tpng graph1.dot -o graph1.png
-$ dot -Tps graph1.dot -o graph1.ps
+Here's how to convert a Graphviz dot file to PDF format.
+$ dot -Tpdf graph1.dot -o graph1.pdf
+
 '''
 
 import sys

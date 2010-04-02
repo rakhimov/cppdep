@@ -10,27 +10,33 @@ Differences to original dep_utils:
 5) Support exporting final dependency graph to Graphviz dot format.
 
 The objective of this tool is to detect following cases in source code:
-1) Several dotH(or dotC) files have the same basename, such as (libA/def.h, libB/def.h) and (libA/main.cc, libB/main.c). 
-2) Failed to put some dotH and dotC files into any component.
-3) The first docH included in the dotC file doesn't belong to the component.
-4) Some dotH included directly or indirectly don't exist.
-5) Cycle dependencies among components/packages/package groups.
+1) Failed to associate some headers/dotC files with any component.
+2) File name conflicts. 
+2.1) File basename conflicts among our headers. For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
+2.2) File basename conflicts among our dotCs. For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
+3.3) File name conflicts between our and outside headers. For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
+3) Including issues:
+3.1) Some headers included directly or indirectly don't exist.
+3.2) DotC does not depend on its associated header.
+3.3) DotC does not include its associated header directly.
+3.4) DotC does not include its associated header before other headers.
+4) Cycle dependencies among components/packages/package groups.
 Note: A component consists of a pair of one dotH and one dotC, and the basenames of them match. For example, (Foo.h, Foo.cpp).
 
 Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
 Limitation/Bugs:
-1) Warning 1 often results incorrect dependencies, especailly when those conflict files' context are different.
-2) Warning 2 results lost dependencies. 
-3) Warning 4 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
-4) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
-5) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
+1) Warning 1 results lost dependencies. 
+2) Warning 2 often results incorrect dependencies, especailly when those conflict files' context are different.
+3) Warning 3.1 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
+4) Warning 3.2 often results incorrect dependencies.
+5) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
+6) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
 
 Requires:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
-3) (Optional) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
+3) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
 
-Here's how to convert a Graphviz dot file to PNG or PostScript format.
-$ dot -Tpng graph1.dot -o graph1.png
-$ dot -Tps graph1.dot -o graph1.ps
+Here's how to convert a Graphviz dot file to PDF format.
+$ dot -Tpdf graph1.dot -o graph1.pdf
