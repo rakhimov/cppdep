@@ -1,7 +1,6 @@
 cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
 This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
 The location of dep_utils source code indicated at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
-Here is a discuss on C++ project dependency analysis: http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis. 
 
 Differences to original dep_utils:
 1) More maintainable. Rewrite in Python.
@@ -44,3 +43,10 @@ $ dot -Tpdf graph1.dot -o graph1.pdf
 
 TODO:
 1) Output critical components. Detect if any package contains more than one critical component. -- Which book/article does this idea come from?? 
+
+
+
+External links:
+1) dependency-alalysis is a part of static-code-analysis. There are several commercial products which are able to do dependency-alalysis on http://en.wikipedia.org/wiki/List_of_tools_for_static_code_analysis.
+2) Here is a discuss on C++ project dependency analysis: http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis. 
+3) Nmdepend is a lightweight 'link-time' dependency analyzer for C++. It uses object files and libraries instead of source-code as input. It runs UNIX and Cygwin. (http://sourceforge.net/projects/nmdepend/). 

@@ -196,7 +196,7 @@ def make_components():
             for src_path in dict_our_conf[group_name][pkg_name]:
                 find_hfiles(src_path, hbases, hfiles)
                 find_cfiles(src_path, cbases)
-            # Detect conflicts among our headers inter-packages
+            # Detect cross-package conflicts among our headers 
             for hbase in list(hbases.keys()):
                 if(hbase in dict_our_hbases):
                     if(hbase not in dict_our_conflict_hbases):
@@ -210,7 +210,7 @@ def make_components():
             dict_our_hbases.update(hbases)
             for key in list(cbases.keys()):
                 if(key in hbases):
-                    # Detect conflicts among our dotCs inter-packages
+                    # Detect cross-package conflicts among our dotCs
                     # In fact, only check between registering components and registered components.
                     # For example, suppose both libA/main.cc and libB/main.cpp failed to be registered as a component,
                     # the basename conflict between them will be ignored.
@@ -389,7 +389,7 @@ def show_hfile_deps(hfile, depth, set_dep_hfiles):
         print '+'*depth + '%s (failed to locate)'%hfile
 
 def show_details_of_comps():
-    '''determine all hfiles on which the specific component depends. Very useful when you try to understand why a inter-component dependency occurs.'''
+    '''determine all hfiles on which the specific component depends. Very useful when you try to understand why a cross-component dependency occurs.'''
     dict_included_by = dict()
     for comp in dict_comps.values():
         depth = 1
@@ -405,9 +405,9 @@ def show_details_of_comps():
                 dict_included_by[hfile] = [comp.cpath]
     for hfile in sorted(list(dict_included_by.keys())):
         print '-'*80
-        print hfile, ':'
+        print hfile + ':'
         for cpath in sorted(dict_included_by[hfile]):
-            print ' ', cpath
+            print ' ' + cpath
 
 def make_ldep():
     '''determine all components on which a component depends.'''
@@ -542,7 +542,7 @@ def create_graph_pkg_comp(group_name, pkg_name):
 
 def output_original_graph_info(dict_edge2deps,dict_node2outsidepkgs):
     print '='*80
-    print 'each edge in the original graph logically consists of some inter-component dependencies:'
+    print 'each edge in the original graph logically consists of some cross-component dependencies:'
     for item in dict_edge2deps.items():
         message = '->'.join(item[0])+': '
         num_deps = len(item[1])
