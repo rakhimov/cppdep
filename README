@@ -1,6 +1,7 @@
 cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
 This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
 The location of dep_utils source code indicated at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
+Here is a discuss on C++ project dependency analysis: http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis. 
 
 Differences to original dep_utils:
 1) More maintainable. Rewrite in Python.
@@ -40,3 +41,6 @@ Requires:
 
 Here's how to convert a Graphviz dot file to PDF format.
 $ dot -Tpdf graph1.dot -o graph1.pdf
+
+TODO:
+1) Output critical components. Detect if any package contains more than one critical component. -- Which book/article does this idea come from?? 

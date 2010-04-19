@@ -1,51 +1,5 @@
 #!/usr/bin/env python2.6
 
-'''
-cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
-This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
-The location of dep_utils source code indicated at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
-
-Differences to original dep_utils:
-1) More maintainable. Rewrite in Python.
-2) Easier to use. Only one simple XML config file need. Unified adep/dep/cdep into one.
-3) Remove file alias support since the file name length limitation is much relax the 20 years ago.
-4) Support multiple package groups and packages
-5) Support exporting final dependency graph to Graphviz dot format.
-
-The objective of this tool is to detect following cases in source code:
-1) Failed to associate some headers/dotC files with any component.
-2) File name conflicts. 
-2.1) File basename conflicts among our headers. For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
-2.2) File basename conflicts among our dotCs. For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
-2.3) File name conflicts between our and outside headers. For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
-3) Including issues:
-3.1) Some headers included directly or indirectly don't exist.
-3.2) DotC does not depend on its associated header.
-3.3) DotC does not include its associated header directly.
-3.4) DotC does not include its associated header before other headers.
-4) Cycle dependencies among components/packages/package groups.
-Note: A component consists of a pair of one dotH and one dotC, and the basenames of them match. For example, (Foo.h, Foo.cpp).
-
-Each of above cases is considered as a quality flaw and should be removed by revising the code.
-
-Limitation/Bugs:
-1) Warning 1 results lost dependencies. 
-2) Warning 2 often results incorrect dependencies, especailly when those conflict files' context are different.
-3) Warning 3.1 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
-4) Warning 3.2 often results incorrect dependencies.
-5) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
-6) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
-
-Requires:
-1) Python 2.6
-2) NetworkX from http://networkx.lanl.gov/.
-3) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
-
-Here's how to convert a Graphviz dot file to PDF format.
-$ dot -Tpdf graph1.dot -o graph1.pdf
-
-'''
-
 import sys
 import os.path
 import re
@@ -65,9 +19,13 @@ Several ways to convert byte string into hex string:
 def byte2hex(byte_str):
     return ''.join( [ "%02X" % ord( x ) for x in byteStr ] )
 
->>>  import binascii
+>>> import binascii
 >>> binascii.hexlify('ABC123...\x01\x02\x03')
 '4142433132332e2e2e010203'
+>>> binascii.b2a_hex('ABC123...\x01\x02\x03')
+'4142433132332e2e2e010203'
+>>> binascii.a2b_hex('4142433132332e2e2e010203')
+'ABC123...\x01\x02\x03
 
 Here's the best way:
 >>> '\xcb\xdb\xbe\xef'.encode('hex')
@@ -432,6 +390,7 @@ def show_hfile_deps(hfile, depth, set_dep_hfiles):
 
 def show_details_of_comps():
     '''determine all hfiles on which the specific component depends. Very useful when you try to understand why a inter-component dependency occurs.'''
+    dict_included_by = dict()
     for comp in dict_comps.values():
         depth = 1
         set_dep_hfiles = set()
@@ -439,6 +398,16 @@ def show_details_of_comps():
         print '%s (%s in package %s.%s):'%(comp.name, comp.cpath, comp.package[0], comp.package[1])
         for hfile in grep_hfiles(comp.cpath):
             show_hfile_deps(hfile, depth, set_dep_hfiles)
+        for hfile in set_dep_hfiles:
+            if(dict_included_by.has_key(hfile)):
+                dict_included_by[hfile].append(comp.cpath)
+            else:
+                dict_included_by[hfile] = [comp.cpath]
+    for hfile in sorted(list(dict_included_by.keys())):
+        print '-'*80
+        print hfile, ':'
+        for cpath in sorted(dict_included_by[hfile]):
+            print ' ', cpath
 
 def make_ldep():
     '''determine all components on which a component depends.'''
@@ -651,8 +620,8 @@ def main():
     usage = '''cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
 cppdep.py [-f path_conf] [-d component]'''
     parser = OptionParser(usage)
-    parser.add_option('-f', '--conf', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code struct of a C/C++ project')
-    parser.add_option('-d', '--details-of-comps', dest='details_of_comps', action='store_true', default=False, help='show all warnings and details of every component, then exit')
+    parser.add_option('-f', '--conf', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code structure of a C/C++ project')
+    parser.add_option('-d', '--details-of-comps', dest='details_of_comps', action='store_true', default=False, help='show all warnings and details of every component, i.e. info of includes and included by, then exit')
     (options,args) = parser.parse_args()
     if(not os.path.isfile(options.path_conf)):
         parser.error('a XML configuration file needed!')
