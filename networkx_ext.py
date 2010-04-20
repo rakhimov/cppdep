@@ -88,14 +88,11 @@ def layering_DAG(digraph, key_node=None):
     nodes = digraph.nodes()
     if(len(nodes)==0):
         return (layers, dict_layer_no)
-    out_degrees = digraph.out_degree()
-    dict_out_degrees = dict()
+    dict_out_degrees = digraph.out_degree(with_labels=True)
     #print digraph.out_degree()
     nodes_layer0 = list()
-    for ind in range(0, len(nodes)):
-        node = nodes[ind]
-        dict_out_degrees[node] = out_degrees[ind]
-        if(out_degrees[ind]==0):
+    for node in dict_out_degrees:
+        if(dict_out_degrees[node]==0):
             nodes_layer0.append(node)
             dict_layer_no[node] = 0
     assert(len(nodes_layer0)!=0)

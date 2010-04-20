@@ -1,5 +1,5 @@
 cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
-This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book Large-Scale C++ Software Design.
+This a rewrite of dep_utils(adep/cdep/ldep) which is provided by John Lakos' book "Large-Scale C++ Software Design", Addison Wesley (1996).
 The location of dep_utils source code indicated at the book is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
 
 Differences to original dep_utils:
@@ -30,13 +30,14 @@ Limitation/Bugs:
 2) Warning 2 often results incorrect dependencies, especailly when those conflict files' context are different.
 3) Warning 3.1 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
 4) Warning 3.2 often results incorrect dependencies.
-5) There are another cases may result lost dependencies. For example, a dotC declares global variable or function instead of includes a dotH which does the declaration.
+5) There are another cases may result lost dependencies. For example, [1] a dotC declares global variable or function instead of including a header which does the declaration. [2] Embedded dynamic dependencies such as dynamic loading and configurable internal services.
 6) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
 
 Requires:
 1) Python 2.6
 2) NetworkX from http://networkx.lanl.gov/.
-3) PyGraphviz from http://networkx.lanl.gov/pygraphviz/ (or Pydot from http://code.google.com/p/pydot/).
+Note: NetworkX and all of its dependencies can be installed on Ubuntu 10.04 as following:
+$ sudo apt-get install python-networkx
 
 Here's how to convert a Graphviz dot file to PDF format.
 $ dot -Tpdf graph1.dot -o graph1.pdf
