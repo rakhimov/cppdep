@@ -43,7 +43,8 @@ Here's how to convert a Graphviz dot file to PDF format.
 $ dot -Tpdf graph1.dot -o graph1.pdf
 
 TODO:
-1) Output critical components. Detect if any package contains more than one critical component. -- Which book/article does this idea come from?? 
+1) Analyze bottlenecks. "...we consider classes that refer to more than 20 other classes and which are referred to by more than 20 other clesses as critical. On the level of subsystems the critical limit is 10 referring and referred to subsysmtems." -- Klaus Wolfmaier and Rudolf Ramler: Common Findings and Lessons Learned from Software Architecture and Design Analysis, http://metrics2005.di.uniba.it/IndustryTrack/WolfmaierRamler_SoftwareArchitectureDesignAnalysis.pdf 
+
 
 
 
