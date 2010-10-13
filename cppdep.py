@@ -618,10 +618,10 @@ def calculate_graph(digraph, dot_basename=None):
 
 def main():
     usage = '''cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
-cppdep.py [-f path_conf] [-d component]'''
+cppdep.py [-f path_conf] [-d]'''
     parser = OptionParser(usage)
     parser.add_option('-f', '--conf', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code structure of a C/C++ project')
-    parser.add_option('-d', '--details-of-comps', dest='details_of_comps', action='store_true', default=False, help='show all warnings and details of every component, i.e. info of includes and included by, then exit')
+    parser.add_option('-d', '--debug', dest='details_of_comps', action='store_true', default=False, help='show all warnings and details of every component (aka. includes/included by), but not analyze dependencies.')
     (options,args) = parser.parse_args()
     if(not os.path.isfile(options.path_conf)):
         parser.error('a XML configuration file needed!')
