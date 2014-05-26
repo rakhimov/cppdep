@@ -1,10 +1,41 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 '''
 Graph algorithms used in chapter 4 and appendix C of Large-Scale C++ Software Design.
 
 A Python Graph API? http://wiki.python.org/moin/PythonGraphApi
 It seems that the best one is NetworkX(http://networkx.lanl.gov/).
+
+zhichyu@jupiter:~/cppdep$ ./networkx_ext.py 
+================================================================================
+original digraph: 
+nodes(12):  1 2 3 4 5 6 7 8 9 10 11 12
+edges(18):  1->1 1->2 1->3 1->5 2->4 2->6 3->8 3->4 3->5 6->2 6->7 7->6 8->9 9->3 10->11 10->12 11->12 12->11
+================================================================================
+after stripping cycles: 
+nodes(7):  1 2 4 5 8 10 11
+edges(7):  1->8 1->2 1->5 2->4 8->4 8->5 10->11
+cycle 8: 
+nodes(3):  8 9 3
+edges(3):  8->9 9->3 3->8
+cycle 2: 
+nodes(3):  2 6 7
+edges(4):  2->6 6->2 6->7 7->6
+cycle 11: 
+nodes(2):  11 12
+edges(2):  11->12 12->11
+================================================================================
+after layering: 
+nodes(7):  1 2 4 5 8 10 11
+edges(6):  1->8 1->2 2->4 8->4 8->5 10->11
+layer 0: [4, 5, 11]
+layer 1: [8, 2, 10]
+layer 2: [1]
+redundant edges stripped: [(1, 5)]
+================================================================================
+CCD: 46	 NCCD: 1.274036(typical range is [0.85, 1.10])	 SIZE: 12
+cumulate dependencies: {1: 10, 2: 4, 3: 5, 4: 1, 5: 1, 6: 4, 7: 4, 8: 5, 9: 5, 10: 3, 11: 2, 12: 2}
+zhichyu@jupiter:~/cppdep$ 
 '''
 
 import networkx as nx
@@ -37,6 +68,7 @@ def make_DAG(digraph, key_node=None):
     Otherwise which one being selected is an implementation specific behavior.
     Note: Selfloop edges will be stripped silently.
     '''
+    # output_graph(digraph)
     cycles = dict()
     dict_node2cycle = dict()
     for node in digraph.nodes_iter():
@@ -62,15 +94,16 @@ def make_DAG(digraph, key_node=None):
     for min_node in cycles:
         nodes = cycles[min_node].nodes()
         nodes.remove(min_node)
+        # print 'min_node: %s, other nodes: ' % str(min_node), ' '.join(map(str, nodes))
         for node in nodes:
             pre_nodes = digraph.predecessors(node)
             suc_nodes = digraph.successors(node)
             for pre_node in pre_nodes:
-                if(pre_node==node or dict_node2cycle[pre_node]==min_node or digraph.has_edge(pre_node, min_node)):
+                if(pre_node==min_node or (pre_node in nodes) or digraph.has_edge(pre_node, min_node)):
                     continue
                 digraph.add_edge(pre_node, min_node)
             for suc_node in suc_nodes:
-                if(suc_node==node or dict_node2cycle[suc_node]==min_node or digraph.has_edge(min_node, suc_node)):
+                if(suc_node==min_node or (suc_node in nodes) or digraph.has_edge(min_node, suc_node)):
                     continue
                 digraph.add_edge(min_node, suc_node)
             # All edges assiciated with a node will also be removed when removing the node from the graph.
@@ -88,7 +121,7 @@ def layering_DAG(digraph, key_node=None):
     nodes = digraph.nodes()
     if(len(nodes)==0):
         return (layers, dict_layer_no)
-    dict_out_degrees = digraph.out_degree(with_labels=True)
+    dict_out_degrees = digraph.out_degree()
     #print digraph.out_degree()
     nodes_layer0 = list()
     for node in dict_out_degrees:
@@ -159,9 +192,8 @@ def calc_ccd(digraph, cycles, layers):
     return (ccd, dict_cd)
 
 def output_graph(digraph):
-    print 'nodes(%d): '%digraph.number_of_nodes(), digraph.nodes()
-    print 'edges(%d): '%digraph.number_of_edges(), digraph.edges()
-
+    print 'nodes(%d): '%digraph.number_of_nodes(), ' '.join(map(str, digraph.nodes()))
+    print 'edges(%d): '%digraph.number_of_edges(), ' '.join(map(lambda x: str(x[0])+'->'+str(x[1]), digraph.edges()))
 
 if __name__ == '__main__':
     digraph = nx.DiGraph()

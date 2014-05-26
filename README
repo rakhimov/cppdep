@@ -34,9 +34,9 @@ Limitation/Bugs:
 6) There are another cases may result incorrect dependencies. For example, a piece of dead code of foo.cc includes bar.h, and bar.h happens do exist in another package/package group.
 
 Requires:
-1) Python 2.6
+1) Python 2.7
 2) NetworkX from http://networkx.lanl.gov/.
-Note: NetworkX and all of its dependencies can be installed on Ubuntu 10.04 as following:
+Note: NetworkX 1.7 and all of its dependencies can be installed on LinuxMint 15 as following:
 $ sudo apt-get install python-networkx
 
 Here's how to convert a Graphviz dot file to PDF format.

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.6
+#!/usr/bin/env python2
 '''
 Convert Graphviz dot files to the specified format.
 I select pdf as the default output format since it's the best one when concerning protablity, speed and size.

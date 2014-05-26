@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.6
+#!/usr/bin/env python2
 
 import sys
 import os.path
@@ -453,9 +453,9 @@ Retrun Value:
 def create_graph_all_comp():
     digraph = nx.DiGraph()
     for comp in dict_comps.values():
-        digraph.add_node(comp)
+        digraph.add_node(str(comp))
         for comp2 in comp.dep_comps:
-            digraph.add_edge(comp, comp2)
+            digraph.add_edge(str(comp), str(comp2))
     return digraph
 
 def create_graph_all_pkg():
@@ -532,12 +532,12 @@ def create_graph_pkg_comp(group_name, pkg_name):
     digraph = nx.DiGraph()
     package = (group_name, pkg_name)
     for comp in dict_pkgs[group_name][pkg_name]:
-        digraph.add_node(comp)
+        digraph.add_node(str(comp))
         for comp2 in comp.dep_comps:
             package2 = comp2.package
             if(package2!=package):
                 continue
-            digraph.add_edge(comp, comp2)
+            digraph.add_edge(str(comp), str(comp2))
     return digraph
 
 def output_original_graph_info(dict_edge2deps,dict_node2outsidepkgs):
