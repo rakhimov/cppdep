@@ -81,6 +81,7 @@ Requirements
 
 #. Python 2.7
 #. NetworkX from http://networkx.lanl.gov/.
+#. pydotplus
 
 NetworkX 1.7 and all of its dependencies can be installed using ``apt-get`` as following:
 
