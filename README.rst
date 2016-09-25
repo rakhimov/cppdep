@@ -2,6 +2,14 @@
 cppdep
 ######
 
+.. image:: https://travis-ci.org/rakhimov/cppdep.svg?branch=master
+    :target: https://travis-ci.org/rakhimov/cppdep
+.. image:: https://codecov.io/gh/rakhimov/cppdep/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/rakhimov/cppdep
+.. image:: https://landscape.io/github/rakhimov/cppdep/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/rakhimov/cppdep/master
+   :alt: Code Health
+
 ``cppdep.py`` is designed for analyzing dependencies
 among components/packages/package groups of a large C/C++ project.
 This is a rewrite of dep_utils(adep/cdep/ldep),
