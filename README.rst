@@ -83,11 +83,11 @@ Requirements
 #. NetworkX from http://networkx.lanl.gov/.
 #. pydotplus
 
-NetworkX 1.7 and all of its dependencies can be installed using ``apt-get`` as following:
+The dependencies can be installed by ``pip``.
 
 .. code-block:: bash
 
-    $ sudo apt-get install python-networkx
+    $ sudo pip install networkx pydotplus
 
 Here's how to convert a Graphviz dot file to PDF format.
 
@@ -101,8 +101,6 @@ TODO
 ****
 
 - Analyze bottlenecks. "...we consider classes that refer to more than 20 other classes and which are referred to by more than 20 other classes as critical. On the level of subsystems the critical limit is 10 referring and referred to subsystems." -- Klaus Wolfmaier and Rudolf Ramler: Common Findings and Lessons Learned from Software Architecture and Design Analysis, http://metrics2005.di.uniba.it/IndustryTrack/WolfmaierRamler_SoftwareArchitectureDesignAnalysis.pdf
-
-- Critical: NetworkX usage code is outdated.
 
 - PEP8 the code.
 
