@@ -38,6 +38,9 @@ cumulate dependencies: {1: 10, 2: 4, 3: 5, 4: 1, 5: 1, 6: 4, 7: 4, 8: 5, 9: 5, 1
 zhichyu@jupiter:~/cppdep$
 '''
 
+from __future__ import print_function, absolute_import, division
+import math
+
 import networkx as nx
 
 
@@ -96,7 +99,7 @@ def make_DAG(digraph, key_node=None):
     for min_node in cycles:
         nodes = cycles[min_node].nodes()
         nodes.remove(min_node)
-        # print 'min_node: %s, other nodes: ' % str(min_node), '
+        # print('min_node: %s, other nodes: ' % str(min_node), ')
         # '.join(map(str, nodes))
         for node in nodes:
             pre_nodes = digraph.predecessors(node)
@@ -131,7 +134,7 @@ def layering_DAG(digraph, key_node=None):
     if len(nodes) == 0:
         return (layers, dict_layer_no)
     dict_out_degrees = digraph.out_degree()
-    # print digraph.out_degree()
+    # print(digraph.out_degree())
     nodes_layer0 = list()
     for node in dict_out_degrees:
         if dict_out_degrees[node] == 0:
@@ -199,13 +202,13 @@ def calc_ccd(digraph, cycles, layers):
             if node2 == min_node:
                 continue
             dict_cd[node2] = cd
-    ccd = reduce(lambda x, y: x + y, dict_cd.values())
+    ccd = sum(dict_cd.values())
     return (ccd, dict_cd)
 
 
 def output_graph(digraph):
-    print 'nodes(%d): ' % digraph.number_of_nodes(), ' '.join(map(str, digraph.nodes()))
-    print 'edges(%d): ' % digraph.number_of_edges(), ' '.join(map(lambda x: str(x[0]) + '->' + str(x[1]), digraph.edges()))
+    print('nodes(%d): ' % digraph.number_of_nodes(), ' '.join(map(str, digraph.nodes())))
+    print('edges(%d): ' % digraph.number_of_edges(), ' '.join(map(lambda x: str(x[0]) + '->' + str(x[1]), digraph.edges())))
 
 def main():
     digraph = nx.DiGraph()
@@ -215,31 +218,31 @@ def main():
     digraph.add_edges_from(edges1)
     digraph.add_edges_from(edges2)
     digraph.add_edges_from(edges3)
-    print '=' * 80
-    print 'original digraph: '
+    print('=' * 80)
+    print('original digraph: ')
     output_graph(digraph)
     (cycles, dict_cycle_no) = make_DAG(digraph)
-    print '=' * 80
-    print 'after stripping cycles: '
+    print('=' * 80)
+    print('after stripping cycles: ')
     output_graph(digraph)
     for (min_node, cycle) in cycles.items():
-        print 'cycle %s: ' % (str(min_node))
+        print('cycle %s: ' % (str(min_node)))
         output_graph(cycle)
     (layers, dict_layer_no, redundant_edges) = layering_DAG(digraph)
-    print '=' * 80
-    print 'after layering: '
+    print('=' * 80)
+    print('after layering: ')
     output_graph(digraph)
     for ind in range(0, len(layers)):
-        print 'layer %d: ' % (ind) + repr(layers[ind])
-    print 'redundant edges stripped:', redundant_edges
+        print('layer %d: ' % (ind) + repr(layers[ind]))
+    print('redundant edges stripped:', redundant_edges)
     (ccd, dict_cd) = calc_ccd(digraph, cycles, layers)
-    print '=' * 80
+    print('=' * 80)
     size = len(dict_cd)
-    import math
     ccd_fullBTree = (size + 1) * (math.log(size + 1, 2)) - size
     nccd = ccd / ccd_fullBTree
-    print 'CCD: %d\t NCCD: %f(typical range is [0.85, 1.10])\t SIZE: %d' % (ccd, nccd, size)
-    print 'cumulate dependencies: ' + repr(dict_cd)
+    print('CCD: %d\t NCCD: %f(typical range is [0.85, 1.10])\t SIZE: %d' %
+          (ccd, nccd, size))
+    print('cumulate dependencies: ' + repr(dict_cd))
 
 
 if __name__ == '__main__':

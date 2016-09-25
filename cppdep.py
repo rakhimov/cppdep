@@ -5,7 +5,7 @@ cppdep is a dependency analyzer
 for components/packages/package groups of a large C/C++ project.
 '''
 
-from __future__ import print_function
+from __future__ import print_function, division, absolute_import
 
 import sys
 import os.path
@@ -697,7 +697,7 @@ def calculate_graph(digraph, dot_basename=None):
     # CCD_fullBTree = (N+1)*log2(N+1)-N
     # ACD = CCD/N
     # NCCD = CCD/CCD_fullBTree
-    acd = ccd * 1.0 / size_graph
+    acd = ccd / size_graph
     ccd_fullBTree = (size_graph + 1) * \
         (math.log(size_graph + 1, 2)) - size_graph
     nccd = ccd / ccd_fullBTree
@@ -742,7 +742,7 @@ def main():
         show_details_of_comps()
         time_end = time.time()
         print('analyzing done in %s minutes.' %
-              str((time_end - time_start) / 60.0))
+              str((time_end - time_start) / 60))
     make_ldep()
 
     print('@' * 80)
