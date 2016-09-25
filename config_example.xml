@@ -1,0 +1,16 @@
+<cppdep>
+  <package-group outside="true" name="STD" path="/">
+    <package name="C_C++_LIB">
+      /usr/include
+    </package>
+  </package-group>
+  <package-group name="Awesome" path="/path/to/awesome/project">
+    src
+    <package name="libFoo">
+      src/foo
+    </package>
+    <package name="libBar">
+      src/bar
+    </package>
+  </package-group>
+</cppdep>
