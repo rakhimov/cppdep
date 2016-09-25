@@ -105,6 +105,8 @@ TODO
 
 - Write tests.
 
+- Support Python 3.
+
 
 **************
 External links

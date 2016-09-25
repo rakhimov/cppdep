@@ -47,6 +47,7 @@ from optparse import OptionParser
 
 patt_dot = re.compile('(?i).*\.dot$')
 
+
 def find(path, fnmatcher):
     if(os.path.isfile(path)):
         fn = os.path.basename(path)
@@ -54,38 +55,42 @@ def find(path, fnmatcher):
         if m:
             yield (fn, path)
         return
-    for root,dirs,files in os.walk(path):
+    for root, dirs, files in os.walk(path):
         for entry in files:
             m = fnmatcher.match(entry)
             if m:
                 full_path = os.path.join(root, entry)
                 yield (entry, full_path)
 
+
 def convert(paths, format):
     for path in paths:
         if(not os.path.exists(path)):
-            print '%s does not exist.'%path
+            print '%s does not exist.' % path
             return
     for path in paths:
         for (fn_dot, path_dot) in find(path, patt_dot):
             basename = os.path.splitext(path_dot)[0]
-            cmd = 'dot -T%s %s -o %s.%s'%(format, path_dot, basename, format)
+            cmd = 'dot -T%s %s -o %s.%s' % (format, path_dot, basename, format)
             print cmd
             status, output = commands.getstatusoutput(cmd)
             if(len(output)):
                 print output
 
+
 def main():
     usage = '''dot2any.py is designed for recursively converting Graphviz dot files under specified paths to the specified format. The default output format is pdf.
 dot2any.py [-T lang] [dot_paths] '''
     parser = OptionParser(usage)
-    parser.add_option('-T', dest='output_format', default='pdf', help='set output format. pdf is used by default.')
-    (options,args) = parser.parse_args()
-    if(len(args)==0):
+    parser.add_option('-T', dest='output_format', default='pdf',
+                      help='set output format. pdf is used by default.')
+    (options, args) = parser.parse_args()
+    if(len(args) == 0):
         parser.error('at least one path expected.')
     good_formats = 'fig jpeg pdf png ps'.split()
     if(options.output_format not in good_formats):
-        parser.error('%s is an invalid output format, or it is no better than following formats: %s'%(options.output_format, ' '.join(good_formats)))
+        parser.error('%s is an invalid output format, or it is no better than following formats: %s' % (
+            options.output_format, ' '.join(good_formats)))
     convert(args, options.output_format)
 
 if __name__ == '__main__':
