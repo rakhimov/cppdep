@@ -18,6 +18,7 @@ from xml.etree import ElementTree
 import argparse as ap
 
 import networkx as nx
+from networkx.drawing.nx_pydot import write_dot
 from networkx_ext import *
 
 
@@ -655,7 +656,7 @@ def calculate_graph(digraph, dot_basename=None):
     if size_graph == 0:
         return
     if dot_basename:
-        nx.write_dot(digraph, dot_basename + '_orig.dot')
+        write_dot(digraph, dot_basename + '_orig.dot')
     key_node = str
     key_edge = lambda x: str(x[0]) + '->' + str(x[1])
     (cycles, dict_node2cycle) = make_DAG(digraph, key_node)
@@ -711,8 +712,8 @@ def calculate_graph(digraph, dot_basename=None):
             g = nx.DiGraph()
             for cycle in cycles.values():
                 g.add_edges_from(cycle.edges_iter())
-            nx.write_dot(g, dot_basename + '_cycles.dot')
-        nx.write_dot(digraph, dot_basename + '_final.dot')
+            write_dot(g, dot_basename + '_cycles.dot')
+        write_dot(digraph, dot_basename + '_final.dot')
 
 
 def main():
