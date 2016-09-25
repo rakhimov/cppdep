@@ -20,6 +20,13 @@ import argparse as ap
 import networkx as nx
 from networkx_ext import *
 
+
+class ConfigXmlParseError(Exception):
+    '''Parsing errors in XML configuration file.'''
+
+    pass
+
+
 '''
 Several ways to convert byte string into hex string:
 
@@ -165,30 +172,38 @@ def parse_conf_package_group(pkg_group, dict_conf):
     Args:
         pkg_group: The <package-group> XML element.
         dict_conf: The destination configuration dictionary for configurations.
+
+    Raises:
+        ConfigXmlParseError: Invalid configuration or parsing error.
     '''
     group_name = pkg_group.get('name')
     group_path = pkg_group.get('path')
     dict_conf[group_name] = dict()
+
     for pkg in pkg_group.findall('package'):
         pkg_name = pkg.get('name')
         src_paths = pkg.text.strip().split()
         dict_conf[group_name][pkg_name] = \
             [os.path.normpath(os.path.join(group_path, x)) for x in src_paths]
+
     for pkg_path in pkg_group.text.strip().split():
         pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
         pkg_name = os.path.basename(pkg_path)
         dict_conf[group_name][pkg_name] = [pkg_path]
-    config_error = False
+
     for pkg_path in dict_conf[group_name][pkg_name]:
         if not os.path.exists(pkg_path):
-            print('detected a config error for package %s.%s: %s does not exist!' % (
-                group_name, pkg_name, pkg_path))
-            config_error = True
-    if config_error:
-        sys.exit()
+            raise ConfigXmlParseError('''detected a config error for package
+                                         %s.%s: %s does not exist!''' %
+                                      (group_name, pkg_name, pkg_path))
 
 
 def parse_conf(path_conf):
+    '''Parses the XML configuration file.
+
+    Raises:
+        ConfigXmlParseError: The configuration or XML is invalid.
+    '''
     global dict_outside_conf
     global dict_our_conf
     root = ElementTree.parse(path_conf).getroot()
@@ -711,7 +726,6 @@ def main():
         time_end = time.time()
         print('analyzing done in %s minutes.' %
               str((time_end - time_start) / 60.0))
-        return
     make_ldep()
 
     print('@' * 80)
@@ -756,4 +770,7 @@ if __name__ == '__main__':
         main()
     except IOError as err:
         print("IO Error:\n" + str(err))
+        sys.exit(1)
+    except ConfigXmlParseError as err:
+        print("Configuration XML Error:\n" + str(err))
         sys.exit(1)
