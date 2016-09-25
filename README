@@ -11,7 +11,7 @@ Differences to original dep_utils:
 
 The objective of this tool is to detect following cases in source code:
 1) Failed to associate some headers/dotC files with any component.
-2) File name conflicts. 
+2) File name conflicts.
 2.1) File basename conflicts among our headers. For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
 2.2) File basename conflicts among our dotCs. For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
 2.3) File name conflicts between our and outside headers. For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
@@ -26,7 +26,7 @@ Note: A component consists of a pair of one dotH and one dotC, and the basenames
 Each of above cases is considered as a quality flaw and should be removed by revising the code.
 
 Limitation/Bugs:
-1) Warning 1 results lost dependencies. 
+1) Warning 1 results lost dependencies.
 2) Warning 2 often results incorrect dependencies, especailly when those conflict files' context are different.
 3) Warning 3.1 inticates a piece of dead code including non-exiting headers. If the header does exist at another path, you need to add that path into the configuration XML in order to get back the lost dependencies.
 4) Warning 3.2 often results incorrect dependencies.
@@ -43,12 +43,12 @@ Here's how to convert a Graphviz dot file to PDF format.
 $ dot -Tpdf graph1.dot -o graph1.pdf
 
 TODO:
-1) Analyze bottlenecks. "...we consider classes that refer to more than 20 other classes and which are referred to by more than 20 other clesses as critical. On the level of subsystems the critical limit is 10 referring and referred to subsysmtems." -- Klaus Wolfmaier and Rudolf Ramler: Common Findings and Lessons Learned from Software Architecture and Design Analysis, http://metrics2005.di.uniba.it/IndustryTrack/WolfmaierRamler_SoftwareArchitectureDesignAnalysis.pdf 
+1) Analyze bottlenecks. "...we consider classes that refer to more than 20 other classes and which are referred to by more than 20 other clesses as critical. On the level of subsystems the critical limit is 10 referring and referred to subsysmtems." -- Klaus Wolfmaier and Rudolf Ramler: Common Findings and Lessons Learned from Software Architecture and Design Analysis, http://metrics2005.di.uniba.it/IndustryTrack/WolfmaierRamler_SoftwareArchitectureDesignAnalysis.pdf
 
 
 
 
 External links:
 1) dependency-alalysis is a part of static-code-analysis. There are several commercial products which are able to do dependency-alalysis on http://en.wikipedia.org/wiki/List_of_tools_for_static_code_analysis.
-2) Here is a discuss on C++ project dependency analysis: http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis. 
-3) Nmdepend is a lightweight 'link-time' dependency analyzer for C++. It uses object files and libraries instead of source-code as input. It runs UNIX and Cygwin. (http://sourceforge.net/projects/nmdepend/). 
+2) Here is a discuss on C++ project dependency analysis: http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis.
+3) Nmdepend is a lightweight 'link-time' dependency analyzer for C++. It uses object files and libraries instead of source-code as input. It runs UNIX and Cygwin. (http://sourceforge.net/projects/nmdepend/).

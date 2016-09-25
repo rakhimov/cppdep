@@ -196,7 +196,7 @@ def make_components():
             for src_path in dict_our_conf[group_name][pkg_name]:
                 find_hfiles(src_path, hbases, hfiles)
                 find_cfiles(src_path, cbases)
-            # Detect cross-package conflicts among our headers 
+            # Detect cross-package conflicts among our headers
             for hbase in list(hbases.keys()):
                 if(hbase in dict_our_hbases):
                     if(hbase not in dict_our_conflict_hbases):
@@ -442,10 +442,10 @@ def output_ldep():
 
 '''
 create_graph_<range>_<level>
-	<range> is one of [all, pkggrp, pkg]. It indicates those components included in the graph. 
-	<level> is one of [comp, pkg, pkggrp]. It indicates what a node represents. 
+        <range> is one of [all, pkggrp, pkg]. It indicates those components included in the graph.
+        <level> is one of [comp, pkg, pkggrp]. It indicates what a node represents.
 Retrun Value:
-	If <level> is "comp", return digraph.
+        If <level> is "comp", return digraph.
         Else return (digraph, dict_edge2deps, dict_node2outsidepkgs).
         dict_edge2deps: edge -> list of component direct dependencies which been indicated by the edge.
         dict_node2outsidepkgs: node -> set of outside packages on which the node depends.
@@ -527,7 +527,7 @@ def create_graph_pkggrp_pkg(group_name):
                     dict_edge2deps[key] = list()
                 dict_edge2deps[key].append((comp,comp2))
     return (digraph,dict_edge2deps,dict_node2outsidepkgs)
-    
+
 def create_graph_pkg_comp(group_name, pkg_name):
     digraph = nx.DiGraph()
     package = (group_name, pkg_name)

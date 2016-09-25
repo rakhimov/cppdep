@@ -6,26 +6,26 @@ Graph algorithms used in chapter 4 and appendix C of Large-Scale C++ Software De
 A Python Graph API? http://wiki.python.org/moin/PythonGraphApi
 It seems that the best one is NetworkX(http://networkx.lanl.gov/).
 
-zhichyu@jupiter:~/cppdep$ ./networkx_ext.py 
+zhichyu@jupiter:~/cppdep$ ./networkx_ext.py
 ================================================================================
-original digraph: 
+original digraph:
 nodes(12):  1 2 3 4 5 6 7 8 9 10 11 12
 edges(18):  1->1 1->2 1->3 1->5 2->4 2->6 3->8 3->4 3->5 6->2 6->7 7->6 8->9 9->3 10->11 10->12 11->12 12->11
 ================================================================================
-after stripping cycles: 
+after stripping cycles:
 nodes(7):  1 2 4 5 8 10 11
 edges(7):  1->8 1->2 1->5 2->4 8->4 8->5 10->11
-cycle 8: 
+cycle 8:
 nodes(3):  8 9 3
 edges(3):  8->9 9->3 3->8
-cycle 2: 
+cycle 2:
 nodes(3):  2 6 7
 edges(4):  2->6 6->2 6->7 7->6
-cycle 11: 
+cycle 11:
 nodes(2):  11 12
 edges(2):  11->12 12->11
 ================================================================================
-after layering: 
+after layering:
 nodes(7):  1 2 4 5 8 10 11
 edges(6):  1->8 1->2 2->4 8->4 8->5 10->11
 layer 0: [4, 5, 11]
@@ -35,7 +35,7 @@ redundant edges stripped: [(1, 5)]
 ================================================================================
 CCD: 46	 NCCD: 1.274036(typical range is [0.85, 1.10])	 SIZE: 12
 cumulate dependencies: {1: 10, 2: 4, 3: 5, 4: 1, 5: 1, 6: 4, 7: 4, 8: 5, 9: 5, 10: 3, 11: 2, 12: 2}
-zhichyu@jupiter:~/cppdep$ 
+zhichyu@jupiter:~/cppdep$
 '''
 
 import networkx as nx
@@ -62,8 +62,8 @@ def is_reachable(digraph, nodeA, nodeB):
     return False
 
 def make_DAG(digraph, key_node=None):
-    '''Make out a DAG. 
-    Only one node in each cycle is kept in the original graph. That node is used as the key of cycle subgraphs. 
+    '''Make out a DAG.
+    Only one node in each cycle is kept in the original graph. That node is used as the key of cycle subgraphs.
     key_node!=None indicates selecting the minimal one among all nodes of the cycle per key_node.
     Otherwise which one being selected is an implementation specific behavior.
     Note: Selfloop edges will be stripped silently.
@@ -228,4 +228,3 @@ if __name__ == '__main__':
     nccd = ccd/ccd_fullBTree
     print 'CCD: %d\t NCCD: %f(typical range is [0.85, 1.10])\t SIZE: %d'%(ccd, nccd, size)
     print 'cumulate dependencies: ' + repr(dict_cd)
-
