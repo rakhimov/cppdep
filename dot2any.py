@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 '''
 Convert Graphviz dot files to the specified format.
-I select pdf as the default output format since it's the best one when concerning protablity, speed and size.
+I select pdf as the default output format
+since it's the best one when concerning protablity, speed and size.
 zhichyu@w-shpd-zcyu:~/sftw4ubuntu/cppdep$ ls -l |grep INETcttp.libCallRecord_orig
 -rw-r--r-- 1 zhichyu zhichyu    26731 2010-04-02 14:28 INETcttp.libCallRecord_orig.dia
 -rw-r--r-- 1 zhichyu zhichyu    11239 2010-04-02 13:42 INETcttp.libCallRecord_orig.dot
@@ -33,49 +34,45 @@ The plugin configuration file:
 Requires:
 1) Python 2.6
 2) Graphviz from http://www.graphviz.org/
-
-
-
 '''
 
+from __future__ import print_function, absolute_import
 import os.path
 import os
 import re
 import commands
-import sys
 from optparse import OptionParser
 
-patt_dot = re.compile('(?i).*\.dot$')
+patt_dot = re.compile(r'(?i).*\.dot$')
 
 
 def find(path, fnmatcher):
-    if(os.path.isfile(path)):
+    if os.path.isfile(path):
         fn = os.path.basename(path)
-        m = fnmatcher.match(fn)
-        if m:
+        if fnmatcher.match(fn):
             yield (fn, path)
         return
     for root, dirs, files in os.walk(path):
         for entry in files:
-            m = fnmatcher.match(entry)
-            if m:
+            if fnmatcher.match(entry):
                 full_path = os.path.join(root, entry)
                 yield (entry, full_path)
 
 
-def convert(paths, format):
+def convert(paths, out_format):
     for path in paths:
-        if(not os.path.exists(path)):
-            print '%s does not exist.' % path
+        if not os.path.exists(path):
+            print('%s does not exist.' % path)
             return
     for path in paths:
         for (fn_dot, path_dot) in find(path, patt_dot):
             basename = os.path.splitext(path_dot)[0]
-            cmd = 'dot -T%s %s -o %s.%s' % (format, path_dot, basename, format)
-            print cmd
+            cmd = 'dot -T%s %s -o %s.%s' % (out_format, path_dot,
+                                            basename, out_format)
+            print(cmd)
             status, output = commands.getstatusoutput(cmd)
-            if(len(output)):
-                print output
+            if output:
+                print(output)
 
 
 def main():
@@ -85,12 +82,11 @@ dot2any.py [-T lang] [dot_paths] '''
     parser.add_option('-T', dest='output_format', default='pdf',
                       help='set output format. pdf is used by default.')
     (options, args) = parser.parse_args()
-    if(len(args) == 0):
+    if not args:
         parser.error('at least one path expected.')
     good_formats = 'fig jpeg pdf png ps'.split()
-    if(options.output_format not in good_formats):
-        parser.error('%s is an invalid output format, or it is no better than following formats: %s' % (
-            options.output_format, ' '.join(good_formats)))
+    if options.output_format not in good_formats:
+        parser.error('%s is an invalid output format, or it is no better than following formats: %s' % (options.output_format, ' '.join(good_formats)))
     convert(args, options.output_format)
 
 if __name__ == '__main__':
