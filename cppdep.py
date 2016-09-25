@@ -1,9 +1,12 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 '''
 cppdep is a dependency analyzer
 for components/packages/package groups of a large C/C++ project.
 '''
+
+from __future__ import print_function
+
 import sys
 import os.path
 import re
@@ -156,35 +159,44 @@ def find_cfiles(path, cbases):
         cbases[cbase] = cpath
 
 
+def parse_conf_package_group(pkg_group, dict_conf):
+    '''Parses the body of <package-group/> in XML config file.
+
+    Args:
+        pkg_group: The <package-group> XML element.
+        dict_conf: The destination configuration dictionary for configurations.
+    '''
+    group_name = pkg_group.get('name')
+    group_path = pkg_group.get('path')
+    dict_conf[group_name] = dict()
+    for pkg in pkg_group.findall('package'):
+        pkg_name = pkg.get('name')
+        src_paths = pkg.text.strip().split()
+        dict_conf[group_name][pkg_name] = \
+            [os.path.normpath(os.path.join(group_path, x)) for x in src_paths]
+    for pkg_path in pkg_group.text.strip().split():
+        pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
+        pkg_name = os.path.basename(pkg_path)
+        dict_conf[group_name][pkg_name] = [pkg_path]
+    config_error = False
+    for pkg_path in dict_conf[group_name][pkg_name]:
+        if not os.path.exists(pkg_path):
+            print('detected a config error for package %s.%s: %s does not exist!' % (
+                group_name, pkg_name, pkg_path))
+            config_error = True
+    if config_error:
+        sys.exit()
+
+
 def parse_conf(path_conf):
     global dict_outside_conf
     global dict_our_conf
     root = ElementTree.parse(path_conf).getroot()
     for pkg_group in root.findall('package-group'):
-        dict_conf = dict_our_conf
         attr_outside = pkg_group.get('outside')
-        if attr_outside and attr_outside.lower() == 'true':
-            dict_conf = dict_outside_conf
-        group_name = pkg_group.get('name')
-        group_path = pkg_group.get('path')
-        dict_conf[group_name] = dict()
-        for pkg in pkg_group.findall('package'):
-            pkg_name = pkg.get('name')
-            src_paths = pkg.text.strip().split()
-            dict_conf[group_name][pkg_name] = map(
-                lambda x: os.path.normpath(os.path.join(group_path, x)), src_paths)
-        for pkg_path in pkg_group.text.strip().split():
-            pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
-            pkg_name = os.path.basename(pkg_path)
-            dict_conf[group_name][pkg_name] = [pkg_path]
-        config_error = False
-        for pkg_path in dict_conf[group_name][pkg_name]:
-            if not os.path.exists(pkg_path):
-                print('detected a config error for package %s.%s: %s does not exist!' % (
-                    group_name, pkg_name, pkg_path))
-                config_error = True
-        if config_error:
-            sys.exit()
+        is_outside = attr_outside and attr_outside.lower() == 'true'
+        dict_conf = dict_outside_conf if is_outside else dict_our_conf
+        parse_conf_package_group(pkg_group, dict_conf)
 
 
 def make_components():
@@ -303,7 +315,7 @@ def expand_hfile_deps(hfile):
     set_dep_bad_hfiles = set()
     set_current_hfiles = set([hfile])
     set_next_hfiles = set()
-    while(1):
+    while True:
         for hfile in set_current_hfiles:
             if hfile in dict_our_hfiles:
                 set_dep_our_hfiles.add(hfile)
@@ -317,7 +329,7 @@ def expand_hfile_deps(hfile):
         set_next_hfiles.difference_update(set_dep_our_hfiles)
         set_next_hfiles.difference_update(set_dep_outside_hfiles)
         set_next_hfiles.difference_update(set_dep_bad_hfiles)
-        if len(set_next_hfiles) == 0:
+        if not set_next_hfiles:
             break
         set_current_hfiles, set_next_hfiles = set_next_hfiles, set_current_hfiles
         set_next_hfiles.clear()
@@ -452,7 +464,7 @@ def make_ldep():
     '''determine all components on which a component depends.'''
     for comp in dict_comps.values():
         for hfile in comp.dep_our_hfiles:
-            assert(hfile in dict_our_hfiles)
+            assert hfile in dict_our_hfiles
             hbase = fn_base(hfile)
             if hbase in dict_comps:
                 comp2 = dict_comps[hbase]
@@ -464,7 +476,7 @@ def make_ldep():
                 # warned it at make_components().
                 pass
         for hfile in comp.dep_outside_hfiles:
-            assert(hfile in dict_outside_hfiles)
+            assert hfile in dict_outside_hfiles
             outside_pkg = dict_outside_hfiles[hfile]
             comp.dep_outside_pkgs.add(outside_pkg)
 
@@ -476,10 +488,9 @@ def output_ldep():
             print('pakcage %s.%s dependency:' % (group_name, pkg_name))
             for comp in dict_pkgs[group_name][pkg_name]:
                 message = '%s -> ' % comp.name
-                message += ', '.join(sorted(map(lambda x: x.name,
-                                                comp.dep_comps)))
+                message += ', '.join(sorted(x.name for x in comp.dep_comps))
                 message += '+(outside packages) ' + ','.join(
-                    sorted(map(lambda x: '.'.join(x), comp.dep_outside_pkgs)))
+                    sorted('.'.join(x) for x in comp.dep_outside_pkgs))
                 print(message)
 
 '''
@@ -566,7 +577,7 @@ def create_graph_pkggrp_pkg(group_name):
                 (group_name2, pkg_name2) = comp2.package
                 if group_name != group_name2 or pkg_name == pkg_name2:
                     continue
-                assert(group_name == group_name2 and pkg_name != pkg_name2)
+                assert group_name == group_name2 and pkg_name != pkg_name2
                 # Duplicated edges between two nodes will be stipped
                 # afterwards.
                 digraph.add_edge(pkg_name, pkg_name2)
@@ -595,21 +606,17 @@ def output_original_graph_info(dict_edge2deps, dict_node2outsidepkgs):
     print('each edge in the original graph logically consists of some cross-component dependencies:')
     for item in dict_edge2deps.items():
         message = '->'.join(item[0]) + ': '
-        num_deps = len(item[1])
-        abbreviated = False
-        if num_deps > 5:
-            num_deps = 5
-            abbreviated = True
-        message += ' '.join(map(lambda x: str(x[0]) +
-                                '->' + str(x[1]), item[1][0:num_deps]))
-        if abbreviated:
+        num_deps = 5 if len(item[1]) > 5 else len(item[1])
+        message += ' '.join(str(x[0]) + '->' + str(x[1])
+                            for x in item[1][0:num_deps])
+        if num_deps < len(item[1]):
             message += ' ...'
         print(message)
     print('=' * 80)
     print('each node in the original graph depends on some outside packages:')
     for item in dict_node2outsidepkgs.items():
         print(str(item[0]) + ': ' +
-              ' '.join(map(lambda x: '.'.join(x), list(item[1]))))
+              ' '.join('.'.join(x) for x in list(item[1])))
 
 
 def calculate_graph(digraph, dot_basename=None):
@@ -641,7 +648,7 @@ def calculate_graph(digraph, dot_basename=None):
     def repr_node(node):
         cycle_key = dict_node2cycle[node]
         if cycle_key:
-            assert(node == cycle_key)
+            assert node == cycle_key
             str_node = '[cycle]' + str(node)
         else:
             str_node = str(node)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 '''
 Graph algorithms used in chapter 4 and appendix C of Large-Scale C++ Software Design.
