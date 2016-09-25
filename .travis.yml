@@ -7,14 +7,15 @@ python:
 install:
     - pip install networkx
     - pip install pydotplus
+    - pip install coverage
     - pip install codecov
 
 before_script:
     - git clone --branch cppdep https://github.com/rakhimov/scram.git
 
 script:
-    - ./networkx_ext.py
-    - (cd scram && ../cppdep.py)
+    - coverage run ./networkx_ext.py
+    - (cd scram && coverage run ../cppdep.py)  # TODO: coverage only for one build.
       # TODO: Run dot2any
 
 after_success:
