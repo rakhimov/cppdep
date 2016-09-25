@@ -27,29 +27,27 @@ class ConfigXmlParseError(Exception):
     pass
 
 
-'''
-Several ways to convert byte string into hex string:
-
-def byte2hex(byte_str):
-    return ''.join( [ "%02X" % ord( x ) for x in byteStr ] )
-
->>> import binascii
->>> binascii.hexlify('ABC123...\x01\x02\x03')
-'4142433132332e2e2e010203'
->>> binascii.b2a_hex('ABC123...\x01\x02\x03')
-'4142433132332e2e2e010203'
->>> binascii.a2b_hex('4142433132332e2e2e010203')
-'ABC123...\x01\x02\x03
-
-Here's the best way:
->>> '\xcb\xdb\xbe\xef'.encode('hex')
-'cbdbbeef'
->>> 'cbdbbeef'.decode('hex')
-'\xcb\xdb\xbe\xef'
-'''
-
-
 def md5sum(fpath):
+    '''
+    Several ways to convert byte string into hex string:
+
+    def byte2hex(byte_str):
+        return ''.join( [ "%02X" % ord( x ) for x in byteStr ] )
+
+    >>> import binascii
+    >>> binascii.hexlify('ABC123...\x01\x02\x03')
+    '4142433132332e2e2e010203'
+    >>> binascii.b2a_hex('ABC123...\x01\x02\x03')
+    '4142433132332e2e2e010203'
+    >>> binascii.a2b_hex('4142433132332e2e2e010203')
+    'ABC123...\x01\x02\x03
+
+    Here's the best way:
+    >>> '\xcb\xdb\xbe\xef'.encode('hex')
+    'cbdbbeef'
+    >>> 'cbdbbeef'.decode('hex')
+    '\xcb\xdb\xbe\xef'
+    '''
     m = hashlib.md5()
     f = open(fpath, 'rb')
     m.update(f.read())
@@ -103,10 +101,7 @@ def find(path, fnmatcher):
 
 
 def find_hfiles_blindly(path):
-    hfiles = list()
-    for (hfile, hpath) in find(path, patt_hfile):
-        hfiles.append(hfile)
-    return hfiles
+    return [hfile for hfile, _ in find(path, patt_hfile)]
 
 
 class Component(object):
@@ -258,8 +253,10 @@ def make_components():
             for key in list(cbases.keys()):
                 if key in hbases:
                     # Detect cross-package conflicts among our dotCs
-                    # In fact, only check between registering components and registered components.
-                    # For example, suppose both libA/main.cc and libB/main.cpp failed to be registered as a component,
+                    # In fact, only check between registering components
+                    # and registered components.
+                    # For example, suppose both libA/main.cc and libB/main.cpp
+                    # failed to be registered as a component,
                     # the basename conflict between them will be ignored.
                     if key in dict_comps:
                         if key not in dict_our_conflict_cbases:
@@ -284,13 +281,15 @@ def make_components():
                         ', '.join(map(os.path.basename, cbases.values()))
                 message += '\n'
     # Report files failed to associated with any component
-    if len(message):
+    if message:
         print('-' * 80)
-        print('warning: detected files failed to associate with any component (all will be ignored): ')
+        print('warning: detected files failed to associate ' +
+              'with any component (all will be ignored): ')
         print(message)
     # Report conflicts among our headers
     if len(dict_our_conflict_hbases):
-        message = 'warning: detected file basename conflicts among our headers (all except the first one will be ignored):\n'
+        message = 'warning: detected file basename conflicts among our ' + \
+                  'headers (all except the first one will be ignored):\n'
         for hbase in dict_our_conflict_hbases:
             message += '%s: ' % hbase
             for hpath in dict_our_conflict_hbases[hbase]:
@@ -301,7 +300,8 @@ def make_components():
         print(message)
     # Report conflicts among our dotCs
     if len(dict_our_conflict_cbases):
-        message = 'warning: detected file basename conflicts among our dotCs (all except the first one will be ignored):\n'
+        message = 'warning: detected file basename conflicts among our ' + \
+                  'dotCs (all except the first one will be ignored):\n'
         for cbase in dict_our_conflict_cbases:
             message += '%s: ' % cbase
             for cpath in dict_our_conflict_cbases[cbase]:
@@ -315,10 +315,12 @@ def make_components():
     set_our_hfiles = set(dict_our_hfiles.keys())
     set_common_hfiles = set_our_hfiles.intersection(set_outside_hfiles)
     if len(set_common_hfiles):
-        message = 'warning: detected file name conflicts between our and outside headers (outside ones will be ignored): \n'
+        message = 'warning: detected file name conflicts between our and ' + \
+                  'outside headers (outside ones will be ignored): \n'
         for hfile in set_common_hfiles:
-            message += '%s (in outside package %s): %s\n' % (hfile,
-                                                             '.'.join(dict_outside_hfiles[hfile]), dict_our_hfiles[hfile])
+            message += '%s (in outside package %s): %s\n' % \
+                       (hfile, '.'.join(dict_outside_hfiles[hfile]),
+                        dict_our_hfiles[hfile])
         print('-' * 80)
         print(message)
         del dict_outside_hfiles[hfile]
@@ -352,8 +354,12 @@ def expand_hfile_deps(hfile):
 
 
 def make_cdep():
-    '''determine all hfiles on which a cfile depends.
-    Note: Simple recursively parsing does not work since there may be a cycle dependency among headers.'''
+    '''Determines all hfiles on which a cfile depends.
+
+    Note:
+        Simple recursive parsing does not work
+        since there may be a cyclic dependency among headers.
+    '''
     set_bad_hfiles = set()
     dict_hfile_deps = dict()
     message = ''
@@ -372,7 +378,7 @@ def make_cdep():
             if ind_comp_hfile != 0:
                 message += '%s: %s, should be %s.\n' % (
                     cpath, hfiles[0], comp_hfile)
-        except ValueError, e:
+        except ValueError:
             pass
         for hfile in hfiles:
             if hfile in dict_outside_hfiles:
@@ -402,17 +408,20 @@ def make_cdep():
     # Report non-dependent issues.
     if len(message3):
         print('-' * 80)
-        print('warning: following every dotC does not depend on its associated header: ')
+        print('warning: following every dotC does not depend on ' +
+              'its associated header: ')
         print(message3)
     # Report indirectly including issues.
     if len(message2):
         print('-' * 80)
-        print('warning: following every dotC does not include its associated header directly: ')
+        print('warning: following every dotC does not include ' +
+              'its associated header directly: ')
         print(message2)
     # Report first header issues.
     if len(message):
         print('-' * 80)
-        print('warning: following every dotC does not include its associated header before other headers: ')
+        print('warning: following every dotC does not include ' +
+              'its associated header before other headers: ')
         print(message)
 
 
@@ -510,13 +519,19 @@ def output_ldep():
 
 '''
 create_graph_<range>_<level>
-        <range> is one of [all, pkggrp, pkg]. It indicates those components included in the graph.
-        <level> is one of [comp, pkg, pkggrp]. It indicates what a node represents.
-Retrun Value:
+        <range> is one of [all, pkggrp, pkg].
+        It indicates those components included in the graph.
+
+        <level> is one of [comp, pkg, pkggrp].
+        It indicates what a node represents.
+
+Return Value:
         If <level> is "comp", return digraph.
         Else return (digraph, dict_edge2deps, dict_node2outsidepkgs).
-        dict_edge2deps: edge -> list of component direct dependencies which been indicated by the edge.
-        dict_node2outsidepkgs: node -> set of outside packages on which the node depends.
+        dict_edge2deps: edge -> list of component direct dependencies
+            which been indicated by the edge.
+        dict_node2outsidepkgs: node -> set of outside packages
+            on which the node depends.
 '''
 
 
@@ -618,7 +633,8 @@ def create_graph_pkg_comp(group_name, pkg_name):
 
 def output_original_graph_info(dict_edge2deps, dict_node2outsidepkgs):
     print('=' * 80)
-    print('each edge in the original graph logically consists of some cross-component dependencies:')
+    print('each edge in the original graph logically consists of ' +
+          'some cross-component dependencies:')
     for item in dict_edge2deps.items():
         message = '->'.join(item[0]) + ': '
         num_deps = 5 if len(item[1]) > 5 else len(item[1])
@@ -747,17 +763,18 @@ def main():
 
     for group_name in dict_pkgs:
         print('@' * 80)
-        print('analyzing dependencies among packages in the specified package group %s ...' % group_name)
-        digraph, dict_edge2deps, dict_node2outsidepkgs = create_graph_pkggrp_pkg(
-            group_name)
+        print('analyzing dependencies among packages in ' +
+              'the specified package group %s ...' % group_name)
+        digraph, dict_edge2deps, dict_node2outsidepkgs = \
+            create_graph_pkggrp_pkg(group_name)
         output_original_graph_info(dict_edge2deps, dict_node2outsidepkgs)
         calculate_graph(digraph, group_name)
 
     for group_name in dict_pkgs:
         for pkg_name in dict_pkgs[group_name]:
             print('@' * 80)
-            print('analyzing dependencies among components in the specified pakcage %s.%s ...' % (
-                group_name, pkg_name))
+            print('analyzing dependencies among components in ' +
+                  'the specified pakcage %s.%s ...' % (group_name, pkg_name))
             digraph = create_graph_pkg_comp(group_name, pkg_name)
             calculate_graph(digraph, group_name + '.' + pkg_name)
 
