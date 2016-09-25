@@ -19,7 +19,7 @@ import argparse as ap
 
 import networkx as nx
 from networkx.drawing.nx_pydot import write_dot
-from networkx_ext import *
+from networkx_ext import calc_ccd, make_DAG, layering_DAG
 
 
 class ConfigXmlParseError(Exception):
