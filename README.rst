@@ -101,6 +101,8 @@ TODO
 
 - Analyze bottlenecks. "...we consider classes that refer to more than 20 other classes and which are referred to by more than 20 other classes as critical. On the level of subsystems the critical limit is 10 referring and referred to subsystems." -- Klaus Wolfmaier and Rudolf Ramler: Common Findings and Lessons Learned from Software Architecture and Design Analysis, http://metrics2005.di.uniba.it/IndustryTrack/WolfmaierRamler_SoftwareArchitectureDesignAnalysis.pdf
 
+- Critical: NetworkX usage code is outdated.
+
 - PEP8 the code.
 
 - Consider OOP design instead of the current procedural.
@@ -117,9 +119,8 @@ TODO
 External links
 **************
 
-.. TODO: Remove the mention of commercial tools. This is a GPL project, after all.
-
-1) dependency-analysis is a part of static-code-analysis. There are several commercial products which are able to do dependency-analysis on http://en.wikipedia.org/wiki/List_of_tools_for_static_code_analysis.
+1) Dependency-analysis is a part of static-code-analysis.
+   A list of static-analysis tools can be found on http://en.wikipedia.org/wiki/List_of_tools_for_static_code_analysis.
 
 2) Here is a discussion on C++ project dependency analysis: http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis.
 
