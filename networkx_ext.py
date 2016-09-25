@@ -42,31 +42,33 @@ import networkx as nx
 
 
 def is_reachable(digraph, nodeA, nodeB):
-    if(nodeA == nodeB):
+    if nodeA == nodeB:
         return False
     set_rch_nodes = set([nodeA])
     set_current_nodes = set([nodeA])
     set_next_nodes = set()
-    while(1):
+    while True:
         for node in set_current_nodes:
             suc_nodes = digraph.successors(node)
             set_next_nodes.update(suc_nodes)
-        if(nodeB in set_next_nodes):
+        if nodeB in set_next_nodes:
             return True
         set_next_nodes.difference_update(set_rch_nodes)
-        if(len(set_next_nodes) == 0):
+        if len(set_next_nodes) == 0:
             return False
         set_rch_nodes.update(set_next_nodes)
         set_current_nodes, set_next_nodes = set_next_nodes, set_current_nodes
         set_next_nodes.clear()
-    assert(0)
+    assert 0
     return False
 
 
 def make_DAG(digraph, key_node=None):
     '''Make out a DAG.
-    Only one node in each cycle is kept in the original graph. That node is used as the key of cycle subgraphs.
-    key_node!=None indicates selecting the minimal one among all nodes of the cycle per key_node.
+    Only one node in each cycle is kept in the original graph.
+    That node is used as the key of cycle subgraphs.
+    (key_node != None) indicates selecting the minimal one
+    among all nodes of the cycle per key_node.
     Otherwise which one being selected is an implementation specific behavior.
     Note: Selfloop edges will be stripped silently.
     '''
@@ -77,22 +79,20 @@ def make_DAG(digraph, key_node=None):
         dict_node2cycle[node] = None
     # Strip all selfloop edges silently.
     digraph.remove_edges_from(digraph.selfloop_edges())
-    subgraphs = nx.strongly_connected_component_subgraphs(digraph)
-    for ind in range(len(subgraphs) - 1, -1, -1):
-        subgraph = subgraphs[ind]
-        if(subgraph.number_of_nodes() == 1):
+    for subgraph in nx.strongly_connected_component_subgraphs(digraph):
+        if subgraph.number_of_nodes() == 1:
             # Selfloop edges have been stripped.
-            assert(subgraph.number_of_edges() == 0)
-            del subgraphs[ind]
+            assert not subgraph.number_of_edges()
+            continue
+        nodes = subgraph.nodes()
+        if key_node:
+            min_node = min(nodes, key=key_node)
         else:
-            nodes = subgraph.nodes()
-            if(key_node):
-                min_node = min(nodes, key=key_node)
-            else:
-                min_node = nodes[0]
-            cycles[min_node] = subgraph
-            for node in nodes:
-                dict_node2cycle[node] = min_node
+            min_node = nodes[0]
+        cycles[min_node] = subgraph
+        for node in nodes:
+            dict_node2cycle[node] = min_node
+
     for min_node in cycles:
         nodes = cycles[min_node].nodes()
         nodes.remove(min_node)
@@ -102,11 +102,15 @@ def make_DAG(digraph, key_node=None):
             pre_nodes = digraph.predecessors(node)
             suc_nodes = digraph.successors(node)
             for pre_node in pre_nodes:
-                if(pre_node == min_node or (pre_node in nodes) or digraph.has_edge(pre_node, min_node)):
+                if (pre_node == min_node or
+                        (pre_node in nodes) or
+                        digraph.has_edge(pre_node, min_node)):
                     continue
                 digraph.add_edge(pre_node, min_node)
             for suc_node in suc_nodes:
-                if(suc_node == min_node or (suc_node in nodes) or digraph.has_edge(min_node, suc_node)):
+                if (suc_node == min_node or
+                        (suc_node in nodes) or
+                        digraph.has_edge(min_node, suc_node)):
                     continue
                 digraph.add_edge(min_node, suc_node)
             # All edges assiciated with a node will also be removed when
@@ -124,21 +128,21 @@ def layering_DAG(digraph, key_node=None):
     dict_layer_no = dict()
     redundant_edges = list()
     nodes = digraph.nodes()
-    if(len(nodes) == 0):
+    if len(nodes) == 0:
         return (layers, dict_layer_no)
     dict_out_degrees = digraph.out_degree()
     # print digraph.out_degree()
     nodes_layer0 = list()
     for node in dict_out_degrees:
-        if(dict_out_degrees[node] == 0):
+        if dict_out_degrees[node] == 0:
             nodes_layer0.append(node)
             dict_layer_no[node] = 0
-    assert(len(nodes_layer0) != 0)
-    if(key_node):
+    assert nodes_layer0
+    if key_node:
         nodes_layer0.sort(key=key_node)
     layers.append(nodes_layer0)
     cur_layer_no = 1
-    while(1):
+    while True:
         nodes_layer1 = set()
         for node in nodes_layer0:
             pre_nodes = digraph.predecessors(node)
@@ -148,13 +152,13 @@ def layering_DAG(digraph, key_node=None):
         nodes_layer1 = list(nodes_layer1)
         for ind in range(len(nodes_layer1) - 1, -1, -1):
             node = nodes_layer1[ind]
-            if(dict_out_degrees[node] > 0):
+            if dict_out_degrees[node] > 0:
                 del nodes_layer1[ind]
             else:
                 dict_layer_no[node] = cur_layer_no
-        if(len(nodes_layer1) == 0):
+        if not nodes_layer1:
             break
-        if(key_node):
+        if key_node:
             nodes_layer1.sort(key=key_node)
         layers.append(nodes_layer1)
         nodes_layer0 = nodes_layer1
@@ -164,11 +168,11 @@ def layering_DAG(digraph, key_node=None):
             for suc_node in digraph.successors(node):
                 # Edges between adjacent layers are always non-redundant if the
                 # graph is a DAG(ie. no cycles).
-                if(dict_layer_no[suc_node] == ind - 1):
+                if dict_layer_no[suc_node] == ind - 1:
                     continue
                 digraph.remove_edge(node, suc_node)
                 reachable = is_reachable(digraph, node, suc_node)
-                if(reachable):
+                if reachable:
                     redundant_edges.append((node, suc_node))
                     continue
                 digraph.add_edge(node, suc_node)
@@ -178,7 +182,7 @@ def layering_DAG(digraph, key_node=None):
 def calc_ccd(digraph, cycles, layers):
     ccd = 0
     dict_cd = dict()
-    if(len(digraph.nodes()) == 0):
+    if len(digraph.nodes()) == 0:
         return (ccd, dict_cd)
     for node in digraph.nodes():
         dict_cd[node] = 1
@@ -187,12 +191,12 @@ def calc_ccd(digraph, cycles, layers):
         for node in layer:
             for suc_node in digraph.successors(node):
                 dict_cd[node] += dict_cd[suc_node]
-            if(node in min_nodes):
+            if node in min_nodes:
                 dict_cd[node] += len(cycles[node]) - 1
     for min_node in cycles:
         cd = dict_cd[min_node]
         for node2 in cycles[min_node].nodes_iter():
-            if(node2 == min_node):
+            if node2 == min_node:
                 continue
             dict_cd[node2] = cd
     ccd = reduce(lambda x, y: x + y, dict_cd.values())
@@ -203,7 +207,7 @@ def output_graph(digraph):
     print 'nodes(%d): ' % digraph.number_of_nodes(), ' '.join(map(str, digraph.nodes()))
     print 'edges(%d): ' % digraph.number_of_edges(), ' '.join(map(lambda x: str(x[0]) + '->' + str(x[1]), digraph.edges()))
 
-if __name__ == '__main__':
+def main():
     digraph = nx.DiGraph()
     edges1 = [(1, 1), (1, 2), (2, 4), (2, 6), (6, 2), (6, 7), (7, 6)]
     edges2 = [(1, 3), (1, 5), (3, 4), (3, 5), (3, 8), (8, 9), (9, 3)]
@@ -236,3 +240,7 @@ if __name__ == '__main__':
     nccd = ccd / ccd_fullBTree
     print 'CCD: %d\t NCCD: %f(typical range is [0.85, 1.10])\t SIZE: %d' % (ccd, nccd, size)
     print 'cumulate dependencies: ' + repr(dict_cd)
+
+
+if __name__ == '__main__':
+    main()
