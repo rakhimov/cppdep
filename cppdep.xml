@@ -1,10 +1,10 @@
-<xml>
-  <package_group outside="Y" name="STD" path="/">
+<cppdep>
+  <package-group outside="true" name="STD" path="/">
     <package name="C_C++_LIB">
 /usr/include
     </package>
-  </package_group>
-  <package_group name="INETatca" path="/home/zhichyu/work/probe/v6">
+  </package-group>
+  <package-group name="INETatca" path="/home/zhichyu/work/probe/v6">
 ./os/src/libSysApi
 ./os/src/libSmartheap
 ./os/src/libIKill
@@ -116,5 +116,5 @@
 ./atca/src/monApi/libMaIp
 ./atca/src/mon/me/dataProcessing/src/MaIpDefs.h
     </package>
-  </package_group>
-</xml>
+  </package-group>
+</cppdep>

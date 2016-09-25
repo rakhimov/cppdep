@@ -144,10 +144,10 @@ def parse_conf(path_conf):
     global dict_outside_conf
     global dict_our_conf
     root = ElementTree.parse(path_conf).getroot()
-    for pkg_group in root.findall('package_group'):
+    for pkg_group in root.findall('package-group'):
         dict_conf = dict_our_conf
         attr_outside = pkg_group.get('outside')
-        if(attr_outside and attr_outside.lower().startswith('y')):
+        if (attr_outside and attr_outside.lower() == 'true'):
             dict_conf = dict_outside_conf
         group_name = pkg_group.get('name')
         group_path = pkg_group.get('path')

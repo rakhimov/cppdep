@@ -1,0 +1,34 @@
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+  datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <element name="cppdep">
+      <oneOrMore>
+        <ref name="package-group"/>
+      </oneOrMore>
+    </element>
+  </start>
+
+  <define name="package-group">
+    <element name="package-group">
+      <optional>
+        <attribute name="outside"> <data type="boolean"/> </attribute>
+      </optional>
+      <!-- TODO: consider a stricter data type for 'name' -->
+      <attribute name="name"> <data type="string"/> </attribute>
+      <!-- TODO: consider a path type or pattern -->
+      <attribute name="path"> <data type="string"/> </attribute>
+      <optional>
+        <text/>  <!-- TODO: consider explicit paths -->
+      </optional>
+      <zeroOrMore>
+        <element name="package">
+          <!-- TODO: consider a stricter data type for 'name' -->
+          <attribute name="name"> <data type="string"/> </attribute>
+          <text/>  <!-- TODO: consider explicit paths -->
+        </element>
+      </zeroOrMore>
+    </element>
+  </define>
+
+</grammar>
