@@ -103,6 +103,8 @@ TODO
     * Get rid of non-constant global var.
     * Decoupling for parallelization.
 
+- Write tests.
+
 
 **************
 External links

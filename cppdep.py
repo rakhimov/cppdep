@@ -1,5 +1,9 @@
 #!/usr/bin/env python2
 
+'''
+cppdep is a dependency analyzer
+for components/packages/package groups of a large C/C++ project.
+'''
 import sys
 import os.path
 import re
@@ -8,7 +12,7 @@ import math
 import time
 # ElementTree is introduced in by Python 2.5.
 from xml.etree import ElementTree
-from optparse import OptionParser
+import argparse as ap
 
 import networkx as nx
 from networkx_ext import *
@@ -162,10 +166,10 @@ def parse_conf(path_conf):
             dict_conf[group_name][pkg_name] = [pkg_path]
         config_error = False
         for pkg_path in dict_conf[group_name][pkg_name]:
-            if(not os.path.exists(pkg_path)):
+            if not os.path.exists(pkg_path):
                 print 'detected a config error for package %s.%s: %s does not exist!'%(group_name, pkg_name, pkg_path)
                 config_error = True
-        if(config_error):
+        if config_error:
                 sys.exit()
 
 def make_components():
@@ -617,20 +621,28 @@ def calculate_graph(digraph, dot_basename=None):
         nx.write_dot(digraph, dot_basename+'_final.dot')
 
 def main():
-    usage = '''cppdep.py is designed for analyzing dependencies among components/packages/package groups of a large C/C++ project.
-cppdep.py [-f path_conf] [-d]'''
-    parser = OptionParser(usage)
-    parser.add_option('-f', '--conf', dest='path_conf', default='cppdep.xml', help='a XML file which describes the source code structure of a C/C++ project')
-    parser.add_option('-d', '--debug', dest='details_of_comps', action='store_true', default=False, help='show all warnings and details of every component (aka. includes/included by), but not analyze dependencies.')
-    (options,args) = parser.parse_args()
-    if(not os.path.isfile(options.path_conf)):
-        parser.error('a XML configuration file needed!')
+    parser = ap.ArgumentParser(description=__doc__)
+
+    parser.add_argument('-f', '--conf', dest='path_conf', default='cppdep.xml',
+                        help='''an XML file which describes
+                        the source code structure of a C/C++ project''')
+
+    parser.add_argument('-d', '--debug', dest='details_of_comps',
+                        action='store_true', default=False,
+                        help='''show all warnings and details
+                        of every component (aka. includes/included by),
+                        but not analyze dependencies.''')
+
+    args = parser.parse_args()
 
     time_start = time.time()
-    parse_conf(options.path_conf)
+    parse_conf(args.path_conf)
+
     make_components()
+
     make_cdep()
-    if(options.details_of_comps):
+
+    if args.details_of_comps:
         show_details_of_comps()
         time_end = time.time()
         print 'analyzing done in %s minutes.'%str((time_end-time_start)/60.0)
@@ -672,4 +684,8 @@ cppdep.py [-f path_conf] [-d]'''
     print 'analyzing done in %s minutes.'%str((time_end-time_start)/60.0)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except IOError as err:
+        print("IO Error:\n" + str(err))
+        sys.exit(1)
