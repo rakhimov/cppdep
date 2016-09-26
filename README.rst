@@ -9,6 +9,10 @@ cppdep
 .. image:: https://landscape.io/github/rakhimov/cppdep/master/landscape.svg?style=flat
    :target: https://landscape.io/github/rakhimov/cppdep/master
    :alt: Code Health
+.. image:: https://badge.fury.io/py/cppdep.svg
+    :target: https://badge.fury.io/py/cppdep
+
+|
 
 ``cppdep.py`` is designed for analyzing dependencies
 among components/packages/package groups of a large C/C++ project.
