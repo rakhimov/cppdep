@@ -17,11 +17,10 @@ before_script:
 
 script:
     - coverage run ./networkx_ext.py
+    - codecov
     - cd scram
     - coverage run --source=../ ../cppdep.py
+    - codecov
     - coverage run --source=../ ../dot2any.py ./
+    - codecov
     - cd ..
-
-after_success:
-    - codecov > /dev/null
-    - (cd scram && codecov > /dev/null)
