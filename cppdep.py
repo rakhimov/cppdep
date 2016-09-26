@@ -71,7 +71,7 @@ def grep(pattern, file_obj):
 def grep_hfiles(src_file):
     hfiles = list()
     #f = open(src_file, encoding='iso8859-1')
-    f = open(src_file, 'rb')
+    f = open(src_file, 'r')  # TODO: byte open is removed for Python3. Why?
     for elem in grep(r'^\s*#include\s*(<(?P<hfile>.+)>|"(?P<hfile2>.+)")\s*', f):
         m = elem[2]
         if m.group('hfile'):
