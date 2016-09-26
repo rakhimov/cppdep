@@ -9,14 +9,19 @@ install:
     - pip install pydotplus
     - pip install coverage
     - pip install codecov
+    - sudo apt-get install graphviz
 
 before_script:
-    - git clone --branch cppdep https://github.com/rakhimov/scram.git
+    - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
+    - which dot
 
 script:
     - coverage run ./networkx_ext.py
-    - (cd scram && coverage run ../cppdep.py)  # TODO: coverage only for one build.
-      # TODO: Run dot2any
+    - cd scram
+    - coverage run --source=../ ../cppdep.py
+    - coverage run --source=../ ../dot2any.py ./
+    - cd ..
 
 after_success:
-    - codecov > /dev/null  # TODO: Do this only in one single build.
+    - codecov > /dev/null
+    - (cd scram && codecov > /dev/null/)
