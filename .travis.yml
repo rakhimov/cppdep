@@ -24,4 +24,4 @@ script:
 
 after_success:
     - codecov > /dev/null
-    - (cd scram && codecov > /dev/null/)
+    - (cd scram && codecov > /dev/null)
