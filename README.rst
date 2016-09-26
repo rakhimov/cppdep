@@ -90,6 +90,7 @@ Requirements
 #. Python 2.7
 #. NetworkX from http://networkx.lanl.gov/.
 #. pydotplus
+#. Graphviz http://www.graphviz.org/
 
 The dependencies can be installed by ``pip``.
 

@@ -1,49 +1,21 @@
 #!/usr/bin/env python
-'''
-Convert Graphviz dot files to the specified format.
-I select pdf as the default output format
-since it's the best one when concerning protablity, speed and size.
-zhichyu@w-shpd-zcyu:~/sftw4ubuntu/cppdep$ ls -l |grep INETcttp.libCallRecord_orig
--rw-r--r-- 1 zhichyu zhichyu    26731 2010-04-02 14:28 INETcttp.libCallRecord_orig.dia
--rw-r--r-- 1 zhichyu zhichyu    11239 2010-04-02 13:42 INETcttp.libCallRecord_orig.dot
--rw-r--r-- 1 zhichyu zhichyu    98468 2010-04-02 14:22 INETcttp.libCallRecord_orig.fig
--rw-r--r-- 1 zhichyu zhichyu   980623 2010-04-02 14:27 INETcttp.libCallRecord_orig.jpeg
--rw-r--r-- 1 zhichyu zhichyu    28150 2010-04-02 14:30 INETcttp.libCallRecord_orig.pdf
--rw-r--r-- 1 zhichyu zhichyu  1837563 2010-04-02 13:50 INETcttp.libCallRecord_orig.png
--rw-r--r-- 1 zhichyu zhichyu   124614 2010-04-02 14:06 INETcttp.libCallRecord_orig.ps
-
-Run "dot -v" to show all supported output formats.
-zhichyu@w-shpd-zcyu:~/tmp/apps_cppdep$ dot -v
-Activated plugin library: libgvplugin_pango.so.5
-Using textlayout: textlayout:cairo
-Activated plugin library: libgvplugin_dot_layout.so.5
-Using layout: dot:dot_layout
-Activated plugin library: libgvplugin_core.so.5
-Using render: dot:core
-Using device: dot:dot:core
-The plugin configuration file:
-	/usr/lib/graphviz/config4
-		was successfully loaded.
-    render	:  cairo dot fig gd map ps svg tk vml vrml xdot
-    layout	:  circo dot fdp neato nop nop1 nop2 twopi
-    textlayout	:  textlayout
-    device	:  canon cmap cmapx cmapx_np dia dot eps fig gd gd2 gif hpgl imap imap_np ismap jpe jpeg jpg mif mp pcl pdf pic plain plain-ext png ps ps2 svg svgz tk vml vmlz vrml vtx wbmp xdot xlib
-    loadimage	:  (lib) gd gd2 gif jpe jpeg jpg png ps svg
-
-
-Requires:
-1) Python 2.6
-2) Graphviz from http://www.graphviz.org/
-'''
+'''Converts Graphviz dot files to the specified format recursively.'''
 
 from __future__ import print_function, absolute_import
-import os.path
+import sys
 import os
 import re
-import commands
-from optparse import OptionParser
+from subprocess import call
+import argparse as ap
 
-patt_dot = re.compile(r'(?i).*\.dot$')
+
+_PATT_DOT = re.compile(r'(?i).*\.dot$')
+
+
+class Dot2AnyError(Exception):
+    '''Problems with conversion.'''
+
+    pass
 
 
 def find(path, fnmatcher):
@@ -52,7 +24,7 @@ def find(path, fnmatcher):
         if fnmatcher.match(fn):
             yield (fn, path)
         return
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         for entry in files:
             if fnmatcher.match(entry):
                 full_path = os.path.join(root, entry)
@@ -61,33 +33,57 @@ def find(path, fnmatcher):
 
 def convert(paths, out_format):
     for path in paths:
-        if not os.path.exists(path):
-            print('%s does not exist.' % path)
-            return
-    for path in paths:
-        for (fn_dot, path_dot) in find(path, patt_dot):
+        for _, path_dot in find(path, _PATT_DOT):
             basename = os.path.splitext(path_dot)[0]
-            cmd = 'dot -T%s %s -o %s.%s' % (out_format, path_dot,
-                                            basename, out_format)
+            cmd = ['dot', '-T' + out_format, path_dot,
+                   '-o', basename + '.' + out_format]
             print(cmd)
-            status, output = commands.getstatusoutput(cmd)
-            if output:
-                print(output)
+            if call(cmd):
+                raise Dot2AnyError("dot failure")
+
+
+def check_paths(paths):
+    '''Validates existence of paths.
+
+    Args:
+        paths: A collection of paths.
+
+    Raises:
+        IOError: The given paths may not exist.
+    '''
+    for path in paths:
+        if not os.path.exists(path):
+            raise IOError('%s does not exist.' % path)
 
 
 def main():
-    usage = '''dot2any.py is designed for recursively converting Graphviz dot files under specified paths to the specified format. The default output format is pdf.
-dot2any.py [-T lang] [dot_paths] '''
-    parser = OptionParser(usage)
-    parser.add_option('-T', dest='output_format', default='pdf',
-                      help='set output format. pdf is used by default.')
-    (options, args) = parser.parse_args()
-    if not args:
-        parser.error('at least one path expected.')
+    '''
+    I select pdf as the default output format
+    since it's the best one when concerning portability, speed and size.
+    Run "dot -v" to show all supported output formats.
+    '''
+    parser = ap.ArgumentParser(description=__doc__,
+                               formatter_class=ap.ArgumentDefaultsHelpFormatter)
     good_formats = 'fig jpeg pdf png ps'.split()
-    if options.output_format not in good_formats:
-        parser.error('%s is an invalid output format, or it is no better than following formats: %s' % (options.output_format, ' '.join(good_formats)))
-    convert(args, options.output_format)
+    parser.add_argument('-T', dest='output_format', default='pdf',
+                        help='set output format %s' % str(good_formats))
+    parser.add_argument('dot_file', nargs="+", type=str,
+                        help='input dot files')
+    args = parser.parse_args()
+    if args.output_format not in good_formats:
+        raise ap.ArgumentTypeError('%s is an invalid output format: %s' %
+                                   args.output_format)
+    check_paths(args.dot_file)
+    convert(args.dot_file, args.output_format)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except ap.ArgumentTypeError as err:
+        print("Argument Error:\n" + str(err))
+        sys.exit(2)
+    except IOError as err:
+        print("IO Error:\n" + str(err))
+        sys.exit(1)
+    except Dot2AnyError as err:
+        print("Conversion error:\n" + str(err))
