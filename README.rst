@@ -87,7 +87,7 @@ Limitation/Bugs:
 Requirements
 ************
 
-#. Python 2.7
+#. Python 2.7 / 3.3+
 #. NetworkX from http://networkx.lanl.gov/.
 #. pydotplus
 #. Graphviz http://www.graphviz.org/
@@ -119,8 +119,6 @@ TODO
     * Decoupling for parallelization.
 
 - Write tests.
-
-- Support Python 3.
 
 
 **************
