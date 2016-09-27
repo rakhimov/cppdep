@@ -4,16 +4,26 @@ python:
     - 3.4
     - 3.5
 
+os: linux
+
+matrix:
+    include:
+        - os: osx
+          language: generic
+
+addons:
+    apt:
+        packages:
+            - graphviz  # OS X takes forever via brew.
+
 install:
-    - pip install networkx
-    - pip install pydotplus
-    - pip install coverage
-    - pip install codecov
-    - sudo apt-get install graphviz
+    - sudo pip install networkx
+    - sudo pip install pydotplus
+    - sudo pip install coverage
+    - sudo pip install codecov
 
 before_script:
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
-    - which dot
 
 script:
     - coverage run ./networkx_ext.py
@@ -21,6 +31,4 @@ script:
     - cd scram
     - coverage run --source=../ ../cppdep.py
     - codecov
-    - coverage run --source=../ ../dot2any.py ./
-    - codecov
-    - cd ..
+    - which dot && coverage run --source=../ ../dot2any.py ./ && codecov || echo "No Graphviz?!"
