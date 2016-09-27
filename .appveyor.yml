@@ -1,0 +1,10 @@
+install:
+    - C:\Python27\Scripts\pip install networkx pydotplus
+
+build: off
+
+test_script:
+    - python networkx_ext.py
+    - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
+    - cd scram
+    - python ../cppdep.py -f cppdep-win.xml
