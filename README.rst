@@ -4,6 +4,9 @@ cppdep
 
 .. image:: https://travis-ci.org/rakhimov/cppdep.svg?branch=master
     :target: https://travis-ci.org/rakhimov/cppdep
+.. image:: https://ci.appveyor.com/api/projects/status/1ff39sfjp7ija3j8/branch/master?svg=true
+    :target: https://ci.appveyor.com/project/rakhimov/cppdep/branch/master
+    :alt: 'Build status'
 .. image:: https://codecov.io/gh/rakhimov/cppdep/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/rakhimov/cppdep
 .. image:: https://landscape.io/github/rakhimov/cppdep/master/landscape.svg?style=flat
