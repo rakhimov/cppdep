@@ -32,4 +32,4 @@ script:
     - coverage run --source=../ ../cppdep.py
     - codecov
     # Just convoluted if-then-else with ||, && only.
-    - which dot && ../dot2any.sh ./*.dot || [[ -z $(which dot) ]]
+    - dot -T pdf -O ./*.dot || [[ -z $(which dot) ]]

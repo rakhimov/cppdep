@@ -117,20 +117,17 @@ Here's how to convert a Graphviz dot file to PDF format.
 
     $ dot -Tpdf graph1.dot -o graph1.pdf
 
-``dot2any.sh`` utility script is provided to automate
-the dot conversions to various formats.
-The script simply wraps the above given ``dot`` command
-and runs it on argument dot files.
+Apply ``-O`` flag to automatically generate output file names from the input file names.
 
 .. code-block::
 
-    $ dot2any.sh -T pdf graph1.dot
+    $ dot -T pdf graph1.dot -O  # The output file is graph1.dot.pdf
 
-To run ``dot2any.sh`` on files in directories and sub-directories recursively.
+To run ``dot`` on files in directories and sub-directories recursively.
 
 .. code-block::
 
-    $ find -name "*.dot" directory_path | xargs dot2any.sh
+    $ find -name "*.dot" directory_path | xargs dot -Tpdf -O
 
 
 ****
