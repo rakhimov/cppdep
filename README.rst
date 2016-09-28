@@ -17,7 +17,7 @@ cppdep
 
 |
 
-``cppdep.py`` is designed for analyzing dependencies
+``cppdep`` is designed for analyzing dependencies
 among components/packages/package groups of a large C/C++ project.
 This is a rewrite of dep_utils(adep/cdep/ldep),
 which is provided by John Lakos' book "Large-Scale C++ Software Design", Addison Wesley (1996).
@@ -90,6 +90,7 @@ Limitation/Bugs:
    For example, a piece of dead code of foo.cc includes bar.h,
    and bar.h happens to exist in another package/package group.
 
+
 ************
 Requirements
 ************
@@ -97,19 +98,39 @@ Requirements
 #. Python 2.7 / 3.3+
 #. NetworkX from http://networkx.lanl.gov/.
 #. pydotplus
-#. Graphviz http://www.graphviz.org/
+#. (Optional) Graphviz http://www.graphviz.org/
 
-The dependencies can be installed by ``pip``.
+The dependencies can be installed with ``pip``.
 
 .. code-block:: bash
 
     $ sudo pip install networkx pydotplus
+
+
+***************************************
+Graph to Image Conversion with Graphviz
+***************************************
 
 Here's how to convert a Graphviz dot file to PDF format.
 
 .. code-block:: bash
 
     $ dot -Tpdf graph1.dot -o graph1.pdf
+
+``dot2any.sh`` utility script is provided to automate
+the dot conversions to various formats.
+The script simply wraps the above given ``dot`` command
+and runs it on argument dot files.
+
+.. code-block::
+
+    $ dot2any.sh -T pdf graph1.dot
+
+To run ``dot2any.sh`` on files in directories and sub-directories recursively.
+
+.. code-block::
+
+    $ find -name "*.dot" directory_path | xargs dot2any.sh
 
 
 ****

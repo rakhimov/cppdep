@@ -31,4 +31,5 @@ script:
     - cd scram
     - coverage run --source=../ ../cppdep.py
     - codecov
-    - which dot && coverage run --source=../ ../dot2any.py ./ && codecov || echo "No Graphviz?!"
+    # Just convoluted if-then-else with ||, && only.
+    - which dot && ../dot2any.sh ./*.dot || [[ -z $(which dot) ]]
