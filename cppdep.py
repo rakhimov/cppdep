@@ -57,27 +57,37 @@ def fn_base(fn):
     return os.path.splitext(fn)[0]
 
 
-def grep(pattern, file_obj):
-    grepper = re.compile(pattern)
-    for line_num, line in enumerate(file_obj):
-        m = grepper.search(line)
-        if m:
-            yield (line_num, line, m)
+# A search pattern for include directives.
+_RE_INCLUDE = re.compile(r'^\s*#include\s*(<(?P<system>.+)>|"(?P<local>.+)")')
 
 
-def grep_hfiles(src_file):
-    hfiles = list()
-    #f = open(src_file, encoding='iso8859-1')
-    f = open(src_file, 'r')  # TODO: byte open is removed for Python3. Why?
-    for elem in grep(r'^\s*#include\s*(<(?P<hfile>.+)>|"(?P<hfile2>.+)")\s*', f):
-        m = elem[2]
-        if m.group('hfile'):
-            hfile = m.group('hfile')
-        else:
-            hfile = m.group('hfile2')
-        hfiles.append(os.path.basename(hfile))
-    f.close()
-    return hfiles
+def grep_include(file_obj):
+    '''Finds include directives in source files.
+
+    Args:
+        file_obj: A source file opened for read.
+
+    Yields:
+        The string name of included header file.
+    '''
+    for line in file_obj:
+        match_text = _RE_INCLUDE.search(line)
+        if match_text:
+            yield match_text.group("system") or match_text.group("local")
+
+
+def grep_hfiles(src_file_path):
+    '''Processes include directives in source files.
+
+    Args:
+        src_file_path: The path to the source file to parse.
+
+    Returns:
+        A list of inlcuded header files into the argument source file.
+    '''
+    with open(src_file_path) as src_file:
+        return [os.path.basename(header) for header in grep_include(src_file)]
+
 
 patt_hfile = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
 patt_cfile = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
