@@ -89,8 +89,8 @@ def grep_hfiles(src_file_path):
         return [os.path.basename(header) for header in grep_include(src_file)]
 
 
-patt_hfile = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
-patt_cfile = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
+_RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
+_RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 
 
 def find(path, fnmatcher):
@@ -98,18 +98,18 @@ def find(path, fnmatcher):
         fn = os.path.basename(path)
         m = fnmatcher.match(fn)
         if m:
-            yield (fn, path)
+            yield fn, path
         return
     for root, dirs, files in os.walk(path):
         for entry in files:
             m = fnmatcher.match(entry)
             if m:
                 full_path = os.path.join(root, entry)
-                yield (entry, full_path)
+                yield entry, full_path
 
 
 def find_hfiles_blindly(path):
-    return [hfile for hfile, _ in find(path, patt_hfile)]
+    return [hfile for hfile, _ in find(path, _RE_HFILE)]
 
 
 class Component(object):
@@ -142,7 +142,7 @@ dict_comps = dict()
 
 
 def find_hfiles(path, hbases, hfiles):
-    for (hfile, hpath) in find(path, patt_hfile):
+    for hfile, hpath in find(path, _RE_HFILE):
         # Detect conflicts among our headers inside a package
         if hfile not in hfiles:
             hfiles[hfile] = hpath
@@ -157,7 +157,7 @@ def find_hfiles(path, hbases, hfiles):
 
 
 def find_cfiles(path, cbases):
-    for (cfile, cpath) in find(path, patt_cfile):
+    for (cfile, cpath) in find(path, _RE_CFILE):
         cbase = fn_base(cfile)
         # Detect conflicts among our dotCs inside a package
         if cbase in cbases:
@@ -573,7 +573,7 @@ def create_graph_all_pkg():
             if key not in dict_edge2deps:
                 dict_edge2deps[key] = list()
             dict_edge2deps[key].append((comp, comp2))
-    return (digraph, dict_edge2deps, dict_node2outsidepkgs)
+    return digraph, dict_edge2deps, dict_node2outsidepkgs
 
 
 def create_graph_all_pkggrp():
@@ -597,7 +597,7 @@ def create_graph_all_pkggrp():
             if key not in dict_edge2deps:
                 dict_edge2deps[key] = list()
             dict_edge2deps[key].append((comp, comp2))
-    return (digraph, dict_edge2deps, dict_node2outsidepkgs)
+    return digraph, dict_edge2deps, dict_node2outsidepkgs
 
 
 def create_graph_pkggrp_pkg(group_name):
@@ -623,7 +623,7 @@ def create_graph_pkggrp_pkg(group_name):
                 if key not in dict_edge2deps:
                     dict_edge2deps[key] = list()
                 dict_edge2deps[key].append((comp, comp2))
-    return (digraph, dict_edge2deps, dict_node2outsidepkgs)
+    return digraph, dict_edge2deps, dict_node2outsidepkgs
 
 
 def create_graph_pkg_comp(group_name, pkg_name):
@@ -787,8 +787,7 @@ def main():
             calculate_graph(digraph, group_name + '.' + pkg_name)
 
     time_end = time.time()
-    print('analyzing done in %s minutes.' %
-          str((time_end - time_start) / 60.0))
+    print('analyzing done in %s minutes.' % str((time_end - time_start) / 60))
 
 if __name__ == '__main__':
     try:
