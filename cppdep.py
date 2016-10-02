@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-'''
-cppdep is a dependency analyzer
+"""C/C++ dependency analyzer.
+
+Physical dependency analyzer
 for components/packages/package groups of a large C/C++ project.
-'''
+"""
 
 from __future__ import print_function, division, absolute_import
 
@@ -19,36 +20,21 @@ import argparse as ap
 
 import networkx as nx
 from networkx.drawing.nx_pydot import write_dot
-from networkx_ext import calc_ccd, make_DAG, layering_DAG
+from networkx_ext import calc_ccd, make_dag, layering_dag
 
 
 class ConfigXmlParseError(Exception):
-    '''Parsing errors in XML configuration file.'''
+    """Parsing errors in XML configuration file."""
 
     pass
 
 
 def md5sum(fpath):
-    '''
-    Several ways to convert byte string into hex string:
+    """Converts a byte string into hashed hex representation.
 
-    def byte2hex(byte_str):
-        return ''.join( [ "%02X" % ord( x ) for x in byteStr ] )
-
-    >>> import binascii
-    >>> binascii.hexlify('ABC123...\x01\x02\x03')
-    '4142433132332e2e2e010203'
-    >>> binascii.b2a_hex('ABC123...\x01\x02\x03')
-    '4142433132332e2e2e010203'
-    >>> binascii.a2b_hex('4142433132332e2e2e010203')
-    'ABC123...\x01\x02\x03
-
-    Here's the best way:
-    >>> '\xcb\xdb\xbe\xef'.encode('hex')
-    'cbdbbeef'
-    >>> 'cbdbbeef'.decode('hex')
-    '\xcb\xdb\xbe\xef'
-    '''
+    Args:
+        fpath: A path to a file with the content to be hashed.
+    """
     with open(fpath, 'rb') as input_file:
         return hashlib.md5(input_file.read()).hexdigest()
 
@@ -62,14 +48,14 @@ _RE_INCLUDE = re.compile(r'^\s*#include\s*(<(?P<system>.+)>|"(?P<local>.+)")')
 
 
 def grep_include(file_obj):
-    '''Finds include directives in source files.
+    """Finds include directives in source files.
 
     Args:
         file_obj: A source file opened for read.
 
     Yields:
         The string name of included header file.
-    '''
+    """
     for line in file_obj:
         match_text = _RE_INCLUDE.search(line)
         if match_text:
@@ -77,14 +63,14 @@ def grep_include(file_obj):
 
 
 def grep_hfiles(src_file_path):
-    '''Processes include directives in source files.
+    """Processes include directives in source files.
 
     Args:
         src_file_path: The path to the source file to parse.
 
     Returns:
         A list of inlcuded header files into the argument source file.
-    '''
+    """
     with open(src_file_path) as src_file:
         return [os.path.basename(header) for header in grep_include(src_file)]
 
@@ -170,7 +156,7 @@ def find_cfiles(path, cbases):
 
 
 def parse_conf_package_group(pkg_group, dict_conf):
-    '''Parses the body of <package-group/> in XML config file.
+    """Parses the body of <package-group/> in XML config file.
 
     Args:
         pkg_group: The <package-group> XML element.
@@ -178,7 +164,7 @@ def parse_conf_package_group(pkg_group, dict_conf):
 
     Raises:
         ConfigXmlParseError: Invalid configuration or parsing error.
-    '''
+    """
     group_name = pkg_group.get('name')
     group_path = pkg_group.get('path')
     dict_conf[group_name] = dict()
@@ -196,17 +182,17 @@ def parse_conf_package_group(pkg_group, dict_conf):
 
     for pkg_path in dict_conf[group_name][pkg_name]:
         if not os.path.exists(pkg_path):
-            raise ConfigXmlParseError('''detected a config error for package
-                                         %s.%s: %s does not exist!''' %
+            raise ConfigXmlParseError("""detected a config error for package
+                                         %s.%s: %s does not exist!""" %
                                       (group_name, pkg_name, pkg_path))
 
 
 def parse_conf(path_conf):
-    '''Parses the XML configuration file.
+    """Parses the XML configuration file.
 
     Raises:
         ConfigXmlParseError: The configuration or XML is invalid.
-    '''
+    """
     global dict_outside_conf
     global dict_our_conf
     root = ElementTree.parse(path_conf).getroot()
@@ -218,7 +204,7 @@ def parse_conf(path_conf):
 
 
 def make_components():
-    '''pair hfiles and cfiles.'''
+    """pair hfiles and cfiles."""
     global dict_outside_hfiles
     global dict_our_hfiles
     global dict_our_hbases
@@ -291,7 +277,7 @@ def make_components():
     # Report files failed to associated with any component
     if message:
         print('-' * 80)
-        print('warning: detected files failed to associate ' +
+        print('warning: detected files failed to associate '
               'with any component (all will be ignored): ')
         print(message)
     # Report conflicts among our headers
@@ -362,12 +348,12 @@ def expand_hfile_deps(hfile):
 
 
 def make_cdep():
-    '''Determines all hfiles on which a cfile depends.
+    """Determines all hfiles on which a cfile depends.
 
     Note:
         Simple recursive parsing does not work
         since there may be a cyclic dependency among headers.
-    '''
+    """
     set_bad_hfiles = set()
     dict_hfile_deps = dict()
     message = ''
@@ -468,9 +454,11 @@ def show_hfile_deps(hfile, depth, set_dep_hfiles):
 
 
 def show_details_of_comps():
-    '''determine all hfiles on which the specific component depends.
+    """Determines all hfiles on which the specific component depends.
+
     Very useful for trying to understand
-    why a cross-component dependency occurs.'''
+    why a cross-component dependency occurs.
+    """
     dict_included_by = dict()
     for comp in dict_comps.values():
         depth = 1
@@ -481,7 +469,7 @@ def show_details_of_comps():
         for hfile in grep_hfiles(comp.cpath):
             show_hfile_deps(hfile, depth, set_dep_hfiles)
         for hfile in set_dep_hfiles:
-            if dict_included_by.has_key(hfile):
+            if hfile in dict_included_by:
                 dict_included_by[hfile].append(comp.cpath)
             else:
                 dict_included_by[hfile] = [comp.cpath]
@@ -493,7 +481,7 @@ def show_details_of_comps():
 
 
 def make_ldep():
-    '''determine all components on which a component depends.'''
+    """Determines all components on which a component depends."""
     for comp in dict_comps.values():
         for hfile in comp.dep_our_hfiles:
             assert hfile in dict_our_hfiles
@@ -525,7 +513,7 @@ def output_ldep():
                     sorted('.'.join(x) for x in comp.dep_outside_pkgs))
                 print(message)
 
-'''
+"""
 create_graph_<range>_<level>
         <range> is one of [all, pkggrp, pkg].
         It indicates those components included in the graph.
@@ -540,7 +528,7 @@ Return Value:
             which been indicated by the edge.
         dict_node2outsidepkgs: node -> set of outside packages
             on which the node depends.
-'''
+"""
 
 
 def create_graph_all_comp():
@@ -641,7 +629,7 @@ def create_graph_pkg_comp(group_name, pkg_name):
 
 def output_original_graph_info(dict_edge2deps, dict_node2outsidepkgs):
     print('=' * 80)
-    print('each edge in the original graph logically consists of ' +
+    print('each edge in the original graph logically consists of '
           'some cross-component dependencies:')
     for item in dict_edge2deps.items():
         message = '->'.join(item[0]) + ': '
@@ -665,9 +653,12 @@ def calculate_graph(digraph, dot_basename=None):
     if dot_basename:
         write_dot(digraph, dot_basename + '_orig.dot')
     key_node = str
-    key_edge = lambda x: str(x[0]) + '->' + str(x[1])
-    (cycles, dict_node2cycle) = make_DAG(digraph, key_node)
-    (layers, dict_layer_no, redundant_edges) = layering_DAG(digraph, key_node)
+
+    def key_edge(x):
+        return str(x[0]) + '->' + str(x[1])
+
+    (cycles, dict_node2cycle) = make_dag(digraph, key_node)
+    (layers, dict_layer_no, redundant_edges) = layering_dag(digraph, key_node)
     (ccd, dict_cd) = calc_ccd(digraph, cycles, layers)
     print('=' * 80)
     print('cycles detected(%d cycles): ' % len(cycles))
@@ -692,22 +683,24 @@ def calculate_graph(digraph, dot_basename=None):
         else:
             str_node = str(node)
         return str_node
-    for ind in range(0, len(layers)):
-        print('layer %d(%d nodes): ' % (ind, len(layers[ind])))
-        for node in layers[ind]:
+
+    for i, layer in enumerate(layers):
+        print('layer %d(%d nodes): ' % (i, len(layer)))
+        for node in layer:
             message = repr_node(node) + ' -> '
             message += ' '.join(sorted(map(repr_node,
                                            digraph.successors(node))))
             print(message)
+
     print('redundant edges stripped(%d edges): ' % len(redundant_edges))
     print(' '.join(sorted(map(key_edge, redundant_edges))))
     # CCD_fullBTree = (N+1)*log2(N+1)-N
     # ACD = CCD/N
     # NCCD = CCD/CCD_fullBTree
     acd = ccd / size_graph
-    ccd_fullBTree = (size_graph + 1) * \
+    ccd_full_btree = (size_graph + 1) * \
         (math.log(size_graph + 1, 2)) - size_graph
-    nccd = ccd / ccd_fullBTree
+    nccd = ccd / ccd_full_btree
     print('=' * 80)
     print('SUMMARY:')
     print('Nodes: %d\t Cycles: %d\t Layers: %d' %
@@ -727,14 +720,14 @@ def main():
     parser = ap.ArgumentParser(description=__doc__)
 
     parser.add_argument('-f', '--conf', dest='path_conf', default='cppdep.xml',
-                        help='''an XML file which describes
-                        the source code structure of a C/C++ project''')
+                        help="""an XML file which describes
+                        the source code structure of a C/C++ project""")
 
     parser.add_argument('-d', '--debug', dest='details_of_comps',
                         action='store_true', default=False,
-                        help='''show all warnings and details
+                        help="""show all warnings and details
                         of every component (aka. includes/included by),
-                        but not analyze dependencies.''')
+                        but not analyze dependencies.""")
 
     args = parser.parse_args()
 
