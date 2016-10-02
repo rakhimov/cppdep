@@ -49,11 +49,8 @@ def md5sum(fpath):
     >>> 'cbdbbeef'.decode('hex')
     '\xcb\xdb\xbe\xef'
     '''
-    m = hashlib.md5()
-    f = open(fpath, 'rb')
-    m.update(f.read())
-    f.close()
-    return m.digest().encode('hex')
+    with open(fpath, 'rb') as input_file:
+        return hashlib.md5(input_file.read()).hexdigest()
 
 
 def fn_base(fn):
