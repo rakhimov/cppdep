@@ -335,13 +335,23 @@ def make_components():
         del dict_outside_hfiles[hfile]
 
 
-def expand_hfile_deps(hfile):
+def expand_hfile_deps(header_file):
+    """Recursively expands include directives.
+
+    Args:
+        header_file: The source header file.
+
+    Returns:
+        (set our header files, set outside header files, set unknown headers)
+    """
+    global dict_our_hfiles
     set_dep_our_hfiles = set()
     set_dep_outside_hfiles = set()
     set_dep_bad_hfiles = set()
-    set_current_hfiles = set([hfile])
-    set_next_hfiles = set()
-    while True:
+
+    set_current_hfiles = set([header_file])
+    while set_current_hfiles:
+        set_next_hfiles = set()
         for hfile in set_current_hfiles:
             if hfile in dict_our_hfiles:
                 set_dep_our_hfiles.add(hfile)
@@ -355,10 +365,8 @@ def expand_hfile_deps(hfile):
         set_next_hfiles.difference_update(set_dep_our_hfiles)
         set_next_hfiles.difference_update(set_dep_outside_hfiles)
         set_next_hfiles.difference_update(set_dep_bad_hfiles)
-        if not set_next_hfiles:
-            break
-        set_current_hfiles, set_next_hfiles = set_next_hfiles, set_current_hfiles
-        set_next_hfiles.clear()
+        set_current_hfiles = set_next_hfiles
+
     return (set_dep_our_hfiles, set_dep_outside_hfiles, set_dep_bad_hfiles)
 
 

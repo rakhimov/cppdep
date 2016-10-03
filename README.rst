@@ -138,6 +138,8 @@ TODO
 
 - PEP8 the code.
 
+    * Fix horrible indexed variable names, i.e., ``var1``, ``var2``, ...
+
 - Consider OOP design instead of the current procedural.
 
     * Get rid of non-constant global var.
