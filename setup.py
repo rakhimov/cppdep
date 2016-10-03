@@ -5,18 +5,20 @@ from setuptools import setup
 # Used for the long_description.  It's nice, because now 1) we have a top level
 # README file and 2) it's easier to type in the README file than to put a raw
 # string in below ...
+
+
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name = "cppdep",
-    version = "0.0.1",
-    author = "cppdep Developers",
-    author_email = "ol.rakhimov@gmail.com",
-    description = ("Dependency analyzer for C/C++ projects"),
-    license = "GPLv3",
-    keywords = "c++ c static analysis",
-    url = "http://github.com/rakhimov/cppdep",
+    name="cppdep",
+    version="0.0.1",
+    author="cppdep Developers",
+    author_email="ol.rakhimov@gmail.com",
+    description=("Dependency analyzer for C/C++ projects"),
+    license="GPLv3",
+    keywords="c++ c static analysis",
+    url="http://github.com/rakhimov/cppdep",
     packages=[],
     py_modules=["cppdep", "networkx_ext"],
     long_description=read('README.rst'),
