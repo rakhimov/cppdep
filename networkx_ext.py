@@ -27,25 +27,32 @@ import math
 import networkx as nx
 
 
-def is_reachable(digraph, node_a, node_b):
-    if node_a == node_b:
+def is_reachable(digraph, node_parent, node_target):
+    """Determines if a node is a descendant of another.
+
+    Args:
+        digraph: The host graph.
+        node_parent: The node to start the reachability search.
+        node_target: The target node under reachability question.
+
+    Returns:
+        True if node_target is reachable from node_parent.
+        False if the node parent is the node target.
+    """
+    if node_parent == node_target:
         return False
-    set_rch_nodes = set([node_a])
-    set_current_nodes = set([node_a])
-    set_next_nodes = set()
-    while True:
-        for node in set_current_nodes:
-            suc_nodes = digraph.successors(node)
-            set_next_nodes.update(suc_nodes)
-        if node_b in set_next_nodes:
+    reachable_nodes = set([node_parent])
+    current_nodes = set([node_parent])
+    while current_nodes:
+        next_nodes = set()
+        for node in current_nodes:
+            next_nodes.update(digraph.successors(node))
+        if node_target in next_nodes:
             return True
-        set_next_nodes.difference_update(set_rch_nodes)
-        if len(set_next_nodes) == 0:
-            return False
-        set_rch_nodes.update(set_next_nodes)
-        set_current_nodes, set_next_nodes = set_next_nodes, set_current_nodes
-        set_next_nodes.clear()
-    assert 0
+        next_nodes.difference_update(reachable_nodes)
+        reachable_nodes.update(next_nodes)
+        current_nodes = next_nodes
+
     return False
 
 

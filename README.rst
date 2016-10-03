@@ -139,6 +139,7 @@ TODO
 - PEP8 the code.
 
     * Fix horrible indexed variable names, i.e., ``var1``, ``var2``, ...
+    * Remove Hungarian notation for containers, i.e., ``set_name``, ``dict_name``, ...
 
 - Consider OOP design instead of the current procedural.
 
