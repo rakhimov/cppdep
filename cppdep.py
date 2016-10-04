@@ -237,7 +237,7 @@ def make_components():
     for group_name in dict_our_conf:
         dict_pkgs[group_name] = {}
         for pkg_name in dict_our_conf[group_name]:
-            dict_pkgs[group_name][pkg_name] = list()
+            dict_pkgs[group_name][pkg_name] = []
             hbases.clear()
             hfiles.clear()
             cbases.clear()
@@ -580,7 +580,7 @@ def create_graph_all_pkg():
             digraph.add_edge(pkg, pkg2)
             key = (pkg, pkg2)
             if key not in dict_edge2deps:
-                dict_edge2deps[key] = list()
+                dict_edge2deps[key] = []
             dict_edge2deps[key].append((comp, comp2))
     return digraph, dict_edge2deps, dict_node2outsidepkgs
 
@@ -604,7 +604,7 @@ def create_graph_all_pkggrp():
             digraph.add_edge(group_name, group_name2)
             key = (group_name, group_name2)
             if key not in dict_edge2deps:
-                dict_edge2deps[key] = list()
+                dict_edge2deps[key] = []
             dict_edge2deps[key].append((comp, comp2))
     return digraph, dict_edge2deps, dict_node2outsidepkgs
 
@@ -630,7 +630,7 @@ def create_graph_pkggrp_pkg(group_name):
                 digraph.add_edge(pkg_name, pkg_name2)
                 key = (pkg_name, pkg_name2)
                 if key not in dict_edge2deps:
-                    dict_edge2deps[key] = list()
+                    dict_edge2deps[key] = []
                 dict_edge2deps[key].append((comp, comp2))
     return digraph, dict_edge2deps, dict_node2outsidepkgs
 
