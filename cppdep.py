@@ -97,16 +97,14 @@ _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 def find(path, fnmatcher):
     if os.path.isfile(path):
         fn = os.path.basename(path)
-        m = fnmatcher.match(fn)
-        if m:
+        if fnmatcher.match(fn):
             yield fn, path
-        return
-    for root, dirs, files in os.walk(path):
-        for entry in files:
-            m = fnmatcher.match(entry)
-            if m:
-                full_path = os.path.join(root, entry)
-                yield entry, full_path
+    else:
+        for root, dirs, files in os.walk(path):
+            for entry in files:
+                if fnmatcher.match(entry):
+                    full_path = os.path.join(root, entry)
+                    yield entry, full_path
 
 
 def find_hfiles_blindly(path):
@@ -158,7 +156,7 @@ def find_hfiles(path, hbases, hfiles):
 
 
 def find_cfiles(path, cbases):
-    for (cfile, cpath) in find(path, _RE_CFILE):
+    for cfile, cpath in find(path, _RE_CFILE):
         cbase = fn_base(cfile)
         # Detect conflicts among our dotCs inside a package
         if cbase in cbases:
@@ -280,12 +278,12 @@ def make_components():
                     del hbases[key]
                     del cbases[key]
             # Detect files failed to associated with any component
-            if len(hbases) or len(cbases):
+            if hbases or cbases:
                 message += 'in package %s.%s: ' % (group_name, pkg_name)
-                if len(hbases):
+                if hbases:
                     message += ', '.join(map(os.path.basename,
                                              hbases.values()))
-                if len(cbases):
+                if cbases:
                     message += ' ' + \
                         ', '.join(map(os.path.basename, cbases.values()))
                 message += '\n'
@@ -296,7 +294,7 @@ def make_components():
               'with any component (all will be ignored): ')
         print(message)
     # Report conflicts among our headers
-    if len(dict_our_conflict_hbases):
+    if dict_our_conflict_hbases:
         message = 'warning: detected file basename conflicts among our ' + \
                   'headers (all except the first one will be ignored):\n'
         for hbase in dict_our_conflict_hbases:
@@ -308,7 +306,7 @@ def make_components():
         print('-' * 80)
         print(message)
     # Report conflicts among our dotCs
-    if len(dict_our_conflict_cbases):
+    if dict_our_conflict_cbases:
         message = 'warning: detected file basename conflicts among our ' + \
                   'dotCs (all except the first one will be ignored):\n'
         for cbase in dict_our_conflict_cbases:
@@ -323,7 +321,7 @@ def make_components():
     set_outside_hfiles = set(dict_outside_hfiles.keys())
     set_our_hfiles = set(dict_our_hfiles.keys())
     set_common_hfiles = set_our_hfiles.intersection(set_outside_hfiles)
-    if len(set_common_hfiles):
+    if set_common_hfiles:
         message = 'warning: detected file name conflicts between our and ' + \
                   'outside headers (outside ones will be ignored): \n'
         for hfile in set_common_hfiles:
@@ -385,7 +383,7 @@ def make_cdep():
     for comp in dict_comps.values():
         cpath = comp.cpath
         hfiles = grep_hfiles(cpath)
-        if len(hfiles) == 0:
+        if not hfiles:
             continue
         comp_hfile = os.path.basename(comp.hpath)
         # Detect first header issues issues.
@@ -418,24 +416,24 @@ def make_cdep():
                 message3 += '%s: does not depend on %s.\n' % (
                     cpath, comp_hfile)
     # Report headers failed to locate.
-    if len(set_bad_hfiles) != 0:
+    if set_bad_hfiles:
         print('-' * 80)
         print('warning: failed to locate following headers: ')
         print(' '.join(set_bad_hfiles))
     # Report non-dependent issues.
-    if len(message3):
+    if message3:
         print('-' * 80)
         print('warning: following every dotC does not depend on ' +
               'its associated header: ')
         print(message3)
     # Report indirectly including issues.
-    if len(message2):
+    if message2:
         print('-' * 80)
         print('warning: following every dotC does not include ' +
               'its associated header directly: ')
         print(message2)
     # Report first header issues.
-    if len(message):
+    if message:
         print('-' * 80)
         print('warning: following every dotC does not include ' +
               'its associated header before other headers: ')
@@ -728,10 +726,10 @@ def calculate_graph(digraph, dot_basename=None):
     print('SUMMARY:')
     print('Nodes: %d\t Cycles: %d\t Layers: %d' %
           (size_graph, len(cycles), len(layers)))
-    print('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' % (
-        ccd, acd, nccd))
+    print('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
+          (ccd, acd, nccd))
     if dot_basename:
-        if len(cycles):
+        if cycles:
             g = nx.DiGraph()
             for cycle in cycles.values():
                 g.add_edges_from(cycle.edges_iter())

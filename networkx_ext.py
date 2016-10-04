@@ -166,7 +166,7 @@ def calc_ccd(digraph, cycles, layers):
     ccd = 0
     dict_cd = dict()
     if len(digraph.nodes()) == 0:
-        return (ccd, dict_cd)
+        return ccd, dict_cd
     for node in digraph.nodes():
         dict_cd[node] = 1
     min_nodes = set(cycles.keys())
@@ -183,7 +183,7 @@ def calc_ccd(digraph, cycles, layers):
                 continue
             dict_cd[node2] = cd
     ccd = sum(dict_cd.values())
-    return (ccd, dict_cd)
+    return ccd, dict_cd
 
 
 def output_graph(digraph):
