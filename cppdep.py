@@ -127,17 +127,17 @@ class Component(object):
         return self.name
 
 # Following two global variables are initialized by parse_conf().
-dict_outside_conf = dict()
-dict_our_conf = dict()
+dict_outside_conf = {}
+dict_our_conf = {}
 
-dict_outside_hfiles = dict()
-dict_our_hfiles = dict()
-dict_our_hbases = dict()
-dict_our_conflict_hbases = dict()
-dict_our_outside_conflict_hfiles = dict()
-dict_our_conflict_cbases = dict()
-dict_pkgs = dict()
-dict_comps = dict()
+dict_outside_hfiles = {}
+dict_our_hfiles = {}
+dict_our_hbases = {}
+dict_our_conflict_hbases = {}
+dict_our_outside_conflict_hfiles = {}
+dict_our_conflict_cbases = {}
+dict_pkgs = {}
+dict_comps = {}
 
 
 def find_hfiles(path, hbases, hfiles):
@@ -180,7 +180,7 @@ def parse_conf_package_group(pkg_group, dict_conf):
     """
     group_name = pkg_group.get('name')
     group_path = pkg_group.get('path')
-    dict_conf[group_name] = dict()
+    dict_conf[group_name] = {}
 
     for pkg in pkg_group.findall('package'):
         pkg_name = pkg.get('name')
@@ -230,12 +230,12 @@ def make_components():
                 hfiles = find_hfiles_blindly(src_path)
                 for hfile in hfiles:
                     dict_outside_hfiles[hfile] = pkg
-    hbases = dict()
-    hfiles = dict()
-    cbases = dict()
+    hbases = {}
+    hfiles = {}
+    cbases = {}
     message = ''
     for group_name in dict_our_conf:
-        dict_pkgs[group_name] = dict()
+        dict_pkgs[group_name] = {}
         for pkg_name in dict_our_conf[group_name]:
             dict_pkgs[group_name][pkg_name] = list()
             hbases.clear()
@@ -376,7 +376,7 @@ def make_cdep():
         since there may be a cyclic dependency among headers.
     """
     set_bad_hfiles = set()
-    dict_hfile_deps = dict()
+    dict_hfile_deps = {}
     message = ''
     message2 = ''
     message3 = ''
@@ -480,7 +480,7 @@ def show_details_of_comps():
     Very useful for trying to understand
     why a cross-component dependency occurs.
     """
-    dict_included_by = dict()
+    dict_included_by = {}
     for comp in dict_comps.values():
         depth = 1
         set_dep_hfiles = set()
@@ -563,8 +563,8 @@ def create_graph_all_comp():
 
 def create_graph_all_pkg():
     digraph = nx.DiGraph()
-    dict_edge2deps = dict()
-    dict_node2outsidepkgs = dict()
+    dict_edge2deps = {}
+    dict_node2outsidepkgs = {}
     for comp in dict_comps.values():
         pkg = '.'.join(comp.package)
         # Adding a node does nothing if it is already in the graph.
@@ -587,8 +587,8 @@ def create_graph_all_pkg():
 
 def create_graph_all_pkggrp():
     digraph = nx.DiGraph()
-    dict_edge2deps = dict()
-    dict_node2outsidepkgs = dict()
+    dict_edge2deps = {}
+    dict_node2outsidepkgs = {}
     for comp in dict_comps.values():
         group_name = comp.package[0]
         # Adding a node does nothing if it is already in the graph.
@@ -611,8 +611,8 @@ def create_graph_all_pkggrp():
 
 def create_graph_pkggrp_pkg(group_name):
     digraph = nx.DiGraph()
-    dict_edge2deps = dict()
-    dict_node2outsidepkgs = dict()
+    dict_edge2deps = {}
+    dict_node2outsidepkgs = {}
     for pkg_name in dict_pkgs[group_name]:
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(pkg_name)

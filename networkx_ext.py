@@ -67,8 +67,8 @@ def make_dag(digraph, key_node=None):
     Note: Selfloop edges will be stripped silently.
     """
     # output_graph(digraph)
-    cycles = dict()
-    dict_node2cycle = dict()
+    cycles = {}
+    dict_node2cycle = {}
     for node in digraph.nodes_iter():
         dict_node2cycle[node] = None
     # Strip all selfloop edges silently.
@@ -164,7 +164,7 @@ def layering_dag(digraph, key_node=None):
 
 def calc_ccd(digraph, cycles, layers):
     ccd = 0
-    dict_cd = dict()
+    dict_cd = {}
     if len(digraph.nodes()) == 0:
         return ccd, dict_cd
     for node in digraph.nodes():
