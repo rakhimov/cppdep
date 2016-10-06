@@ -17,39 +17,43 @@ cppdep
 
 |
 
-``cppdep`` is designed for analyzing dependencies
+``cppdep`` performs dependency analyses
 among components/packages/package groups of a large C/C++ project.
-This is a rewrite of dep_utils(adep/cdep/ldep),
-which is provided by John Lakos' book "Large-Scale C++ Software Design", Addison Wesley (1996).
-The location of ``dep_utils`` source code indicated at the book
-is outdated and I only find a copy of it (via Google) at http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/.
+This is a rewrite of ``dep_utils(adep/cdep/ldep)``,
+which is provided by John Lakos' book
+"Large-Scale C++ Software Design", Addison Wesley (1996).
 
 
-Differences to original dep_utils
-=================================
+Differences from the dep_utils
+==============================
 
-- Rewrite in Python. More maintainable.
-- Easier to use. Only one simple XML config file need.
-  Unified adep/dep/cdep into one.
+- Rewrite in Python, unifying ``adep/cdep/ldep`` into one tool.
+- Project analysis configuration with an XML file.
 - Remove file alias support
-  since the file name length limitation is much relax the 20 years ago.
-- Support multiple package groups and packages
-- Support exporting final dependency graph to Graphviz dot format.
+  since the file name length limitation is much more relaxed that it was 20 years ago.
+- Support for multiple package groups and packages
+- Support for exporting final dependency graph to Graphviz dot format.
 
-The objective of this tool is to detect following cases in source code:
 
-1) Failed to associate some headers/dotC files with any component.
+Analysis Warnings
+=================
 
-2) File name conflicts.
+.. note:: A component (ideally) consists of a pair of one dotH and one dotC
+          with the same basename, e.g., ``foo.h`` and ``foo.cpp``.
 
-    2.1) File basename conflicts among internal headers.
-         For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
+Each of the following cases may be considered a quality flaw.
 
-    2.2) File basename conflicts among internal dotCs.
-         For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
+1. Failure to associate some headers/dotC files with any component,
+   leading to lost dependencies.
 
-    2.3) File name conflicts between internal and external headers.
-         For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
+2. File name conflicts.
+
+    1. File basename conflicts among internal headers.
+       For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
+    2. File basename conflicts among internal dotCs.
+       For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
+    3. File name conflicts between internal and external headers.
+       For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
 
 .. note:: This objective and initial implementation is dropped
           for being unnecessary and out-of-scope of the tool.
@@ -72,50 +76,31 @@ The objective of this tool is to detect following cases in source code:
 
 .. code-block:: bash
 
-    $ # Somewhat convoluted, overcomplicated, hacky solution for 2.1) and 2.2).
-    $ find -regextype egrep -regex ".+\.c(c|pp|\+\+)?" -exec sh -c 'echo {0%.*}' {} \; | sort > /tmp/sources.txt
-    $ uniq /tmp/sources.txt > /tmp/uniq.txt
-    $ diff /tmp/sources.txt /tmp/uniq.txt  # or some more efficient way to find duplicates.
+    $ # An example solution for 2.1) and 2.2) with system tools.
+    $ find -type f -regextype egrep -regex ".+\.c(c|pp|\+\+)?" -exec sh -c 'echo ${0%.*}' {} \; | sort | uniq -d
 
 
-3) Including issues:
+3. ``#include`` issues:
 
-    3.1) Some headers included directly or indirectly don't exist.
+    1. Some headers included directly or indirectly don't exist.
+       The path to the dependencies may be missing from the XML configuration file.
+    2. DotC does not depend on its associated header,
+       resulting in incorrect dependencies.
+    3. DotC does not include its associated header directly.
+    4. DotC does not include its associated header before other headers.
 
-    3.2) DotC does not depend on its associated header.
-
-    3.3) DotC does not include its associated header directly.
-
-    3.4) DotC does not include its associated header before other headers.
-
-4) Cycle dependencies among components/packages/package groups.
-
-.. note:: A component consists of a pair of one dotH and one dotC,
-          and the basenames of them match. For example, (Foo.h, Foo.cpp).
-
-Each of above cases is considered as a quality flaw
-and should be removed by revising the code.
+4. Cyclic dependencies among components/packages/package groups.
 
 
-Limitation/Bugs:
-================
+Limitations
+===========
 
-1) Warning 1 results lost dependencies.
-2) Warning 2 often results incorrect dependencies,
-   especially when those conflict files' context are different.
-3) Warning 3.1 indicates a piece of dead code including non-exiting headers.
-   If the header does exist at another path,
-   you need to add that path into the configuration XML
-   in order to get back the lost dependencies.
-4) Warning 3.2 often results incorrect dependencies.
-5) There are another cases may result lost dependencies.
-   For example, [1] a dotC declares global variable or function
-   instead of including a header which does the declaration.
-   [2] Embedded dynamic dependencies,
-   such as dynamic loading and configurable internal services.
-6) There are another cases may result incorrect dependencies.
-   For example, a piece of dead code of foo.cc includes bar.h,
-   and bar.h happens to exist in another package/package group.
+- Indirect `extern` declarations of global variables or functions
+  instead of including a proper component header with the declarations.
+- Embedded dynamic dependencies,
+  such as dynamic loading and configurable internal services.
+- Preprocessing or macro expansion is not performed.
+  Dependency inclusion via preprocessor *meta-programming* is not handled.
 
 
 ************
@@ -123,9 +108,9 @@ Requirements
 ************
 
 #. Python 2.7 / 3.3+
-#. NetworkX from http://networkx.lanl.gov/.
+#. `NetworkX <http://networkx.lanl.gov/>`_
 #. pydotplus
-#. (Optional) Graphviz http://www.graphviz.org/
+#. (Optional) `Graphviz <http://www.graphviz.org/>`_
 
 The dependencies can be installed with ``pip``.
 
@@ -146,42 +131,40 @@ Here's how to convert a Graphviz dot file to PDF format.
 
 Apply ``-O`` flag to automatically generate output file names from the input file names.
 
-.. code-block::
+.. code-block:: bash
 
     $ dot -T pdf graph1.dot -O  # The output file is graph1.dot.pdf
 
 To run ``dot`` on files in directories and sub-directories recursively.
 
-.. code-block::
+.. code-block:: bash
 
-    $ find -name "*.dot" directory_path | xargs dot -Tpdf -O
+    $ find -type f -name "*.dot" directory_path | xargs dot -Tpdf -O
 
+To create output file names without ``.dot`` in the name.
 
-****
-TODO
-****
+.. code-block:: bash
 
-- Analyze bottlenecks. "...we consider classes that refer to more than 20 other classes and which are referred to by more than 20 other classes as critical. On the level of subsystems the critical limit is 10 referring and referred to subsystems." -- Klaus Wolfmaier and Rudolf Ramler: Common Findings and Lessons Learned from Software Architecture and Design Analysis, http://metrics2005.di.uniba.it/IndustryTrack/WolfmaierRamler_SoftwareArchitectureDesignAnalysis.pdf
-
-- PEP8 the code.
-
-    * Fix horrible indexed variable names, i.e., ``var1``, ``var2``, ...
-
-- Consider OOP design instead of the current procedural.
-
-    * Get rid of non-constant global var.
-    * Decoupling for parallelization.
-
-- Write tests.
+    $ find -type f -name "*.dot" directory_path -exec sh -c 'dot -Tpdf "${0}" -o "${0%.*}.pdf"' {} \;
 
 
 **************
 External links
 **************
 
-1) Dependency-analysis is a part of static-code-analysis.
-   A list of static-analysis tools can be found on http://en.wikipedia.org/wiki/List_of_tools_for_static_code_analysis.
+#. The last known location of John Lakos' ``dep_utils`` source code:
+   http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/
 
-2) Here is a discussion on C++ project dependency analysis: http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis.
+#. `The discussion on C++ project dependency analysis <http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis>`_
 
-3) Nmdepend is a lightweight 'link-time' dependency analyzer for C++. It uses object files and libraries instead of source-code as input. It runs UNIX and Cygwin. (http://sourceforge.net/projects/nmdepend/).
+#. `Nmdepend <http://sourceforge.net/projects/nmdepend/>`_,
+   a lightweight 'link-time' dependency analyzer for C++
+   using object files and libraries instead of source-code as input.
+
+
+***************
+Acknowledgments
+***************
+
+- John Lackos for inventing the analysis and providing ``dep_utils``.
+- `Zhichang Yu <https://github.com/yuzhichang>`_ for rewriting ``dep_utils`` into Python.
