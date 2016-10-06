@@ -51,6 +51,33 @@ The objective of this tool is to detect following cases in source code:
     2.3) File name conflicts between internal and external headers.
          For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
 
+.. note:: This objective and initial implementation is dropped
+          for being unnecessary and out-of-scope of the tool.
+          It is dubious to qualify "non-conflicting" components
+          with the same name but under different packages
+          as a quality flaw.
+          The separation of projects into packages/modules/folders/namespaces
+          is exactly intended to free the developer
+          from coming up with quirky names for components.
+          It is the most common and best practice to include
+          external component or package headers via ``<package/folder/header>``.
+          For example, each project, library, package can have its own ``config.h``,
+          and to consider it a quality flaw is unjustifiable.
+
+.. note:: It is very rare and unlikely to see file basename conflicts among
+          headers and implementation files.
+          Codebases suffering from such silly issues
+          can leverage system tools to find the conflicts.
+
+
+.. code-block:: bash
+
+    $ # Somewhat convoluted, overcomplicated, hacky solution for 2.1) and 2.2).
+    $ find -regextype egrep -regex ".+\.c(c|pp|\+\+)?" -exec sh -c 'echo {0%.*}' {} \; | sort > /tmp/sources.txt
+    $ uniq /tmp/sources.txt > /tmp/uniq.txt
+    $ diff /tmp/sources.txt /tmp/uniq.txt  # or some more efficient way to find duplicates.
+
+
 3) Including issues:
 
     3.1) Some headers included directly or indirectly don't exist.

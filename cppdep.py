@@ -202,10 +202,10 @@ class Config(object):
 
 dict_external_hfiles = {}
 dict_internal_hfiles = {}
-dict_internal_hbases = {}
+
 dict_internal_conflict_hbases = {}
-dict_internal_external_conflict_hfiles = {}  # TODO: Uninitialized!
 dict_internal_conflict_cbases = {}
+
 dict_pkgs = {}
 dict_comps = {}
 
@@ -267,7 +267,6 @@ def make_components(config):
     """
     global dict_external_hfiles
     global dict_internal_hfiles
-    global dict_internal_hbases
     global dict_pkgs
     global dict_comps
 
@@ -277,29 +276,25 @@ def make_components(config):
     hfiles = {}
     cbases = {}
     message = ''
-    for group_name in config.internal_groups:
+    for group_name, packages in config.internal_groups.items():
         dict_pkgs[group_name] = {}
-        for pkg_name in config.internal_groups[group_name]:
+        for pkg_name, src_paths in packages.items():
             dict_pkgs[group_name][pkg_name] = []
+
             hbases.clear()
             hfiles.clear()
             cbases.clear()
-            for src_path in config.internal_groups[group_name][pkg_name]:
+
+            for src_path in src_paths:
                 find_hfiles(src_path, hbases, hfiles)
                 find_cfiles(src_path, cbases)
-            # Detect cross-package conflicts among internal headers
-            for hbase in list(hbases.keys()):
-                if hbase in dict_internal_hbases:
-                    if hbase not in dict_internal_conflict_hbases:
-                        dict_internal_conflict_hbases[hbase] = [
-                            dict_internal_hbases[hbase]]
-                    dict_internal_conflict_hbases[hbase].append(hbases[hbase])
-                    del hbases[hbase]
+
             for hfile in list(hfiles.keys()):
                 if hfile in dict_internal_hfiles:
                     del hfiles[hfile]
+
             dict_internal_hfiles.update(hfiles)
-            dict_internal_hbases.update(hbases)
+
             for key in list(cbases.keys()):
                 if key in hbases:
                     # Detect cross-package conflicts among internal dotCs
@@ -320,12 +315,11 @@ def make_components(config):
                         dict_comps[key] = comp
                     del hbases[key]
                     del cbases[key]
-            # Detect files failed to associated with any component
+
+            # Detect files failed to be associated with any component
             if hbases or cbases:
                 message += 'in package %s.%s: ' % (group_name, pkg_name)
-                if hbases:
-                    message += ', '.join(map(os.path.basename,
-                                             hbases.values()))
+                message += ', '.join(map(os.path.basename, hbases.values()))
                 if cbases:
                     message += ' ' + \
                         ', '.join(map(os.path.basename, cbases.values()))
@@ -336,68 +330,6 @@ def make_components(config):
         print('-' * 80)
         print('warning: detected files failed to associate '
               'with any component (all will be ignored): ')
-        print(message)
-
-    report_internal_conflicts(dict_internal_conflict_hbases,
-                              dict_internal_conflict_cbases)
-    # WARNING: This function has a side-effect.
-    report_hfile_conflicts(dict_internal_hfiles, dict_external_hfiles)
-
-
-def report_internal_conflicts(conflict_hbases, conflict_cbases):
-    """Reports conflicting base names of header or implementation files.
-
-    Args:
-        conflict_hbases: The conflicting header files with paths.
-        conflict_cbases: The conflicting implementation files with paths.
-    """
-    # Report conflicts among internal headers
-    if conflict_hbases:
-        message = ('warning: detected file basename conflicts among internal '
-                   'headers (all except the first one will be ignored):\n')
-        for hbase in conflict_hbases:
-            message += '%s: ' % hbase
-            for hpath in conflict_hbases[hbase]:
-                digest = md5sum(hpath)
-                message += '%s(%s) ' % (hpath, digest)
-            message += '\n'
-        print('-' * 80)
-        print(message)
-    # Report conflicts among internal dotCs
-    if conflict_cbases:
-        message = ('warning: detected file basename conflicts among internal '
-                   'dotCs (all except the first one will be ignored):\n')
-        for cbase in conflict_cbases:
-            message += '%s: ' % cbase
-            for cpath in conflict_cbases[cbase]:
-                digest = md5sum(cpath)
-                message += '%s(%s) ' % (cpath, digest)
-            message += '\n'
-        print('-' * 80)
-        print(message)
-
-
-# TODO: This function is dubious with a strange side-effect.
-def report_hfile_conflicts(internal_hfiles, external_hfiles):
-    """Reports and processes internal and external header file conflicts.
-
-    WARNING: This function deletes the conflicting external header file
-    from the database of external header files.
-
-    Args:
-        internal_hfiles:
-    """
-    common_hfiles = \
-        set(internal_hfiles.keys()).intersection(set(external_hfiles.keys()))
-    if common_hfiles:
-        message = 'warning: detected file name conflicts between internal ' + \
-                  'and external headers (external ones will be ignored): \n'
-        for hfile in common_hfiles:
-            message += '%s (in external package %s): %s\n' % \
-                       (hfile, '.'.join(external_hfiles[hfile]),
-                        internal_hfiles[hfile])
-            del external_hfiles[hfile]  # TODO: Smells?!
-        print('-' * 80)
         print(message)
 
 
@@ -517,8 +449,7 @@ def show_hfile_deps(hfile, depth, set_dep_hfiles):
         hpath = dict_internal_hfiles[hfile]
         hbase = fn_base(hfile)
         flag_conflict = ''
-        if (hbase in dict_internal_conflict_hbases or
-                hfile in dict_internal_external_conflict_hfiles):
+        if hbase in dict_internal_conflict_hbases:
             flag_conflict = '*'
         str_comp = None
         if hbase in dict_comps:
