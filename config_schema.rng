@@ -12,7 +12,12 @@
   <define name="package-group">
     <element name="package-group">
       <optional>
-        <attribute name="outside"> <data type="boolean"/> </attribute>
+        <attribute name="role">
+          <choice>
+            <value>external</value>
+            <value>internal</value>  <!-- The default. -->
+          </choice>
+        </attribute>
       </optional>
       <!-- TODO: consider a stricter data type for 'name' -->
       <attribute name="name"> <data type="string"/> </attribute>

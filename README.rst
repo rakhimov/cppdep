@@ -42,13 +42,13 @@ The objective of this tool is to detect following cases in source code:
 
 2) File name conflicts.
 
-    2.1) File basename conflicts among our headers.
+    2.1) File basename conflicts among internal headers.
          For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
 
-    2.2) File basename conflicts among our dotCs.
+    2.2) File basename conflicts among internal dotCs.
          For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
 
-    2.3) File name conflicts between our and outside headers.
+    2.3) File name conflicts between internal and external headers.
          For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
 
 3) Including issues:
