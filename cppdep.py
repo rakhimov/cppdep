@@ -28,8 +28,6 @@ import os.path
 import re
 import hashlib
 import math
-import time
-# ElementTree is introduced in by Python 2.5.
 from xml.etree import ElementTree
 import argparse as ap
 
@@ -812,7 +810,6 @@ def main():
 
     args = parser.parse_args()
 
-    time_start = time.time()
     config = Config(args.path_conf)
     make_components(config)
 
@@ -820,8 +817,6 @@ def main():
 
     if args.details_of_components:
         show_details_of_components()
-        print('analyzing done in %f minutes.' %
-              ((time.time() - time_start) / 60))
     make_ldep()
 
     print('@' * 80)
@@ -858,7 +853,6 @@ def main():
             digraph = create_graph_pkg_component(group_name, pkg_name)
             calculate_graph(digraph, group_name + '.' + pkg_name)
 
-    print('analyzing done in %f minutes.' % ((time.time() - time_start) / 60))
 
 if __name__ == '__main__':
     try:
