@@ -238,6 +238,25 @@ def find_cfiles(path, cbases):
         cbases[cbase] = cpath
 
 
+def gather_external_hfiles(external_groups):
+    """Populates databases of external dependency headers.
+
+    Args:
+        external_groups: A database of external groups and its source paths.
+
+    Returns:
+        {hfile: (group_name, pkg_name)}
+    """
+    external_hfiles = {}
+    for group_name, packages in external_groups.items():
+        for pkg_name, src_paths in packages.items():
+            for src_path in src_paths:
+                hfiles = find_hfiles_blindly(src_path)
+                for hfile in hfiles:
+                    external_hfiles[hfile] = (group_name, pkg_name)
+    return external_hfiles
+
+
 def make_components(config):
     """Pairs hfiles and cfiles.
 
@@ -249,13 +268,9 @@ def make_components(config):
     global dict_internal_hbases
     global dict_pkgs
     global dict_comps
-    for group_name in config.external_groups:
-        for pkg_name in config.external_groups[group_name]:
-            pkg = (group_name, pkg_name)
-            for src_path in config.external_groups[group_name][pkg_name]:
-                hfiles = find_hfiles_blindly(src_path)
-                for hfile in hfiles:
-                    dict_external_hfiles[hfile] = pkg
+
+    dict_external_hfiles = gather_external_hfiles(config.external_groups)
+
     hbases = {}
     hfiles = {}
     cbases = {}
