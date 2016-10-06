@@ -203,41 +203,41 @@ class Config(object):
                                           (group_name, pkg_name, pkg_path))
 
 
-dict_external_hfiles = {}
-dict_internal_hfiles = {}
+external_hfiles = {}
+internal_hfiles = {}
 
-dict_internal_conflict_hbases = {}
-dict_internal_conflict_cbases = {}
+internal_conflict_hbases = {}
+internal_conflict_cbases = {}
 
-dict_pkgs = {}
+pkgs = {}
 components = {}
 
 
 def find_hfiles(path, hbases, hfiles):
-    global dict_internal_conflict_hbases  # TODO: Smells?!
+    global internal_conflict_hbases  # TODO: Smells?!
     for hfile, hpath in find(path, _RE_HFILE):
         if hfile not in hfiles:
             hfiles[hfile] = hpath
         hbase = fn_base(hfile)
         # Detect conflicts among internal headers inside a package
         if hbase in hbases:
-            if hbase not in dict_internal_conflict_hbases:
-                dict_internal_conflict_hbases[hbase] = [hbases[hbase]]
-            dict_internal_conflict_hbases[hbase].append(hpath)
+            if hbase not in internal_conflict_hbases:
+                internal_conflict_hbases[hbase] = [hbases[hbase]]
+            internal_conflict_hbases[hbase].append(hpath)
             continue
         hbases[hbase] = hpath
 
 
 def find_cfiles(path, cbases):
-    global dict_internal_conflict_cbases  # TODO: Smells?!
+    global internal_conflict_cbases  # TODO: Smells?!
     for cfile, cpath in find(path, _RE_CFILE):
         cbase = fn_base(cfile)
         # Detect conflicts among internal dotCs inside a package
         if cbase in cbases:
-            if cbase not in dict_internal_conflict_cbases:
-                dict_internal_conflict_cbases[cbase] = [cbases[cbase], cpath]
+            if cbase not in internal_conflict_cbases:
+                internal_conflict_cbases[cbase] = [cbases[cbase], cpath]
             else:
-                dict_internal_conflict_cbases[cbase].append(cpath)
+                internal_conflict_cbases[cbase].append(cpath)
             continue
         cbases[cbase] = cpath
 
@@ -305,15 +305,15 @@ def make_components(config):
     Args:
         config: The project configurations with package groups.
     """
-    global dict_external_hfiles
-    global dict_internal_hfiles
-    global dict_pkgs
+    global external_hfiles
+    global internal_hfiles
+    global pkgs
 
-    dict_external_hfiles = gather_external_hfiles(config.external_groups)
+    external_hfiles = gather_external_hfiles(config.external_groups)
 
     incomplete_components = IncompleteComponents()
     for group_name, packages in config.internal_groups.items():
-        dict_pkgs[group_name] = {}
+        pkgs[group_name] = {}
         for pkg_name, src_paths in packages.items():
             hbases = {}
             cbases = {}
@@ -323,8 +323,8 @@ def make_components(config):
                 find_cfiles(src_path, cbases)
 
             for hfile, hpath in hfiles.items():
-                if hfile not in dict_internal_hfiles:
-                    dict_internal_hfiles[hfile] = hpath
+                if hfile not in internal_hfiles:
+                    internal_hfiles[hfile] = hpath
 
             hpaths, cpaths = \
                 construct_components(group_name, pkg_name, hbases, cbases)
@@ -366,11 +366,11 @@ def construct_components(group_name, pkg_name, hbases, cbases):
         Supply an option to disable unpaired header component considerations.
     """
     global components
-    global dict_internal_hfiles
-    global dict_pkgs
+    global internal_hfiles
+    global pkgs
 
-    assert pkg_name not in dict_pkgs[group_name]
-    dict_pkgs[group_name][pkg_name] = []
+    assert pkg_name not in pkgs[group_name]
+    pkgs[group_name][pkg_name] = []
     paired_components = hbases.viewkeys() & cbases.viewkeys()
     for key in paired_components:
         # Detect cross-package conflicts among internal dotCs
@@ -380,13 +380,13 @@ def construct_components(group_name, pkg_name, hbases, cbases):
         # failed to be registered as a component,
         # the basename conflict between them will be ignored.
         if key in components:  # TODO: Should never happen!
-            if key not in dict_internal_conflict_cbases:
-                dict_internal_conflict_cbases[key] = [
+            if key not in internal_conflict_cbases:
+                internal_conflict_cbases[key] = [
                     components[key].cpath]
-            dict_internal_conflict_cbases[key].append(cbases[key])
+            internal_conflict_cbases[key].append(cbases[key])
         else:
             component = Component(key, hbases[key], cbases[key])
-            dict_pkgs[group_name][pkg_name].append(component)
+            pkgs[group_name][pkg_name].append(component)
             component.package = (group_name, pkg_name)
             components[key] = component
         del hbases[key]  # TODO Smells?!
@@ -403,30 +403,30 @@ def expand_hfile_deps(header_file):
     Returns:
         (set internal header files, set external header files, set unknown headers)
     """
-    global dict_internal_hfiles
-    set_dep_internal_hfiles = set()
-    set_dep_external_hfiles = set()
-    set_dep_bad_hfiles = set()
+    global internal_hfiles
+    dep_internal_hfiles = set()
+    dep_external_hfiles = set()
+    dep_bad_hfiles = set()
 
-    set_current_hfiles = set([header_file])
-    while set_current_hfiles:
-        set_next_hfiles = set()
-        for hfile in set_current_hfiles:
-            if hfile in dict_internal_hfiles:
-                set_dep_internal_hfiles.add(hfile)
-                hpath = dict_internal_hfiles[hfile]
-                set_next_hfiles.update(grep_hfiles(hpath))
-            elif hfile in dict_external_hfiles:
-                set_dep_external_hfiles.add(hfile)
+    current_hfiles = set([header_file])
+    while current_hfiles:
+        next_hfiles = set()
+        for hfile in current_hfiles:
+            if hfile in internal_hfiles:
+                dep_internal_hfiles.add(hfile)
+                hpath = internal_hfiles[hfile]
+                next_hfiles.update(grep_hfiles(hpath))
+            elif hfile in external_hfiles:
+                dep_external_hfiles.add(hfile)
             else:
                 # Detect headers failed to locate.
-                set_dep_bad_hfiles.add(hfile)
-        set_next_hfiles.difference_update(set_dep_internal_hfiles)
-        set_next_hfiles.difference_update(set_dep_external_hfiles)
-        set_next_hfiles.difference_update(set_dep_bad_hfiles)
-        set_current_hfiles = set_next_hfiles
+                dep_bad_hfiles.add(hfile)
+        next_hfiles.difference_update(dep_internal_hfiles)
+        next_hfiles.difference_update(dep_external_hfiles)
+        next_hfiles.difference_update(dep_bad_hfiles)
+        current_hfiles = next_hfiles
 
-    return (set_dep_internal_hfiles, set_dep_external_hfiles, set_dep_bad_hfiles)
+    return (dep_internal_hfiles, dep_external_hfiles, dep_bad_hfiles)
 
 
 def make_cdep():
@@ -436,8 +436,8 @@ def make_cdep():
         Simple recursive parsing does not work
         since there may be a cyclic dependency among headers.
     """
-    set_bad_hfiles = set()
-    dict_hfile_deps = {}
+    bad_hfiles = set()
+    hfile_deps = {}
     message = ''
     message2 = ''
     message3 = ''
@@ -457,17 +457,17 @@ def make_cdep():
         except ValueError:
             pass
         for hfile in hfiles:
-            if hfile in dict_external_hfiles:
+            if hfile in external_hfiles:
                 component.dep_external_hfiles.add(hfile)
                 continue
-            if hfile in dict_hfile_deps:
-                (set1, set2, set3) = dict_hfile_deps[hfile]
+            if hfile in hfile_deps:
+                (set1, set2, set3) = hfile_deps[hfile]
             else:
                 (set1, set2, set3) = expand_hfile_deps(hfile)
-                dict_hfile_deps[hfile] = (set1, set2, set3)
+                hfile_deps[hfile] = (set1, set2, set3)
             component.dep_internal_hfiles.update(set1)
             component.dep_external_hfiles.update(set2)
-            set_bad_hfiles.update(set3)
+            bad_hfiles.update(set3)
         # Detect indirectly including issues, and non-dependent issues.
         if ind_comp_hfile < 0:
             if comp_hfile in component.dep_internal_hfiles:
@@ -477,10 +477,10 @@ def make_cdep():
                 message3 += '%s: does not depend on %s.\n' % (
                     cpath, comp_hfile)
     # Report headers failed to locate.
-    if set_bad_hfiles:
+    if bad_hfiles:
         print('-' * 80)
         print('warning: failed to locate following headers: ')
-        print(' '.join(set_bad_hfiles))
+        print(' '.join(bad_hfiles))
     # Report non-dependent issues.
     if message3:
         print('-' * 80)
@@ -501,16 +501,16 @@ def make_cdep():
         print(message)
 
 
-def show_hfile_deps(hfile, depth, set_dep_hfiles):
-    if hfile in set_dep_hfiles:
+def show_hfile_deps(hfile, depth, dep_hfiles):
+    if hfile in dep_hfiles:
         print('+' * depth + '%s (duplicated)' % hfile)
         return
-    set_dep_hfiles.add(hfile)
-    if hfile in dict_internal_hfiles:
-        hpath = dict_internal_hfiles[hfile]
+    dep_hfiles.add(hfile)
+    if hfile in internal_hfiles:
+        hpath = internal_hfiles[hfile]
         hbase = fn_base(hfile)
         flag_conflict = ''
-        if hbase in dict_internal_conflict_hbases:
+        if hbase in internal_conflict_hbases:
             flag_conflict = '*'
         str_component = None
         if hbase in components:
@@ -526,10 +526,10 @@ def show_hfile_deps(hfile, depth, set_dep_hfiles):
         print('+' * depth + '%s %s(%s, %s)' %
               (hfile, flag_conflict, hpath, str_component))
         for hfile2 in grep_hfiles(hpath):
-            show_hfile_deps(hfile2, depth + 1, set_dep_hfiles)
-    elif hfile in dict_external_hfiles:
+            show_hfile_deps(hfile2, depth + 1, dep_hfiles)
+    elif hfile in external_hfiles:
         print('+' * depth + '%s (in external package %s)' %
-              (hfile, '.'.join(dict_external_hfiles[hfile])))
+              (hfile, '.'.join(external_hfiles[hfile])))
     else:
         print('+' * depth + '%s (failed to locate)' % hfile)
 
@@ -540,24 +540,24 @@ def show_details_of_components():
     Very useful for trying to understand
     why a cross-component dependency occurs.
     """
-    dict_included_by = {}
+    included_by = {}
     for component in components.values():
         depth = 1
-        set_dep_hfiles = set()
+        dep_hfiles = set()
         print('-' * 80)
         print('%s (%s in package %s.%s):' %
               (component.name, component.cpath, component.package[0], component.package[1]))
         for hfile in grep_hfiles(component.cpath):
-            show_hfile_deps(hfile, depth, set_dep_hfiles)
-        for hfile in set_dep_hfiles:
-            if hfile in dict_included_by:
-                dict_included_by[hfile].append(component.cpath)
+            show_hfile_deps(hfile, depth, dep_hfiles)
+        for hfile in dep_hfiles:
+            if hfile in included_by:
+                included_by[hfile].append(component.cpath)
             else:
-                dict_included_by[hfile] = [component.cpath]
-    for hfile in sorted(list(dict_included_by.keys())):
+                included_by[hfile] = [component.cpath]
+    for hfile in sorted(list(included_by.keys())):
         print('-' * 80)
         print(hfile + ':')
-        for cpath in sorted(dict_included_by[hfile]):
+        for cpath in sorted(included_by[hfile]):
             print(' ' + cpath)
 
 
@@ -565,7 +565,7 @@ def make_ldep():
     """Determines all components on which a component depends."""
     for component in components.values():
         for hfile in component.dep_internal_hfiles:
-            assert hfile in dict_internal_hfiles
+            assert hfile in internal_hfiles
             hbase = fn_base(hfile)
             if hbase in components:
                 comp2 = components[hbase]
@@ -577,17 +577,17 @@ def make_ldep():
                 # We've ever warned it at make_components().
                 pass
         for hfile in component.dep_external_hfiles:
-            assert hfile in dict_external_hfiles
-            external_pkg = dict_external_hfiles[hfile]
+            assert hfile in external_hfiles
+            external_pkg = external_hfiles[hfile]
             component.dep_external_pkgs.add(external_pkg)
 
 
 def output_ldep():
-    for group_name in sorted(dict_pkgs.keys()):
-        for pkg_name in sorted(dict_pkgs[group_name]):
+    for group_name in sorted(pkgs.keys()):
+        for pkg_name in sorted(pkgs[group_name]):
             print('=' * 80)
             print('pakcage %s.%s dependency:' % (group_name, pkg_name))
-            for component in dict_pkgs[group_name][pkg_name]:
+            for component in pkgs[group_name][pkg_name]:
                 message = '%s -> ' % component.name
                 message += ', '.join(sorted(x.name for x in component.dep_components))
                 message += '+(external packages) ' + ','.join(
@@ -604,10 +604,10 @@ create_graph_<range>_<level>
 
 Return Value:
         If <level> is "component", return digraph.
-        Else return (digraph, dict_edge2deps, dict_node2externalpkgs).
-        dict_edge2deps: edge -> list of component direct dependencies
+        Else return (digraph, edge2deps, node2externalpkgs).
+        edge2deps: edge -> list of component direct dependencies
             which been indicated by the edge.
-        dict_node2externalpkgs: node -> set of external packages
+        node2externalpkgs: node -> set of external packages
             on which the node depends.
 """
 
@@ -623,15 +623,15 @@ def create_graph_all_component():
 
 def create_graph_all_pkg():
     digraph = nx.DiGraph()
-    dict_edge2deps = {}
-    dict_node2externalpkgs = {}
+    edge2deps = {}
+    node2externalpkgs = {}
     for component in components.values():
         pkg = '.'.join(component.package)
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(pkg)
-        if pkg not in dict_node2externalpkgs:
-            dict_node2externalpkgs[pkg] = set()
-        dict_node2externalpkgs[pkg].update(component.dep_external_pkgs)
+        if pkg not in node2externalpkgs:
+            node2externalpkgs[pkg] = set()
+        node2externalpkgs[pkg].update(component.dep_external_pkgs)
         for comp2 in component.dep_components:
             pkg2 = '.'.join(comp2.package)
             if pkg == pkg2:
@@ -639,23 +639,23 @@ def create_graph_all_pkg():
             # Duplicated edges between two nodes will be stipped afterwards.
             digraph.add_edge(pkg, pkg2)
             key = (pkg, pkg2)
-            if key not in dict_edge2deps:
-                dict_edge2deps[key] = []
-            dict_edge2deps[key].append((component, comp2))
-    return digraph, dict_edge2deps, dict_node2externalpkgs
+            if key not in edge2deps:
+                edge2deps[key] = []
+            edge2deps[key].append((component, comp2))
+    return digraph, edge2deps, node2externalpkgs
 
 
 def create_graph_all_pkggrp():
     digraph = nx.DiGraph()
-    dict_edge2deps = {}
-    dict_node2externalpkgs = {}
+    edge2deps = {}
+    node2externalpkgs = {}
     for component in components.values():
         group_name = component.package[0]
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(group_name)
-        if group_name not in dict_node2externalpkgs:
-            dict_node2externalpkgs[group_name] = set()
-        dict_node2externalpkgs[group_name].update(component.dep_external_pkgs)
+        if group_name not in node2externalpkgs:
+            node2externalpkgs[group_name] = set()
+        node2externalpkgs[group_name].update(component.dep_external_pkgs)
         for comp2 in component.dep_components:
             group_name2 = comp2.package[0]
             if group_name == group_name2:
@@ -663,23 +663,23 @@ def create_graph_all_pkggrp():
             # Duplicated edges between two nodes will be stipped afterwards.
             digraph.add_edge(group_name, group_name2)
             key = (group_name, group_name2)
-            if key not in dict_edge2deps:
-                dict_edge2deps[key] = []
-            dict_edge2deps[key].append((component, comp2))
-    return digraph, dict_edge2deps, dict_node2externalpkgs
+            if key not in edge2deps:
+                edge2deps[key] = []
+            edge2deps[key].append((component, comp2))
+    return digraph, edge2deps, node2externalpkgs
 
 
 def create_graph_pkggrp_pkg(group_name):
     digraph = nx.DiGraph()
-    dict_edge2deps = {}
-    dict_node2externalpkgs = {}
-    for pkg_name in dict_pkgs[group_name]:
+    edge2deps = {}
+    node2externalpkgs = {}
+    for pkg_name in pkgs[group_name]:
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(pkg_name)
-        if pkg_name not in dict_node2externalpkgs:
-            dict_node2externalpkgs[pkg_name] = set()
-        for component in dict_pkgs[group_name][pkg_name]:
-            dict_node2externalpkgs[pkg_name].update(component.dep_external_pkgs)
+        if pkg_name not in node2externalpkgs:
+            node2externalpkgs[pkg_name] = set()
+        for component in pkgs[group_name][pkg_name]:
+            node2externalpkgs[pkg_name].update(component.dep_external_pkgs)
             for comp2 in component.dep_components:
                 (group_name2, pkg_name2) = comp2.package
                 if group_name != group_name2 or pkg_name == pkg_name2:
@@ -689,16 +689,16 @@ def create_graph_pkggrp_pkg(group_name):
                 # afterwards.
                 digraph.add_edge(pkg_name, pkg_name2)
                 key = (pkg_name, pkg_name2)
-                if key not in dict_edge2deps:
-                    dict_edge2deps[key] = []
-                dict_edge2deps[key].append((component, comp2))
-    return digraph, dict_edge2deps, dict_node2externalpkgs
+                if key not in edge2deps:
+                    edge2deps[key] = []
+                edge2deps[key].append((component, comp2))
+    return digraph, edge2deps, node2externalpkgs
 
 
 def create_graph_pkg_component(group_name, pkg_name):
     digraph = nx.DiGraph()
     package = (group_name, pkg_name)
-    for component in dict_pkgs[group_name][pkg_name]:
+    for component in pkgs[group_name][pkg_name]:
         digraph.add_node(str(component))
         for comp2 in component.dep_components:
             package2 = comp2.package
@@ -708,11 +708,11 @@ def create_graph_pkg_component(group_name, pkg_name):
     return digraph
 
 
-def output_original_graph_info(dict_edge2deps, dict_node2externalpkgs):
+def output_original_graph_info(edge2deps, node2externalpkgs):
     print('=' * 80)
     print('each edge in the original graph logically consists of '
           'some cross-component dependencies:')
-    for item in dict_edge2deps.items():
+    for item in edge2deps.items():
         message = '->'.join(item[0]) + ': '
         num_deps = 5 if len(item[1]) > 5 else len(item[1])
         message += ' '.join(str(x[0]) + '->' + str(x[1])
@@ -722,7 +722,7 @@ def output_original_graph_info(dict_edge2deps, dict_node2externalpkgs):
         print(message)
     print('=' * 80)
     print('each node in the original graph depends on some external packages:')
-    for item in dict_node2externalpkgs.items():
+    for item in node2externalpkgs.items():
         print(str(item[0]) + ': ' +
               ' '.join('.'.join(x) for x in list(item[1])))
 
@@ -738,9 +738,9 @@ def calculate_graph(digraph, dot_basename=None):
     def key_edge(x):
         return str(x[0]) + '->' + str(x[1])
 
-    (cycles, dict_node2cycle) = make_dag(digraph, key_node)
-    (layers, dict_layer_no, redundant_edges) = layering_dag(digraph, key_node)
-    (ccd, dict_cd) = calc_ccd(digraph, cycles, layers)
+    (cycles, node2cycle) = make_dag(digraph, key_node)
+    (layers, layer_no, redundant_edges) = layering_dag(digraph, key_node)
+    (ccd, cd) = calc_ccd(digraph, cycles, layers)
     print('=' * 80)
     print('cycles detected(%d cycles): ' % len(cycles))
     for min_node in sorted(cycles.keys(), key=str):
@@ -757,7 +757,7 @@ def calculate_graph(digraph, dot_basename=None):
     print('layers(%d layers):' % len(layers))
 
     def repr_node(node):
-        cycle_key = dict_node2cycle[node]
+        cycle_key = node2cycle[node]
         if cycle_key:
             assert node == cycle_key
             str_node = '[cycle]' + str(node)
@@ -831,27 +831,27 @@ def main():
 
     print('@' * 80)
     print('analyzing dependencies among all packages ...')
-    digraph, dict_edge2deps, dict_node2externalpkgs = create_graph_all_pkg()
-    output_original_graph_info(dict_edge2deps, dict_node2externalpkgs)
+    digraph, edge2deps, node2externalpkgs = create_graph_all_pkg()
+    output_original_graph_info(edge2deps, node2externalpkgs)
     calculate_graph(digraph, 'all_packages')
 
     print('@' * 80)
     print('analyzing dependencies among all package groups ...')
-    digraph, dict_edge2deps, dict_node2externalpkgs = create_graph_all_pkggrp()
-    output_original_graph_info(dict_edge2deps, dict_node2externalpkgs)
+    digraph, edge2deps, node2externalpkgs = create_graph_all_pkggrp()
+    output_original_graph_info(edge2deps, node2externalpkgs)
     calculate_graph(digraph, 'all_pkggrps')
 
-    for group_name in dict_pkgs:
+    for group_name in pkgs:
         print('@' * 80)
         print('analyzing dependencies among packages in ' +
               'the specified package group %s ...' % group_name)
-        digraph, dict_edge2deps, dict_node2externalpkgs = \
+        digraph, edge2deps, node2externalpkgs = \
             create_graph_pkggrp_pkg(group_name)
-        output_original_graph_info(dict_edge2deps, dict_node2externalpkgs)
+        output_original_graph_info(edge2deps, node2externalpkgs)
         calculate_graph(digraph, group_name)
 
-    for group_name in dict_pkgs:
-        for pkg_name in dict_pkgs[group_name]:
+    for group_name in pkgs:
+        for pkg_name in pkgs[group_name]:
             print('@' * 80)
             print('analyzing dependencies among components in ' +
                   'the specified pakcage %s.%s ...' % (group_name, pkg_name))
