@@ -181,17 +181,19 @@ class Config(object):
         """
         group_name = pkg_group_element.get('name')
         group_path = pkg_group_element.get('path')
-        pkg_groups[group_name] = {}  # TODO: Handle duplicate groups.
+        assert group_name not in pkg_groups  # TODO: Handle duplicate groups.
+        pkg_groups[group_name] = {}
 
         for pkg_element in pkg_group_element.findall('package'):
             pkg_name = pkg_element.get('name')
-            src_paths = pkg_element.text.strip().split()
+            src_paths = [x.text.strip() for x in pkg_element.findall('path')]
             pkg_groups[group_name][pkg_name] = \
                 [os.path.normpath(os.path.join(group_path, x))
                  for x in src_paths]
 
-        for pkg_path in pkg_group_element.text.strip().split():
-            pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
+        for pkg_element in pkg_group_element.findall('path'):
+            pkg_path = os.path.normpath(os.path.join(group_path,
+                                                     pkg_element.text.strip()))
             pkg_name = os.path.basename(pkg_path)
             pkg_groups[group_name][pkg_name] = [pkg_path]
 

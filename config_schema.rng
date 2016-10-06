@@ -3,37 +3,44 @@
 
   <start>
     <element name="cppdep">
-      <oneOrMore>
-        <ref name="package-group"/>
-      </oneOrMore>
+      <oneOrMore> <ref name="package-group"/> </oneOrMore>
     </element>
   </start>
 
   <define name="package-group">
     <element name="package-group">
-      <optional>
-        <attribute name="role">
-          <choice>
-            <value>external</value>
-            <value>internal</value>  <!-- The default. -->
-          </choice>
-        </attribute>
-      </optional>
-      <!-- TODO: consider a stricter data type for 'name' -->
-      <attribute name="name"> <data type="string"/> </attribute>
-      <!-- TODO: consider a path type or pattern -->
+      <optional> <ref name="role"/> </optional>
+      <ref name="name"/>
       <attribute name="path"> <data type="string"/> </attribute>
-      <optional>
-        <text/>  <!-- TODO: consider explicit paths -->
-      </optional>
-      <zeroOrMore>
-        <element name="package">
-          <!-- TODO: consider a stricter data type for 'name' -->
-          <attribute name="name"> <data type="string"/> </attribute>
-          <text/>  <!-- TODO: consider explicit paths -->
-        </element>
-      </zeroOrMore>
+      <zeroOrMore> <ref name="path"/> </zeroOrMore>
+      <zeroOrMore> <ref name="package"/> </zeroOrMore>
     </element>
+  </define>
+
+  <define name="package">
+    <element name="package">
+      <ref name="name"/>
+      <oneOrMore> <ref name="path"/> </oneOrMore>
+    </element>
+  </define>
+
+  <define name="role">
+    <attribute name="role">
+      <choice>
+        <value>external</value>
+        <value>internal</value>  <!-- The default. -->
+      </choice>
+    </attribute>
+  </define>
+
+  <define name="name">
+      <!-- TODO: consider a stricter data type for 'name' -->
+    <attribute name="name"> <data type="string"/> </attribute>
+  </define>
+
+  <define name="path">
+    <!-- TODO: consider a path type or pattern -->
+    <element name="path"> <data type="string"/> </element>
   </define>
 
 </grammar>

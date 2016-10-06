@@ -1,16 +1,17 @@
 <cppdep>
   <package-group role="external" name="STD" path="/">
     <package name="C_C++_LIB">
-      /usr/include
+      <path>/usr/include</path>
     </package>
   </package-group>
   <package-group name="Awesome" path="/path/to/awesome/project">
-    src
+    <path>src</path>
     <package name="libFoo">
-      src/foo
+      <path>src/foo</path>
     </package>
     <package name="libBar">
-      src/bar
+      <path>src/bar</path>
+      <path>src/baz</path>
     </package>
   </package-group>
 </cppdep>
