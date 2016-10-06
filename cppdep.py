@@ -37,7 +37,6 @@ import networkx as nx
 from networkx.drawing.nx_pydot import write_dot
 from networkx_ext import calc_ccd, make_dag, layering_dag
 
-
 class ConfigXmlParseError(Exception):
     """Parsing errors in XML configuration file."""
 
@@ -90,11 +89,14 @@ def grep_hfiles(src_file_path):
         return [os.path.basename(header) for header in grep_include(src_file)]
 
 
+# STL/Boost/Qt and other libraries can provide extension-less system headers.
+_RE_SYSTEM_HFILE = re.compile(r'(?i)[^.]*$')
 _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
 _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 
 
 def find(path, fnmatcher):
+    """Yields basename and full path to header files."""
     if os.path.isfile(path):
         fn = os.path.basename(path)
         if fnmatcher.match(fn):
@@ -108,7 +110,8 @@ def find(path, fnmatcher):
 
 
 def find_hfiles_blindly(path):
-    return [hfile for hfile, _ in find(path, _RE_HFILE)]
+    return [hfile for hfile, _ in find(path, _RE_HFILE)] + \
+           [hfile for hfile, _ in find(path, _RE_SYSTEM_HFILE)]
 
 
 class Component(object):
@@ -213,7 +216,6 @@ dict_comps = {}
 def find_hfiles(path, hbases, hfiles):
     global dict_internal_conflict_hbases  # TODO: Smells?!
     for hfile, hpath in find(path, _RE_HFILE):
-        # Detect conflicts among internal headers inside a package
         if hfile not in hfiles:
             hfiles[hfile] = hpath
         hbase = fn_base(hfile)
