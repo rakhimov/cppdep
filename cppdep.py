@@ -238,17 +238,21 @@ def find_cfiles(path, cbases):
         cbases[cbase] = cpath
 
 
-def make_components():
-    """pair hfiles and cfiles."""
+def make_components(config):
+    """Pairs hfiles and cfiles.
+
+    Args:
+        config: The project configurations with package groups.
+    """
     global dict_external_hfiles
     global dict_internal_hfiles
     global dict_internal_hbases
     global dict_pkgs
     global dict_comps
-    for group_name in dict_external_conf:
-        for pkg_name in dict_external_conf[group_name]:
+    for group_name in config.external_groups:
+        for pkg_name in config.external_groups[group_name]:
             pkg = (group_name, pkg_name)
-            for src_path in dict_external_conf[group_name][pkg_name]:
+            for src_path in config.external_groups[group_name][pkg_name]:
                 hfiles = find_hfiles_blindly(src_path)
                 for hfile in hfiles:
                     dict_external_hfiles[hfile] = pkg
@@ -256,14 +260,14 @@ def make_components():
     hfiles = {}
     cbases = {}
     message = ''
-    for group_name in dict_internal_conf:
+    for group_name in config.internal_groups:
         dict_pkgs[group_name] = {}
-        for pkg_name in dict_internal_conf[group_name]:
+        for pkg_name in config.internal_groups[group_name]:
             dict_pkgs[group_name][pkg_name] = []
             hbases.clear()
             hfiles.clear()
             cbases.clear()
-            for src_path in dict_internal_conf[group_name][pkg_name]:
+            for src_path in config.internal_groups[group_name][pkg_name]:
                 find_hfiles(src_path, hbases, hfiles)
                 find_cfiles(src_path, cbases)
             # Detect cross-package conflicts among internal headers
@@ -776,12 +780,7 @@ def main():
 
     time_start = time.time()
     config = Config(args.path_conf)
-    global dict_external_conf
-    global dict_internal_conf
-    dict_external_conf = config.external_groups
-    dict_internal_conf = config.internal_groups
-
-    make_components()
+    make_components(config)
 
     make_cdep()
 
