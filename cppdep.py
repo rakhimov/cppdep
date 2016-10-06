@@ -204,13 +204,14 @@ dict_external_hfiles = {}
 dict_internal_hfiles = {}
 dict_internal_hbases = {}
 dict_internal_conflict_hbases = {}
-dict_internal_external_conflict_hfiles = {}
+dict_internal_external_conflict_hfiles = {}  # TODO: Uninitialized!
 dict_internal_conflict_cbases = {}
 dict_pkgs = {}
 dict_comps = {}
 
 
 def find_hfiles(path, hbases, hfiles):
+    global dict_internal_conflict_hbases  # TODO: Smells?!
     for hfile, hpath in find(path, _RE_HFILE):
         # Detect conflicts among internal headers inside a package
         if hfile not in hfiles:
@@ -226,6 +227,7 @@ def find_hfiles(path, hbases, hfiles):
 
 
 def find_cfiles(path, cbases):
+    global dict_internal_conflict_cbases  # TODO: Smells?!
     for cfile, cpath in find(path, _RE_CFILE):
         cbase = fn_base(cfile)
         # Detect conflicts among internal dotCs inside a package
@@ -335,35 +337,47 @@ def make_components(config):
         print('warning: detected files failed to associate '
               'with any component (all will be ignored): ')
         print(message)
+
+    report_internal_conflicts(dict_internal_conflict_hbases,
+                              dict_internal_conflict_cbases)
+    # WARNING: This function has a side-effect.
+    report_hfile_conflicts(dict_internal_hfiles, dict_external_hfiles)
+
+
+def report_internal_conflicts(conflict_hbases, conflict_cbases):
+    """Reports conflicting base names of header or implementation files.
+
+    Args:
+        conflict_hbases: The conflicting header files with paths.
+        conflict_cbases: The conflicting implementation files with paths.
+    """
     # Report conflicts among internal headers
-    if dict_internal_conflict_hbases:
-        message = 'warning: detected file basename conflicts among internal ' + \
-                  'headers (all except the first one will be ignored):\n'
-        for hbase in dict_internal_conflict_hbases:
+    if conflict_hbases:
+        message = ('warning: detected file basename conflicts among internal '
+                   'headers (all except the first one will be ignored):\n')
+        for hbase in conflict_hbases:
             message += '%s: ' % hbase
-            for hpath in dict_internal_conflict_hbases[hbase]:
+            for hpath in conflict_hbases[hbase]:
                 digest = md5sum(hpath)
                 message += '%s(%s) ' % (hpath, digest)
             message += '\n'
         print('-' * 80)
         print(message)
     # Report conflicts among internal dotCs
-    if dict_internal_conflict_cbases:
-        message = 'warning: detected file basename conflicts among internal ' + \
-                  'dotCs (all except the first one will be ignored):\n'
-        for cbase in dict_internal_conflict_cbases:
+    if conflict_cbases:
+        message = ('warning: detected file basename conflicts among internal '
+                   'dotCs (all except the first one will be ignored):\n')
+        for cbase in conflict_cbases:
             message += '%s: ' % cbase
-            for cpath in dict_internal_conflict_cbases[cbase]:
+            for cpath in conflict_cbases[cbase]:
                 digest = md5sum(cpath)
                 message += '%s(%s) ' % (cpath, digest)
             message += '\n'
         print('-' * 80)
         print(message)
-    # WARNING: This function has a side-effect.
-    report_hfile_conflicts(dict_internal_hfiles, dict_external_hfiles)
 
 
-#TODO: This function is dubious with a strange side-effect.
+# TODO: This function is dubious with a strange side-effect.
 def report_hfile_conflicts(internal_hfiles, external_hfiles):
     """Reports and processes internal and external header file conflicts.
 
@@ -382,7 +396,7 @@ def report_hfile_conflicts(internal_hfiles, external_hfiles):
             message += '%s (in external package %s): %s\n' % \
                        (hfile, '.'.join(external_hfiles[hfile]),
                         internal_hfiles[hfile])
-            del external_hfiles[hfile]  #TODO: Smells?!
+            del external_hfiles[hfile]  # TODO: Smells?!
         print('-' * 80)
         print(message)
 
