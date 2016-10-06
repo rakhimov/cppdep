@@ -101,7 +101,7 @@ def find(path, fnmatcher):
         if fnmatcher.match(filename):
             yield filename, path
     else:
-        for root, dirs, files in os.walk(path):
+        for root, _, files in os.walk(path):
             for entry in files:
                 if fnmatcher.match(entry):
                     full_path = os.path.join(root, entry)
@@ -213,14 +213,13 @@ components = {}
 
 
 def find_hfiles(path, hbases, hfiles):
-    global internal_conflict_hbases  # TODO: Smells?!
     for hfile, hpath in find(path, _RE_HFILE):
         if hfile not in hfiles:
             hfiles[hfile] = hpath
         hbase = filename_base(hfile)
         # Detect conflicts among internal headers inside a package
         if hbase in hbases:
-            if hbase not in internal_conflict_hbases:
+            if hbase not in internal_conflict_hbases:  # TODO: Smells?!
                 internal_conflict_hbases[hbase] = [hbases[hbase]]
             internal_conflict_hbases[hbase].append(hpath)
             continue
@@ -228,12 +227,11 @@ def find_hfiles(path, hbases, hfiles):
 
 
 def find_cfiles(path, cbases):
-    global internal_conflict_cbases  # TODO: Smells?!
     for cfile, cpath in find(path, _RE_CFILE):
         cbase = filename_base(cfile)
         # Detect conflicts among internal dotCs inside a package
         if cbase in cbases:
-            if cbase not in internal_conflict_cbases:
+            if cbase not in internal_conflict_cbases:  # TODO: Smells?!
                 internal_conflict_cbases[cbase] = [cbases[cbase], cpath]
             else:
                 internal_conflict_cbases[cbase].append(cpath)
@@ -305,9 +303,6 @@ def make_components(config):
         config: The project configurations with package groups.
     """
     global external_hfiles
-    global internal_hfiles
-    global pkgs
-
     external_hfiles = gather_external_hfiles(config.external_groups)
 
     incomplete_components = IncompleteComponents()
@@ -364,10 +359,6 @@ def construct_components(group_name, pkg_name, hbases, cbases):
     TODO:
         Supply an option to disable unpaired header component considerations.
     """
-    global components
-    global internal_hfiles
-    global pkgs
-
     assert pkg_name not in pkgs[group_name]
     pkgs[group_name][pkg_name] = []
     paired_components = hbases.viewkeys() & cbases.viewkeys()
@@ -402,7 +393,6 @@ def expand_hfile_deps(header_file):
     Returns:
         (set internal header files, set external header files, set unknown headers)
     """
-    global internal_hfiles
     dep_internal_hfiles = set()
     dep_external_hfiles = set()
     dep_bad_hfiles = set()
@@ -734,23 +724,23 @@ def calculate_graph(digraph, dot_basename=None):
         write_dot(digraph, dot_basename + '_orig.dot')
     key_node = str
 
-    def key_edge(x):
-        return str(x[0]) + '->' + str(x[1])
+    def key_edge(edge):
+        return str(edge[0]) + '->' + str(edge[1])
 
-    (cycles, node2cycle) = make_dag(digraph, key_node)
-    (layers, layer_no, redundant_edges) = layering_dag(digraph, key_node)
-    (ccd, cd) = calc_ccd(digraph, cycles, layers)
+    cycles, node2cycle = make_dag(digraph, key_node)
+    layers, _, redundant_edges = layering_dag(digraph, key_node)
+    ccd, _ = calc_ccd(digraph, cycles, layers)
     print('=' * 80)
     print('cycles detected(%d cycles): ' % len(cycles))
     for min_node in sorted(cycles.keys(), key=str):
         cycle = cycles[min_node]
         message = '[cycle]%s nodes(%d nodes): ' % (
             str(min_node), cycle.number_of_nodes())
-        message += ' '.join(sorted(map(key_node, cycle.nodes())))
+        message += ' '.join(sorted(key_node(x) for x in cycle.nodes()))
         print(message)
         message = '[cycle]%s edges(%d edges): ' % (
             str(min_node), cycle.number_of_edges())
-        message += ' '.join(sorted(map(key_edge, cycle.edges())))
+        message += ' '.join(sorted(key_edge(x) for x in cycle.edges()))
         print(message)
     print('=' * 80)
     print('layers(%d layers):' % len(layers))
@@ -768,12 +758,12 @@ def calculate_graph(digraph, dot_basename=None):
         print('layer %d(%d nodes): ' % (i, len(layer)))
         for node in layer:
             message = repr_node(node) + ' -> '
-            message += ' '.join(sorted(map(repr_node,
-                                           digraph.successors(node))))
+            message += ' '.join(sorted(repr_node(x) for x in
+                                       digraph.successors(node)))
             print(message)
 
     print('redundant edges stripped(%d edges): ' % len(redundant_edges))
-    print(' '.join(sorted(map(key_edge, redundant_edges))))
+    print(' '.join(sorted(key_edge(x) for x in redundant_edges)))
     # CCD_fullBTree = (N+1)*log2(N+1)-N
     # ACD = CCD/N
     # NCCD = CCD/CCD_fullBTree
@@ -789,10 +779,10 @@ def calculate_graph(digraph, dot_basename=None):
           (ccd, acd, nccd))
     if dot_basename:
         if cycles:
-            g = nx.DiGraph()
+            cycle_graph = nx.DiGraph()
             for cycle in cycles.values():
-                g.add_edges_from(cycle.edges_iter())
-            write_dot(g, dot_basename + '_cycles.dot')
+                cycle_graph.add_edges_from(cycle.edges_iter())
+            write_dot(cycle_graph, dot_basename + '_cycles.dot')
         write_dot(digraph, dot_basename + '_final.dot')
 
 
