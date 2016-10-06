@@ -261,6 +261,44 @@ def gather_external_hfiles(external_groups):
     return external_hfiles
 
 
+class IncompleteComponents(object):
+    """A collection of unpaired header or source files. """
+
+    def __init__(self):
+        """Initializes an empty container."""
+        self.__data = []  # [(group_name, pkg_name, hpaths, cpaths)]
+
+    def register(self, group_name, pkg_name, hpaths, cpaths):
+        """Registers unpaired files.
+
+        Args:
+            group_name: The name of the package group.
+            pkg_name: The name of the package.
+            hpaths: A collection of the header file path in the package.
+            cpaths: A collection of the source file path in the package.
+
+        Precondition:
+            No duplicate packages.
+        """
+        if hpaths or cpaths:
+            self.__data.append((group_name, pkg_name, hpaths, cpaths))
+
+    def print_warning(self):
+        """Prints a warning message about incomplete components."""
+        if not self.__data:
+            return
+        message = ''
+        for group_name, pkg_name, hpaths, cpaths in self.__data:
+            message += 'in package %s.%s: ' % (group_name, pkg_name)
+            message += ', '.join(os.path.basename(x) for x in hpaths)
+            message += ' ' + ', '.join(os.path.basename(x) for x in cpaths)
+            message += '\n'
+        print('-' * 80)
+        print('warning: detected files failed to associate '
+              'with any component (all will be ignored): ')
+        print(message)
+
+
 def make_components(config):
     """Pairs hfiles and cfiles.
 
@@ -270,15 +308,13 @@ def make_components(config):
     global dict_external_hfiles
     global dict_internal_hfiles
     global dict_pkgs
-    global components
 
     dict_external_hfiles = gather_external_hfiles(config.external_groups)
 
-    message = ''
+    incomplete_components = IncompleteComponents()
     for group_name, packages in config.internal_groups.items():
         dict_pkgs[group_name] = {}
         for pkg_name, src_paths in packages.items():
-            dict_pkgs[group_name][pkg_name] = []
             hbases = {}
             cbases = {}
             hfiles = {}
@@ -290,42 +326,72 @@ def make_components(config):
                 if hfile not in dict_internal_hfiles:
                     dict_internal_hfiles[hfile] = hpath
 
-            for key in list(cbases.keys()):
-                if key in hbases:
-                    # Detect cross-package conflicts among internal dotCs
-                    # In fact, only check between registering components
-                    # and registered components.
-                    # For example, suppose both libA/main.cc and libB/main.cpp
-                    # failed to be registered as a component,
-                    # the basename conflict between them will be ignored.
-                    if key in components:
-                        if key not in dict_internal_conflict_cbases:
-                            dict_internal_conflict_cbases[key] = [
-                                components[key].cpath]
-                        dict_internal_conflict_cbases[key].append(cbases[key])
-                    else:
-                        component = Component(key, hbases[key], cbases[key])
-                        dict_pkgs[group_name][pkg_name].append(component)
-                        component.package = (group_name, pkg_name)
-                        components[key] = component
-                    del hbases[key]
-                    del cbases[key]
-
-            # Detect files failed to be associated with any component
-            if hbases or cbases:
-                message += 'in package %s.%s: ' % (group_name, pkg_name)
-                message += ', '.join(map(os.path.basename, hbases.values()))
-                if cbases:
-                    message += ' ' + \
-                        ', '.join(map(os.path.basename, cbases.values()))
-                message += '\n'
+            hpaths, cpaths = \
+                construct_components(group_name, pkg_name, hbases, cbases)
+            incomplete_components.register(group_name, pkg_name, hpaths, cpaths)
 
     # Report files failed to associated with any component
-    if message:
-        print('-' * 80)
-        print('warning: detected files failed to associate '
-              'with any component (all will be ignored): ')
-        print(message)
+    incomplete_components.print_warning()
+
+
+def construct_components(group_name, pkg_name, hbases, cbases):
+    """Pairs header and implementation files into components.
+
+    Even though John Lakos defined a component as a pair of h and c files,
+    C++ can have template only components
+    residing only in header files (e.g., STL/Boost/etc.).
+    Moreover, some header-only components
+    may contain only inline functions or macros
+    without any need for an implmentation file (e.g., inline math, Boost PPL).
+    For these reason, unpaired header files
+    are counted as components by default.
+
+    Args:
+        group_name: The name of the package group.
+        pkg_name: The name of the package.
+        hbases: Base names of header files.
+        cbases: Base names of implementation files.
+
+    Returns:
+        collection(unpaired header paths), collection(unpaired source paths)
+
+    TODO:
+       Refactor Component to allow header-only/source-only components.
+
+    TODO:
+        Consider the main implementation file of an application
+        as a separate component as well.
+
+    TODO:
+        Supply an option to disable unpaired header component considerations.
+    """
+    global components
+    global dict_internal_hfiles
+    global dict_pkgs
+
+    assert pkg_name not in dict_pkgs[group_name]
+    dict_pkgs[group_name][pkg_name] = []
+    paired_components = hbases.viewkeys() & cbases.viewkeys()
+    for key in paired_components:
+        # Detect cross-package conflicts among internal dotCs
+        # In fact, only check between registering components
+        # and registered components.
+        # For example, suppose both libA/main.cc and libB/main.cpp
+        # failed to be registered as a component,
+        # the basename conflict between them will be ignored.
+        if key in components:  # TODO: Should never happen!
+            if key not in dict_internal_conflict_cbases:
+                dict_internal_conflict_cbases[key] = [
+                    components[key].cpath]
+            dict_internal_conflict_cbases[key].append(cbases[key])
+        else:
+            component = Component(key, hbases[key], cbases[key])
+            dict_pkgs[group_name][pkg_name].append(component)
+            component.package = (group_name, pkg_name)
+            components[key] = component
+        del hbases[key]  # TODO Smells?!
+        del cbases[key]  # TODO Smells?!
+    return hbases.values(), cbases.values()
 
 
 def expand_hfile_deps(header_file):
