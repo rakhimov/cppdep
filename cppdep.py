@@ -126,9 +126,79 @@ class Component(object):
     def __str__(self):
         return self.name
 
-# Following two global variables are initialized by parse_conf().
-dict_external_conf = {}
-dict_internal_conf = {}
+
+class Config(object):
+    """Project configurations.
+
+    Attributes:
+        external_groups: External dependency packages and package groups.
+                         {pkg_group_name: {pkg_name: [full_src_paths]}}
+        internal_groups: The package groups of the project under analysis.
+                         {pkg_group_name: {pkg_name: [full_src_paths]}}
+    """
+
+    def __init__(self, config_file):
+        """Initializes configuraions from an XML config file.
+
+        Args:
+            config_file: The path to the XML config file.
+
+        Raises:
+            ConfigXmlParseError: The configuration or XML is invalid.
+        """
+        self.external_groups = {}
+        self.internal_groups = {}
+        self.__parse_xml_config(config_file)
+
+    def __parse_xml_config(self, config_file):
+        """Parses the XML configuration file.
+
+        Args:
+            config_file: The path to the configuration file.
+
+        Raises:
+            ConfigXmlParseError: The configuration or XML is invalid.
+        """
+        root = ElementTree.parse(config_file).getroot()
+        for pkg_group_element in root.findall('package-group'):
+            pkg_role = pkg_group_element.get('role')
+            assert pkg_role is None or pkg_role in ('external', 'internal')
+            pkg_groups = self.external_groups if pkg_role == 'external' \
+                    else self.internal_groups
+            self.__add_package_group(pkg_group_element, pkg_groups)
+
+    def __add_package_group(self, pkg_group_element, pkg_groups):
+        """Parses the body of <package-group/> in XML config file.
+
+        Args:
+            pkg_group_element: The <package-group> XML element.
+            pkg_groups: The destination dictionary for member packages.
+
+        Raises:
+            ConfigXmlParseError: Invalid configuration or parsing error.
+        """
+        group_name = pkg_group_element.get('name')
+        group_path = pkg_group_element.get('path')
+        pkg_groups[group_name] = {}  # TODO: Handle duplicate groups.
+
+        for pkg_element in pkg_group_element.findall('package'):
+            pkg_name = pkg_element.get('name')
+            src_paths = pkg_element.text.strip().split()
+            pkg_groups[group_name][pkg_name] = \
+                [os.path.normpath(os.path.join(group_path, x))
+                 for x in src_paths]
+
+        for pkg_path in pkg_group_element.text.strip().split():
+            pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
+            pkg_name = os.path.basename(pkg_path)
+            pkg_groups[group_name][pkg_name] = [pkg_path]
+
+        for pkg_path in pkg_groups[group_name][pkg_name]:
+            if not os.path.exists(pkg_path):
+                raise ConfigXmlParseError("""detected a config error for package
+                                             %s.%s: %s does not exist!""" %
+                                          (group_name, pkg_name, pkg_path))
+
 
 dict_external_hfiles = {}
 dict_internal_hfiles = {}
@@ -166,55 +236,6 @@ def find_cfiles(path, cbases):
                 dict_internal_conflict_cbases[cbase].append(cpath)
             continue
         cbases[cbase] = cpath
-
-
-def parse_conf_package_group(pkg_group, dict_conf):
-    """Parses the body of <package-group/> in XML config file.
-
-    Args:
-        pkg_group: The <package-group> XML element.
-        dict_conf: The destination configuration dictionary for configurations.
-
-    Raises:
-        ConfigXmlParseError: Invalid configuration or parsing error.
-    """
-    group_name = pkg_group.get('name')
-    group_path = pkg_group.get('path')
-    dict_conf[group_name] = {}
-
-    for pkg in pkg_group.findall('package'):
-        pkg_name = pkg.get('name')
-        src_paths = pkg.text.strip().split()
-        dict_conf[group_name][pkg_name] = \
-            [os.path.normpath(os.path.join(group_path, x)) for x in src_paths]
-
-    for pkg_path in pkg_group.text.strip().split():
-        pkg_path = os.path.normpath(os.path.join(group_path, pkg_path))
-        pkg_name = os.path.basename(pkg_path)
-        dict_conf[group_name][pkg_name] = [pkg_path]
-
-    for pkg_path in dict_conf[group_name][pkg_name]:
-        if not os.path.exists(pkg_path):
-            raise ConfigXmlParseError("""detected a config error for package
-                                         %s.%s: %s does not exist!""" %
-                                      (group_name, pkg_name, pkg_path))
-
-
-def parse_conf(path_conf):
-    """Parses the XML configuration file.
-
-    Raises:
-        ConfigXmlParseError: The configuration or XML is invalid.
-    """
-    global dict_external_conf
-    global dict_internal_conf
-    root = ElementTree.parse(path_conf).getroot()
-    for pkg_group in root.findall('package-group'):
-        attr_role = pkg_group.get('role')
-        assert attr_role is None or attr_role in ('external', 'internal')
-        is_external = attr_role == 'external'
-        dict_conf = dict_external_conf if is_external else dict_internal_conf
-        parse_conf_package_group(pkg_group, dict_conf)
 
 
 def make_components():
@@ -754,7 +775,11 @@ def main():
     args = parser.parse_args()
 
     time_start = time.time()
-    parse_conf(args.path_conf)
+    config = Config(args.path_conf)
+    global dict_external_conf
+    global dict_internal_conf
+    dict_external_conf = config.external_groups
+    dict_internal_conf = config.internal_groups
 
     make_components()
 
