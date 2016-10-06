@@ -328,6 +328,7 @@ def make_components(config):
                     message += ' ' + \
                         ', '.join(map(os.path.basename, cbases.values()))
                 message += '\n'
+
     # Report files failed to associated with any component
     if message:
         print('-' * 80)
@@ -358,20 +359,32 @@ def make_components(config):
             message += '\n'
         print('-' * 80)
         print(message)
-    # Detect and report conflicts between external and internal headers
-    set_external_hfiles = set(dict_external_hfiles.keys())
-    set_internal_hfiles = set(dict_internal_hfiles.keys())
-    set_common_hfiles = set_internal_hfiles.intersection(set_external_hfiles)
-    if set_common_hfiles:
-        message = 'warning: detected file name conflicts between internal and ' + \
-                  'external headers (external ones will be ignored): \n'
-        for hfile in set_common_hfiles:
+    # WARNING: This function has a side-effect.
+    report_hfile_conflicts(dict_internal_hfiles, dict_external_hfiles)
+
+
+#TODO: This function is dubious with a strange side-effect.
+def report_hfile_conflicts(internal_hfiles, external_hfiles):
+    """Reports and processes internal and external header file conflicts.
+
+    WARNING: This function deletes the conflicting external header file
+    from the database of external header files.
+
+    Args:
+        internal_hfiles:
+    """
+    common_hfiles = \
+        set(internal_hfiles.keys()).intersection(set(external_hfiles.keys()))
+    if common_hfiles:
+        message = 'warning: detected file name conflicts between internal ' + \
+                  'and external headers (external ones will be ignored): \n'
+        for hfile in common_hfiles:
             message += '%s (in external package %s): %s\n' % \
-                       (hfile, '.'.join(dict_external_hfiles[hfile]),
-                        dict_internal_hfiles[hfile])
+                       (hfile, '.'.join(external_hfiles[hfile]),
+                        internal_hfiles[hfile])
+            del external_hfiles[hfile]  #TODO: Smells?!
         print('-' * 80)
         print(message)
-        del dict_external_hfiles[hfile]
 
 
 def expand_hfile_deps(header_file):
