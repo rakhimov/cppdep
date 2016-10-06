@@ -51,8 +51,9 @@ def md5sum(fpath):
         return hashlib.md5(input_file.read()).hexdigest()
 
 
-def fn_base(fn):
-    return os.path.splitext(fn)[0]
+def filename_base(filename):
+    """Strips the extension from a filename."""
+    return os.path.splitext(filename)[0]
 
 
 # A search pattern for include directives.
@@ -96,9 +97,9 @@ _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 def find(path, fnmatcher):
     """Yields basename and full path to header files."""
     if os.path.isfile(path):
-        fn = os.path.basename(path)
-        if fnmatcher.match(fn):
-            yield fn, path
+        filename = os.path.basename(path)
+        if fnmatcher.match(filename):
+            yield filename, path
     else:
         for root, dirs, files in os.walk(path):
             for entry in files:
@@ -216,7 +217,7 @@ def find_hfiles(path, hbases, hfiles):
     for hfile, hpath in find(path, _RE_HFILE):
         if hfile not in hfiles:
             hfiles[hfile] = hpath
-        hbase = fn_base(hfile)
+        hbase = filename_base(hfile)
         # Detect conflicts among internal headers inside a package
         if hbase in hbases:
             if hbase not in internal_conflict_hbases:
@@ -229,7 +230,7 @@ def find_hfiles(path, hbases, hfiles):
 def find_cfiles(path, cbases):
     global internal_conflict_cbases  # TODO: Smells?!
     for cfile, cpath in find(path, _RE_CFILE):
-        cbase = fn_base(cfile)
+        cbase = filename_base(cfile)
         # Detect conflicts among internal dotCs inside a package
         if cbase in cbases:
             if cbase not in internal_conflict_cbases:
@@ -506,7 +507,7 @@ def show_hfile_deps(hfile, depth, dep_hfiles):
     dep_hfiles.add(hfile)
     if hfile in internal_hfiles:
         hpath = internal_hfiles[hfile]
-        hbase = fn_base(hfile)
+        hbase = filename_base(hfile)
         flag_conflict = ''
         if hbase in internal_conflict_hbases:
             flag_conflict = '*'
@@ -564,7 +565,7 @@ def make_ldep():
     for component in components.values():
         for hfile in component.dep_internal_hfiles:
             assert hfile in internal_hfiles
-            hbase = fn_base(hfile)
+            hbase = filename_base(hfile)
             if hbase in components:
                 comp2 = components[hbase]
                 # We've reported hfile basename conflicts at make_components().
