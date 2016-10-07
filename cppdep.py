@@ -27,7 +27,6 @@ from __future__ import print_function, division, absolute_import
 import sys
 import os.path
 import re
-import hashlib
 import math
 from xml.etree import ElementTree
 import argparse as ap
@@ -39,20 +38,11 @@ from networkx_ext import calc_ccd, make_dag, layering_dag
 
 VERSION = '0.0.2'  # The latest release version.
 
+
 class ConfigXmlParseError(Exception):
     """Parsing errors in XML configuration file."""
 
     pass
-
-
-def md5sum(fpath):
-    """Converts a byte string into hashed hex representation.
-
-    Args:
-        fpath: A path to a file with the content to be hashed.
-    """
-    with open(fpath, 'rb') as input_file:
-        return hashlib.md5(input_file.read()).hexdigest()
 
 
 def filename_base(filename):
@@ -170,7 +160,7 @@ class Config(object):
             pkg_role = pkg_group_element.get('role')
             assert pkg_role is None or pkg_role in ('external', 'internal')
             pkg_groups = self.external_groups if pkg_role == 'external' \
-                    else self.internal_groups
+                else self.internal_groups
             self.__add_package_group(pkg_group_element, pkg_groups)
 
     def __add_package_group(self, pkg_group_element, pkg_groups):
