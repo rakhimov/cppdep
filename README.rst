@@ -24,8 +24,8 @@ which is provided by John Lakos' book
 "Large-Scale C++ Software Design", Addison Wesley (1996).
 
 
-Differences from the dep_utils
-==============================
+Differences from dep_utils
+==========================
 
 - Rewrite in Python, unifying ``adep/cdep/ldep`` into one tool.
 - Project analysis configuration with an XML file.
@@ -43,14 +43,14 @@ Analysis Warnings
 
 Each of the following cases may be considered a quality flaw.
 
-1. Failure to associate some headers/dotC files with any component,
+1. Failure to associate some header/implementation files with any component,
    leading to lost dependencies.
 
 2. File name conflicts.
 
     1. File basename conflicts among internal headers.
        For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
-    2. File basename conflicts among internal dotCs.
+    2. File basename conflicts among internal implementation files.
        For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
     3. File name conflicts between internal and external headers.
        For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
@@ -166,5 +166,5 @@ External links
 Acknowledgments
 ***************
 
-- John Lackos for inventing the analysis and providing ``dep_utils``.
+- John Lakos for inventing the analysis and providing ``dep_utils``.
 - `Zhichang Yu <https://github.com/yuzhichang>`_ for rewriting ``dep_utils`` into Python.

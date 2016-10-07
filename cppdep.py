@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2016 cppdep developers
+# Copyright (C) 2016 Olzhas Rakhimov
+# Copyright (C) 2010, 2014 Zhichang Yu
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
