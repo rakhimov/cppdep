@@ -36,6 +36,9 @@ import networkx as nx
 from networkx.drawing.nx_pydot import write_dot
 from networkx_ext import calc_ccd, make_dag, layering_dag
 
+
+VERSION = '0.0.2'  # The latest release version.
+
 class ConfigXmlParseError(Exception):
     """Parsing errors in XML configuration file."""
 
