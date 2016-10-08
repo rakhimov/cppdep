@@ -592,39 +592,7 @@ def output_ldep():
                 print(message)
 
 
-def main():
-    parser = ap.ArgumentParser(description=__doc__)
-
-    parser.add_argument('--version', action='store_true', default=False,
-                        help='show the version information and exit')
-
-    parser.add_argument('-f', '--conf', dest='path_conf', default='cppdep.xml',
-                        help="""an XML file which describes
-                        the source code structure of a C/C++ project""")
-
-    parser.add_argument('-d', '--debug', dest='details_of_components',
-                        action='store_true', default=False,
-                        help="""show all warnings and details
-                        of every component (aka. includes/included by),
-                        but not analyze dependencies.""")
-
-    args = parser.parse_args()
-
-    if args.version:
-        print(VERSION)
-        return 0
-
-    config = Config(args.path_conf)
-    make_components(config)
-
-    make_cdep()
-
-    if args.details_of_components:
-        show_details_of_components()
-        return 0
-
-    make_ldep()
-
+def make_graph(components, pkgs):
     print('@' * 80)
     print('analyzing dependencies among all components ...')
     digraph = graph.create_graph_all_component(components)
@@ -661,6 +629,41 @@ def main():
             digraph = \
                 graph.create_graph_pkg_component(group_name, pkg_name, pkgs)
             graph.calculate_graph(digraph, group_name + '.' + pkg_name)
+
+
+def main():
+    parser = ap.ArgumentParser(description=__doc__)
+
+    parser.add_argument('--version', action='store_true', default=False,
+                        help='show the version information and exit')
+
+    parser.add_argument('-f', '--conf', dest='path_conf', default='cppdep.xml',
+                        help="""an XML file which describes
+                        the source code structure of a C/C++ project""")
+
+    parser.add_argument('-d', '--debug', dest='details_of_components',
+                        action='store_true', default=False,
+                        help="""show all warnings and details
+                        of every component (aka. includes/included by),
+                        but not analyze dependencies.""")
+
+    args = parser.parse_args()
+
+    if args.version:
+        print(VERSION)
+        return 0
+
+    config = Config(args.path_conf)
+    make_components(config)
+
+    make_cdep()
+
+    if args.details_of_components:
+        show_details_of_components()
+        return 0
+
+    make_ldep()
+    make_graph(components, pkgs)
 
 
 if __name__ == '__main__':
