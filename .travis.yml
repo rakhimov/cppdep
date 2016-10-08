@@ -17,11 +17,11 @@ addons:
             - graphviz  # OS X takes forever via brew.
 
 install:
-    - sudo pip install networkx
-    - sudo pip install pydotplus
-    - sudo pip install coverage
-    - sudo pip install codecov
-    - sudo pip install nose
+    - pip install networkx
+    - pip install pydotplus
+    - pip install coverage
+    - pip install codecov
+    - pip install nose  # Not provided by default on OS X.
 
 before_script:
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
