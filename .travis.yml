@@ -36,6 +36,8 @@ script:
         nosetests --with-coverage test/;
         codecov;
         cd scram;
+        coverage run --source=../ ../cppdep.py -d;
+        codecov;
         coverage run --source=../ ../cppdep.py;
         codecov;
       else
