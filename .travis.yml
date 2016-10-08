@@ -20,20 +20,30 @@ addons:
             - graphviz  # OS X takes forever via brew.
 
 install:
-    - pip install networkx
-    - pip install pydotplus
-    - pip install coverage
-    - pip install codecov
-    - pip install nose  # Not provided by default on OS X.
+    - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+        pip install nose;
+      elif [[ "${TRAVIS_PYTHON_VERSION}" == "2.7" ]]; then
+        export RUN_COVERAGE=true;
+        pip install coverage codecov;
+      fi;
+      pip install networkx pydotplus
 
 before_script:
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
 
 script:
-    - nosetests --with-coverage test/
-    - codecov
-    - cd scram
-    - coverage run --source=../ ../cppdep.py
-    - codecov
-    # Just convoluted if-then-else with ||, && only.
-    - dot -T pdf -O ./*.dot || [[ -z $(which dot) ]]
+    - if [[ $RUN_COVERAGE == true ]]; then
+        nosetests --with-coverage test/;
+        codecov;
+        cd scram;
+        coverage run --source=../ ../cppdep.py;
+        codecov;
+      else
+        nosetests test/;
+        cd scram;
+        ../cppdep.py;
+      fi;
+      if [[ ! "${TRAVIS_OS_NAME}" == "osx" ]]; then
+        echo "Generating graph images from DOT.";
+        dot -T pdf -O ./*.dot;
+      fi
