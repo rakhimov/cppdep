@@ -206,13 +206,18 @@ class Config(object):
 external_hfiles = {}
 internal_hfiles = {}
 
-internal_conflict_cbases = {}
-
 pkgs = {}
 components = {}
 
 
 def find_hfiles(path, hbases, hfiles):
+    """Finds package header files.
+
+    Args:
+        path: The root path to start the search.
+        hbases: The destination container for header file basenames.
+        hfiles: The destination container for header file paths.
+    """
     for hfile, hpath in find(path, _RE_HFILE):
         if hfile not in hfiles:
             hfiles[hfile] = hpath
@@ -221,15 +226,15 @@ def find_hfiles(path, hbases, hfiles):
 
 
 def find_cfiles(path, cbases):
+    """Finds package implement files.
+
+    Args:
+        path: The root path to start the search.
+        cbases: The destination container for implementation file basenames.
+    """
     for cfile, cpath in find(path, _RE_CFILE):
         cbase = filename_base(cfile)
-        # Detect conflicts among internal dotCs inside a package
-        if cbase in cbases:
-            if cbase not in internal_conflict_cbases:  # TODO: Smells?!
-                internal_conflict_cbases[cbase] = [cbases[cbase], cpath]
-            else:
-                internal_conflict_cbases[cbase].append(cpath)
-            continue
+        assert cbase not in cbases
         cbases[cbase] = cpath
 
 
@@ -377,16 +382,11 @@ def construct_components(group_name, pkg_name, hbases, cbases):
         # For example, suppose both libA/main.cc and libB/main.cpp
         # failed to be registered as a component,
         # the basename conflict between them will be ignored.
-        if key in components:  # TODO: Should never happen!
-            if key not in internal_conflict_cbases:
-                internal_conflict_cbases[key] = [
-                    components[key].cpath]
-            internal_conflict_cbases[key].append(cbases[key])
-        else:
-            component = Component(key, hbases[key], cbases[key])
-            pkgs[group_name][pkg_name].append(component)
-            component.package = (group_name, pkg_name)
-            components[key] = component
+        assert key not in components
+        component = Component(key, hbases[key], cbases[key])
+        pkgs[group_name][pkg_name].append(component)
+        component.package = (group_name, pkg_name)
+        components[key] = component
         del hbases[key]  # TODO Smells?!
         del cbases[key]  # TODO Smells?!
     return hbases.values(), cbases.values()
