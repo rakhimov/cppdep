@@ -206,7 +206,6 @@ class Config(object):
 external_hfiles = {}
 internal_hfiles = {}
 
-internal_conflict_hbases = {}
 internal_conflict_cbases = {}
 
 pkgs = {}
@@ -218,12 +217,6 @@ def find_hfiles(path, hbases, hfiles):
         if hfile not in hfiles:
             hfiles[hfile] = hpath
         hbase = filename_base(hfile)
-        # Detect conflicts among internal headers inside a package
-        if hbase in hbases:
-            if hbase not in internal_conflict_hbases:  # TODO: Smells?!
-                internal_conflict_hbases[hbase] = [hbases[hbase]]
-            internal_conflict_hbases[hbase].append(hpath)
-            continue
         hbases[hbase] = hpath
 
 
@@ -513,9 +506,6 @@ def show_hfile_deps(hfile, depth, dep_hfiles):
     if hfile in internal_hfiles:
         hpath = internal_hfiles[hfile]
         hbase = filename_base(hfile)
-        flag_conflict = ''
-        if hbase in internal_conflict_hbases:
-            flag_conflict = '*'
         str_component = None
         if hbase in components:
             component = components[hbase]
@@ -527,8 +517,7 @@ def show_hfile_deps(hfile, depth, dep_hfiles):
                     component.name, component.package[0], component.package[1])
         else:
             str_component = 'does not associate with any component'
-        print('+' * depth + '%s %s(%s, %s)' %
-              (hfile, flag_conflict, hpath, str_component))
+        print('+' * depth + '%s (%s, %s)' % (hfile, hpath, str_component))
         for hfile2 in grep_hfiles(hpath):
             show_hfile_deps(hfile2, depth + 1, dep_hfiles)
     elif hfile in external_hfiles:
