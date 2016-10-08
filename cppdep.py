@@ -38,6 +38,15 @@ from networkx_ext import calc_ccd, make_dag, layering_dag
 
 VERSION = '0.0.2'  # The latest release version.
 
+# Allowed common abbreviations in the code:
+# ccd   - Cumulative Component Dependency (CCD)
+# nccd  - Normalized CCD
+# accd  - Average CCD
+# cd    - component dependency (discouraged abbreviation!)
+# pkg   - package (discouraged abbreviation!)
+# hfile - header file
+# cfile - implementation file
+# dep   - dependency (discouraged abbreviation!)
 
 class ConfigXmlParseError(Exception):
     """Parsing errors in XML configuration file."""
