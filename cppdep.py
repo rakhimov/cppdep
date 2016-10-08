@@ -48,6 +48,7 @@ VERSION = '0.0.2'  # The latest release version.
 # cfile - implementation file
 # dep   - dependency (discouraged abbreviation!)
 
+
 class ConfigXmlParseError(Exception):
     """Parsing errors in XML configuration file."""
 
@@ -109,11 +110,6 @@ def find(path, fnmatcher):
                 if fnmatcher.match(entry):
                     full_path = os.path.join(root, entry)
                     yield entry, full_path
-
-
-def find_hfiles_blindly(path):
-    return [hfile for hfile, _ in find(path, _RE_HFILE)] + \
-           [hfile for hfile, _ in find(path, _RE_SYSTEM_HFILE)]
 
 
 class Component(object):
@@ -244,6 +240,20 @@ def find_cfiles(path, cbases):
         cbases[cbase] = cpath
 
 
+def find_external_hfiles(path):
+    """Returns a list of all header files from the given path.
+
+    The directories are traversed recursively
+    to extract header files from sub-directories.
+    The effect is as-if the whole package header files were gathered.
+
+    The function handles system headers specially
+    by allowing extension-less header files.
+    """
+    return [hfile for hfile, _ in find(path, _RE_HFILE)] + \
+           [hfile for hfile, _ in find(path, _RE_SYSTEM_HFILE)]
+
+
 def gather_external_hfiles(external_groups):
     """Populates databases of external dependency headers.
 
@@ -257,7 +267,7 @@ def gather_external_hfiles(external_groups):
     for group_name, packages in external_groups.items():
         for pkg_name, src_paths in packages.items():
             for src_path in src_paths:
-                hfiles = find_hfiles_blindly(src_path)
+                hfiles = find_external_hfiles(src_path)
                 for hfile in hfiles:
                     external_hfiles[hfile] = (group_name, pkg_name)
     return external_hfiles
@@ -396,7 +406,7 @@ def expand_hfile_deps(header_file):
         header_file: The source header file.
 
     Returns:
-        (set internal header files, set external header files, set unknown headers)
+        (internal header files, external header files, unknown header files)
     """
     dep_internal_hfiles = set()
     dep_external_hfiles = set()
@@ -540,7 +550,8 @@ def show_details_of_components():
         dep_hfiles = set()
         print('-' * 80)
         print('%s (%s in package %s.%s):' %
-              (component.name, component.cpath, component.package[0], component.package[1]))
+              (component.name, component.cpath, component.package[0],
+               component.package[1]))
         for hfile in grep_hfiles(component.cpath):
             show_hfile_deps(hfile, depth, dep_hfiles)
         for hfile in dep_hfiles:
@@ -583,7 +594,8 @@ def output_ldep():
             print('pakcage %s.%s dependency:' % (group_name, pkg_name))
             for component in pkgs[group_name][pkg_name]:
                 message = '%s -> ' % component.name
-                message += ', '.join(sorted(x.name for x in component.dep_components))
+                message += ', '.join(sorted(x.name
+                                            for x in component.dep_components))
                 message += '+(external packages) ' + ','.join(
                     sorted('.'.join(x) for x in component.dep_external_pkgs))
                 print(message)
