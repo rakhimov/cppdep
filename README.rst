@@ -96,16 +96,15 @@ Limitations
 ===========
 
 - Indirect `extern` declarations of global variables or functions
-  instead of including a proper component header with the declarations.
+  instead of including the proper component header with the declarations.
 - Embedded dynamic dependencies,
   such as dynamic loading and configurable internal services.
 - Preprocessing or macro expansion is not performed.
   Dependency inclusion via preprocessor *meta-programming* is not handled.
 
 
-************
 Requirements
-************
+============
 
 #. Python 2.7 / 3.3+
 #. `NetworkX <http://networkx.lanl.gov/>`_
@@ -119,9 +118,8 @@ The dependencies can be installed with ``pip``.
     $ sudo pip install networkx pydotplus
 
 
-***************************************
 Graph to Image Conversion with Graphviz
-***************************************
+=======================================
 
 Here's how to convert a Graphviz dot file to PDF format.
 
@@ -148,9 +146,8 @@ To create output file names without ``.dot`` in the name.
     $ find -type f -name "*.dot" directory_path -exec sh -c 'dot -Tpdf "${0}" -o "${0%.*}.pdf"' {} \;
 
 
-**************
 External links
-**************
+==============
 
 #. The last known location of John Lakos' ``dep_utils`` source code:
    http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/
@@ -162,9 +159,8 @@ External links
    using object files and libraries instead of source-code as input.
 
 
-***************
 Acknowledgments
-***************
+===============
 
 - John Lakos for inventing the analysis and providing ``dep_utils``.
 - `Zhichang Yu <https://github.com/yuzhichang>`_ for rewriting ``dep_utils`` into Python.
