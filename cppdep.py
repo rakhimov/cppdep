@@ -785,6 +785,9 @@ def calculate_graph(digraph, dot_basename=None):
 def main():
     parser = ap.ArgumentParser(description=__doc__)
 
+    parser.add_argument('--version', action='store_true', default=False,
+                        help='show the version information and exit')
+
     parser.add_argument('-f', '--conf', dest='path_conf', default='cppdep.xml',
                         help="""an XML file which describes
                         the source code structure of a C/C++ project""")
@@ -797,6 +800,10 @@ def main():
 
     args = parser.parse_args()
 
+    if args.version:
+        print(VERSION)
+        return 0
+
     config = Config(args.path_conf)
     make_components(config)
 
@@ -804,6 +811,8 @@ def main():
 
     if args.details_of_components:
         show_details_of_components()
+        return 0
+
     make_ldep()
 
     print('@' * 80)
