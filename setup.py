@@ -23,7 +23,7 @@ setup(
     keywords=["c++", "c", "static analysis", "dependency analysis"],
     url="http://github.com/rakhimov/cppdep",
     packages=[],
-    py_modules=["cppdep", "networkx_ext"],
+    py_modules=["cppdep", "graph"],
     entry_points={"console_scripts": ["cppdep = cppdep:main"]},
     long_description=open("README.rst").read(),
     classifiers=[

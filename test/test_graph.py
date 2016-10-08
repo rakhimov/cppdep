@@ -24,10 +24,10 @@ from tempfile import NamedTemporaryFile
 import networkx as nx
 from nose.tools import assert_equal
 
-from networkx_ext import make_dag, layering_dag, calc_ccd, output_graph
+from graph import make_dag, layering_dag, calc_ccd, output_graph
 
 
-_REPORT = "./test/networkx_ext_report.txt"
+_REPORT = "./test/graph_report.txt"
 
 
 def generate_graph(destination):
