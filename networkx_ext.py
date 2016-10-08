@@ -23,7 +23,8 @@ It seems that the best one is NetworkX(http://networkx.lanl.gov/).
 """
 
 from __future__ import print_function, absolute_import, division
-import math
+
+import sys
 
 import networkx as nx
 
@@ -187,48 +188,9 @@ def calc_ccd(digraph, cycles, layers):
     return ccd, node2cd
 
 
-def output_graph(digraph):
+def output_graph(digraph, destination=sys.stdout):
     print('nodes(%d): ' % digraph.number_of_nodes(),
-          ' '.join(map(str, digraph.nodes())))
+          ' '.join(map(str, digraph.nodes())), file=destination)
     print('edges(%d): ' % digraph.number_of_edges(),
-          ' '.join(str(x[0]) + '->' + str(x[1]) for x in digraph.edges()))
-
-
-def main():
-    digraph = nx.DiGraph()
-    edges1 = [(1, 1), (1, 2), (2, 4), (2, 6), (6, 2), (6, 7), (7, 6)]
-    edges2 = [(1, 3), (1, 5), (3, 4), (3, 5), (3, 8), (8, 9), (9, 3)]
-    edges3 = [(10, 11), (10, 12), (11, 12), (12, 11)]
-    digraph.add_edges_from(edges1)
-    digraph.add_edges_from(edges2)
-    digraph.add_edges_from(edges3)
-    print('=' * 80)
-    print('original digraph: ')
-    output_graph(digraph)
-    (cycles, cycle_no) = make_dag(digraph)
-    print('=' * 80)
-    print('after stripping cycles: ')
-    output_graph(digraph)
-    for (min_node, cycle) in cycles.items():
-        print('cycle %s: ' % (str(min_node)))
-        output_graph(cycle)
-    (layers, layer_no, redundant_edges) = layering_dag(digraph)
-    print('=' * 80)
-    print('after layering: ')
-    output_graph(digraph)
-    for i, layer in enumerate(layers):
-        print('layer %d: ' % i + repr(layer))
-
-    print('redundant edges stripped:', redundant_edges)
-    (ccd, node2cd) = calc_ccd(digraph, cycles, layers)
-    print('=' * 80)
-    size = len(node2cd)
-    ccd_full_btree = (size + 1) * (math.log(size + 1, 2)) - size
-    nccd = ccd / ccd_full_btree
-    print('CCD: %d\t NCCD: %f(typical range is [0.85, 1.10])\t SIZE: %d' %
-          (ccd, nccd, size))
-    print('cumulate dependencies: ' + repr(node2cd))
-
-
-if __name__ == '__main__':
-    main()
+          ' '.join(str(x[0]) + '->' + str(x[1]) for x in digraph.edges()),
+          file=destination)
