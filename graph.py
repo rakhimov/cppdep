@@ -24,7 +24,6 @@ It seems that the best one is NetworkX(http://networkx.lanl.gov/).
 
 from __future__ import print_function, absolute_import, division
 
-from itertools import imap
 import math
 import sys
 
@@ -193,7 +192,7 @@ def calc_ccd(digraph, cycles, layers):
 
 def output_graph(digraph, destination=sys.stdout):
     print('nodes(%d): ' % digraph.number_of_nodes(),
-          ' '.join(imap(str, digraph.nodes())), file=destination)
+          ' '.join(map(str, digraph.nodes())), file=destination)
     print('edges(%d): ' % digraph.number_of_edges(),
           ' '.join(str(x[0]) + '->' + str(x[1]) for x in digraph.edges()),
           file=destination)

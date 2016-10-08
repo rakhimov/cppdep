@@ -379,7 +379,8 @@ class Analysis(object):
         """
         assert pkg_name not in self.packages[group_name]
         self.packages[group_name][pkg_name] = []
-        paired_components = hbases.viewkeys() & cbases.viewkeys()
+        # TODO: Workaround for Python 3.
+        paired_components = set(hbases.keys()) & set(cbases.keys())
         for key in paired_components:
             assert key not in self.components
             component = Component(key, hbases[key], cbases[key])

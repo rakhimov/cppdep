@@ -16,7 +16,7 @@
 
 """Tests for graph extension functions."""
 
-from __future__ import print_function
+from __future__ import print_function, division, absolute_import
 
 import math
 from tempfile import NamedTemporaryFile
@@ -54,7 +54,7 @@ def generate_graph(destination):
     print('after layering: ', file=destination)
     output_graph(digraph, destination)
     for i, layer in enumerate(layers):
-        print('layer %d: ' % i + repr(layer), file=destination)
+        print('layer %d: ' % i + str(layer), file=destination)
 
     print('redundant edges stripped:', redundant_edges, file=destination)
     (ccd, node2cd) = calc_ccd(digraph, cycles, layers)
@@ -64,12 +64,12 @@ def generate_graph(destination):
     nccd = ccd / ccd_full_btree
     print('CCD: %d\t NCCD: %f(typical range is [0.85, 1.10])\t SIZE: %d' %
           (ccd, nccd, size), file=destination)
-    print('cumulate dependencies: ' + repr(node2cd), file=destination)
+    print('cumulate dependencies: ' + str(node2cd), file=destination)
 
 
 def test_output():
     """Indirect test of the output for regression."""
-    tmp = NamedTemporaryFile()
+    tmp = NamedTemporaryFile(mode="w+")
     generate_graph(tmp)
     tmp.file.seek(0)
     with open(_REPORT) as report:
