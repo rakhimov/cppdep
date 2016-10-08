@@ -99,7 +99,12 @@ _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 
 
 def find(path, fnmatcher):
-    """Yields basename and full path to header files."""
+    """Yields basename and full path to header files.
+
+    Args:
+        path: The root path to start the search.
+        fnmatcher: regex for filename.
+    """
     if os.path.isfile(path):
         filename = os.path.basename(path)
         if fnmatcher.match(filename):
