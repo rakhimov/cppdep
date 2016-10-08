@@ -21,12 +21,13 @@ install:
     - sudo pip install pydotplus
     - sudo pip install coverage
     - sudo pip install codecov
+    - sudo pip install nose
 
 before_script:
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
 
 script:
-    - coverage run ./networkx_ext.py
+    - nosetests --with-coverage test/
     - codecov
     - cd scram
     - coverage run --source=../ ../cppdep.py
