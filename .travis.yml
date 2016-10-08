@@ -25,7 +25,7 @@ install:
       elif [[ "${TRAVIS_PYTHON_VERSION}" == "2.7" ]]; then
         export RUN_COVERAGE=true;
         pip install coverage codecov;
-      fi;
+      fi &&
       pip install networkx pydotplus
 
 before_script:
@@ -33,18 +33,12 @@ before_script:
 
 script:
     - if [[ $RUN_COVERAGE == true ]]; then
-        nosetests --with-coverage test/;
-        codecov;
-        cd scram;
-        coverage run --source=../ ../cppdep.py -d;
-        codecov;
-        coverage run --source=../ ../cppdep.py;
-        codecov;
+        nosetests --with-coverage test/ && codecov &&
+        cd scram && coverage run --source=../ ../cppdep.py -d && codecov &&
+        coverage run --source=../ ../cppdep.py && codecov;
       else
-        nosetests test/;
-        cd scram;
-        ../cppdep.py;
-      fi;
+        nosetests test/ && cd scram && ../cppdep.py;
+      fi &&
       if [[ ! "${TRAVIS_OS_NAME}" == "osx" ]]; then
         echo "Generating graph images from DOT.";
         dot -T pdf -O ./*.dot;
