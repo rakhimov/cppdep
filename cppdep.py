@@ -290,7 +290,7 @@ class Analysis(object):
     """Group of dependency analysis functions.
 
     Attributes:
-        pkgs: {group_name: {pkg_name: [Component]}}
+        packages: {group_name: {pkg_name: [Component]}}
         components: {base_name: Component}
         external_hfiles: {hfile: (group_name, pkg_name)}
         internal_hfiles: {hfile: hpath}
@@ -298,7 +298,7 @@ class Analysis(object):
 
     def __init__(self):
         """Initializes analysis containers."""
-        self.pkgs = {}
+        self.packages = {}
         self.components = {}
         self.external_hfiles = {}
         self.internal_hfiles = {}
@@ -326,7 +326,7 @@ class Analysis(object):
 
         incomplete_components = IncompleteComponents()
         for group_name, packages in config.internal_groups.items():
-            self.pkgs[group_name] = {}
+            self.packages[group_name] = {}
             for pkg_name, src_paths in packages.items():
                 hbases = {}
                 cbases = {}
@@ -377,13 +377,13 @@ class Analysis(object):
         TODO:
             Supply an option to disable unpaired header component considerations.
         """
-        assert pkg_name not in self.pkgs[group_name]
-        self.pkgs[group_name][pkg_name] = []
+        assert pkg_name not in self.packages[group_name]
+        self.packages[group_name][pkg_name] = []
         paired_components = hbases.viewkeys() & cbases.viewkeys()
         for key in paired_components:
             assert key not in self.components
             component = Component(key, hbases[key], cbases[key])
-            self.pkgs[group_name][pkg_name].append(component)
+            self.packages[group_name][pkg_name].append(component)
             component.package = (group_name, pkg_name)
             self.components[key] = component
             del hbases[key]  # TODO Smells?!
@@ -569,11 +569,11 @@ class Analysis(object):
                 component.dep_external_pkgs.add(external_pkg)
 
     def output_ldep(self):
-        for group_name in sorted(self.pkgs.keys()):
-            for pkg_name in sorted(self.pkgs[group_name]):
+        for group_name in sorted(self.packages.keys()):
+            for pkg_name in sorted(self.packages[group_name]):
                 print('=' * 80)
                 print('package %s.%s dependency:' % (group_name, pkg_name))
-                for component in self.pkgs[group_name][pkg_name]:
+                for component in self.packages[group_name][pkg_name]:
                     message = '%s -> ' % component.name
                     message += ', '.join(sorted(x.name
                                                 for x in component.dep_components))
@@ -582,7 +582,7 @@ class Analysis(object):
                     print(message)
 
 
-def make_graph(components, pkgs):
+def make_graph(components, packages):
     print('@' * 80)
     print('analyzing dependencies among all components ...')
     digraph = graph.create_graph_all_component(components)
@@ -602,22 +602,22 @@ def make_graph(components, pkgs):
     graph.output_original_graph_info(edge2deps, node2externalpkgs)
     graph.calculate_graph(digraph, 'all_pkggrps')
 
-    for group_name in pkgs:
+    for group_name in packages:
         print('@' * 80)
         print('analyzing dependencies among packages in ' +
               'the specified package group %s ...' % group_name)
         digraph, edge2deps, node2externalpkgs = \
-            graph.create_graph_pkggrp_pkg(group_name, pkgs)
+            graph.create_graph_pkggrp_pkg(group_name, packages)
         graph.output_original_graph_info(edge2deps, node2externalpkgs)
         graph.calculate_graph(digraph, group_name)
 
-    for group_name in pkgs:
-        for pkg_name in pkgs[group_name]:
+    for group_name in packages:
+        for pkg_name in packages[group_name]:
             print('@' * 80)
             print('analyzing dependencies among components in ' +
                   'the specified pakcage %s.%s ...' % (group_name, pkg_name))
             digraph = \
-                graph.create_graph_pkg_component(group_name, pkg_name, pkgs)
+                graph.create_graph_pkg_component(group_name, pkg_name, packages)
             graph.calculate_graph(digraph, group_name + '.' + pkg_name)
 
 
@@ -654,7 +654,7 @@ def main():
 
     analysis.make_ldep()
     analysis.output_ldep()
-    make_graph(analysis.components, analysis.pkgs)
+    make_graph(analysis.components, analysis.packages)
 
 
 if __name__ == '__main__':
