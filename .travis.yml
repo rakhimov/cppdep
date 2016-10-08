@@ -33,9 +33,10 @@ before_script:
 
 script:
     - if [[ $RUN_COVERAGE == true ]]; then
-        nosetests --with-coverage test/ && codecov &&
-        cd scram && coverage run --source=../ ../cppdep.py -d && codecov &&
-        coverage run --source=../ ../cppdep.py && codecov;
+        cd scram &&
+        nosetests -w ../ --with-coverage test/ &&
+        coverage run --append --source=../ ../cppdep.py -d &&
+        coverage run --append --source=../ ../cppdep.py && codecov;
       else
         nosetests test/ && cd scram && ../cppdep.py;
       fi &&
