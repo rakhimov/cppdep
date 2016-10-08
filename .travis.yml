@@ -13,6 +13,8 @@ matrix:
     include:
         - os: osx
           language: generic
+    allow_failures:
+        - python: pypy  # TODO: Investigate.
 
 addons:
     apt:
