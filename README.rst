@@ -30,7 +30,7 @@ Differences from dep_utils
 - Rewrite in Python, unifying ``adep/cdep/ldep`` into one tool.
 - Project analysis configuration with an XML file.
 - Remove file alias support
-  since the file name length limitation is much more relaxed that it was 20 years ago.
+  since the file name length limitation is much more relaxed than it was 20 years ago.
 - Support for multiple package groups and packages
 - Support for exporting final dependency graph to Graphviz dot format.
 
@@ -151,6 +151,9 @@ External links
 
 #. The last known location of John Lakos' ``dep_utils`` source code:
    http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/
+
+#. Experimental packaging of ``dep_utils`` source code:
+   https://sourceforge.net/projects/introspector/files/lsc-large-scale-c/first-release/
 
 #. `The discussion on C++ project dependency analysis <http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis>`_
 
