@@ -115,12 +115,30 @@ def find(path, fnmatcher):
 
 
 class Component(object):
+    """Representation of a component in a package.
+
+    Attributes:
+        name: A unique name as an identifier of the component.
+        hpath: The path to the header file of the component.
+        cpath: The path to the implementation file of the component.
+        package: (group_name, pkg_name)
+        dep_internal_hfiles: Internal header files the component depends upon.
+        dep_external_hfiles: External header files the component depends upon.
+        dep_external_pkgs: External packages the component depends upon.
+    """
 
     def __init__(self, name, hpath, cpath):
-        self.package = ('anonymous', 'anonymous')
+        """Initialization of a free-standing component.
+
+        Args:
+            name: A unique identifier name for the component.
+            hpath: The path to the header file of the component.
+            cpath: The path to the implementation file of the component.
+        """
         self.name = name
         self.hpath = hpath
         self.cpath = cpath
+        self.package = ('anonymous', 'anonymous')  # TODO: Reason for defaults?
         self.dep_internal_hfiles = set()
         self.dep_external_hfiles = set()
         self.dep_components = set()
