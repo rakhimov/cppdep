@@ -304,6 +304,61 @@ class IncompleteComponents(object):
         print(message)
 
 
+class ComponentIncludeIssues(object):
+    """Detector of include issues in a component."""
+    def __init__(self):
+        """Empty issues as success by default."""
+        self.__non_first_hfile_include = []
+        self.__indirect_hfile_include = []
+        self.__missing_hfile_include = []
+
+    def check(self, component, hfiles):
+        """Checks for issues with header inclusion in implementation files.
+
+        Args:
+            component: The component under examination.
+            hfiles: The header files included by the implementation file.
+        """
+        cpath = component.cpath
+        hfile = os.path.basename(component.hpath)
+        try:  # Check if the component header file is the first include.
+            if hfiles.index(hfile):
+                self.__non_first_hfile_include.append('%s: %s, should be %s.' %
+                                                      (cpath, hfiles[0], hfile))
+        except ValueError:  # The header include is missing.
+            if hfile in component.dep_internal_hfiles:
+                self.__indirect_hfile_include.append(
+                    '%s: does not include %s directly.' % (cpath, hfile))
+            else:
+                self.__missing_hfile_include.append(
+                    '%s: does not depend on %s.' % (cpath, hfile))
+
+    def report(self):
+        """Reports gathered issues with header inclusion."""
+        def _print_all(messages):
+            """Prints all error messages one on each line."""
+            for message in messages:
+                print(message)
+
+        if self.__missing_hfile_include:
+            print('-' * 80)
+            print('warning: following every dotC does not depend on '
+                  'its associated header: ')
+            _print_all(self.__missing_hfile_include)
+
+        if self.__indirect_hfile_include:
+            print('-' * 80)
+            print('warning: following every dotC does not include '
+                  'its associated header directly: ')
+            _print_all(self.__indirect_hfile_include)
+
+        if self.__non_first_hfile_include:
+            print('-' * 80)
+            print('warning: following every dotC does not include '
+                  'its associated header before other headers: ')
+            _print_all(self.__non_first_hfile_include)
+
+
 class Analysis(object):
     """Group of dependency analysis functions.
 
@@ -320,6 +375,7 @@ class Analysis(object):
         self.components = {}
         self.external_hfiles = {}
         self.internal_hfiles = {}
+        self.__internal_hfile_deps = {}
 
     def __gather_external_hfiles(self, external_groups):
         """Populates databases of external dependency headers.
@@ -409,7 +465,7 @@ class Analysis(object):
             del cbases[key]  # TODO Smells?!
         return hbases.values(), cbases.values()
 
-    def expand_hfile_deps(self, header_file):
+    def __expand_hfile_deps(self, header_file):
         """Recursively expands include directives.
 
         Args:
@@ -418,6 +474,8 @@ class Analysis(object):
         Returns:
             (internal header files, external header files, unknown header files)
         """
+        if header_file in self.__internal_hfile_deps:
+            return self.__internal_hfile_deps[header_file]
         dep_internal_hfiles = set()
         dep_external_hfiles = set()
         dep_bad_hfiles = set()
@@ -440,7 +498,9 @@ class Analysis(object):
             next_hfiles.difference_update(dep_bad_hfiles)
             current_hfiles = next_hfiles
 
-        return (dep_internal_hfiles, dep_external_hfiles, dep_bad_hfiles)
+        self.__internal_hfile_deps[header_file] = \
+            (dep_internal_hfiles, dep_external_hfiles, dep_bad_hfiles)
+        return dep_internal_hfiles, dep_external_hfiles, dep_bad_hfiles
 
     def make_cdep(self):
         """Determines all hfiles on which a cfile depends.
@@ -449,69 +509,28 @@ class Analysis(object):
             Simple recursive parsing does not work
             since there may be a cyclic dependency among headers.
         """
-        bad_hfiles = set()
-        hfile_deps = {}
-        message = ''
-        message2 = ''
-        message3 = ''
+        missing_hfiles = set()
+        include_issues = ComponentIncludeIssues()
         for component in self.components.values():
-            cpath = component.cpath
-            hfiles = grep_hfiles(cpath)
-            if not hfiles:
-                continue
-            comp_hfile = os.path.basename(component.hpath)
-            # Detect first header issues issues.
-            ind_comp_hfile = -1
-            try:
-                ind_comp_hfile = hfiles.index(comp_hfile)
-                if ind_comp_hfile != 0:
-                    message += '%s: %s, should be %s.\n' % (
-                        cpath, hfiles[0], comp_hfile)
-            except ValueError:
-                pass
+            hfiles = grep_hfiles(component.cpath)
             for hfile in hfiles:
                 if hfile in self.external_hfiles:
                     component.dep_external_hfiles.add(hfile)
                     continue
-                if hfile in hfile_deps:
-                    (set1, set2, set3) = hfile_deps[hfile]
-                else:
-                    (set1, set2, set3) = self.expand_hfile_deps(hfile)
-                    hfile_deps[hfile] = (set1, set2, set3)
-                component.dep_internal_hfiles.update(set1)
-                component.dep_external_hfiles.update(set2)
-                bad_hfiles.update(set3)
-            # Detect indirectly including issues, and non-dependent issues.
-            if ind_comp_hfile < 0:
-                if comp_hfile in component.dep_internal_hfiles:
-                    message2 += '%s: does not include %s directly.\n' % (
-                        cpath, comp_hfile)
-                else:
-                    message3 += '%s: does not depend on %s.\n' % (
-                        cpath, comp_hfile)
+                internal_hfiles, external_hfiles, unknown_hfiles = \
+                    self.__expand_hfile_deps(hfile)
+                component.dep_internal_hfiles.update(internal_hfiles)
+                component.dep_external_hfiles.update(external_hfiles)
+                missing_hfiles.update(unknown_hfiles)
+            # Check for include issues only after gathering all includes.
+            include_issues.check(component, hfiles)
+
         # Report headers failed to locate.
-        if bad_hfiles:
+        if missing_hfiles:
             print('-' * 80)
             print('warning: failed to locate following headers: ')
-            print(' '.join(bad_hfiles))
-        # Report non-dependent issues.
-        if message3:
-            print('-' * 80)
-            print('warning: following every dotC does not depend on ' +
-                  'its associated header: ')
-            print(message3)
-        # Report indirectly including issues.
-        if message2:
-            print('-' * 80)
-            print('warning: following every dotC does not include ' +
-                  'its associated header directly: ')
-            print(message2)
-        # Report first header issues.
-        if message:
-            print('-' * 80)
-            print('warning: following every dotC does not include ' +
-                  'its associated header before other headers: ')
-            print(message)
+            print(' '.join(missing_hfiles))
+        include_issues.report()
 
     def show_hfile_deps(self, hfile, depth, dep_hfiles):
         if hfile in dep_hfiles:
