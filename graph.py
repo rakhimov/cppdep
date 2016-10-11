@@ -167,10 +167,18 @@ def layering_dag(digraph, key_node=None):
 
 
 def calc_ccd(digraph, cycles, layers):
-    ccd = 0
+    """Calculates CCD.
+
+    Args:
+        digraph: A general graph of components, or packages, or groups.
+        cycles: Cycles in the graph.
+        layers: Layered nodes.
+
+    Returns:
+        (CCD value, {node: ccd})
+    """
+    assert digraph.nodes()
     node2cd = {}
-    if not digraph.nodes():
-        return ccd, node2cd
     for node in digraph.nodes():
         node2cd[node] = 1
     min_nodes = set(cycles.keys())
@@ -182,12 +190,10 @@ def calc_ccd(digraph, cycles, layers):
                 node2cd[node] += len(cycles[node]) - 1
     for min_node in cycles:
         min_node_cd = node2cd[min_node]
-        for node2 in cycles[min_node].nodes_iter():
-            if node2 == min_node:
-                continue
-            node2cd[node2] = min_node_cd
-    ccd = sum(node2cd.values())
-    return ccd, node2cd
+        for node in cycles[min_node].nodes_iter():
+            if node != min_node:
+                node2cd[node] = min_node_cd
+    return sum(node2cd.values()), node2cd
 
 
 def output_graph(digraph, destination=sys.stdout):
@@ -220,8 +226,8 @@ def create_graph_all_component(components):
     digraph = nx.DiGraph()
     for component in components.values():
         digraph.add_node(str(component))
-        for comp2 in component.dep_components:
-            digraph.add_edge(str(component), str(comp2))
+        for dep_component in component.dep_components:
+            digraph.add_edge(str(component), str(dep_component))
     return digraph
 
 
@@ -236,16 +242,16 @@ def create_graph_all_pkg(components):
         if pkg not in node2externalpkgs:
             node2externalpkgs[pkg] = set()
         node2externalpkgs[pkg].update(component.dep_external_pkgs)
-        for comp2 in component.dep_components:
-            pkg2 = '.'.join(comp2.package)
-            if pkg == pkg2:
+        for dep_component in component.dep_components:
+            dep_pkg = '.'.join(dep_component.package)
+            if pkg == dep_pkg:
                 continue
             # Duplicated edges between two nodes will be stipped afterwards.
-            digraph.add_edge(pkg, pkg2)
-            key = (pkg, pkg2)
+            digraph.add_edge(pkg, dep_pkg)
+            key = (pkg, dep_pkg)
             if key not in edge2deps:
                 edge2deps[key] = []
-            edge2deps[key].append((component, comp2))
+            edge2deps[key].append((component, dep_component))
     return digraph, edge2deps, node2externalpkgs
 
 
@@ -260,8 +266,8 @@ def create_graph_all_pkggrp(components):
         if group_name not in node2externalpkgs:
             node2externalpkgs[group_name] = set()
         node2externalpkgs[group_name].update(component.dep_external_pkgs)
-        for comp2 in component.dep_components:
-            group_name2 = comp2.package[0]
+        for dep_component in component.dep_components:
+            group_name2 = dep_component.package[0]
             if group_name == group_name2:
                 continue
             # Duplicated edges between two nodes will be stipped afterwards.
@@ -269,7 +275,7 @@ def create_graph_all_pkggrp(components):
             key = (group_name, group_name2)
             if key not in edge2deps:
                 edge2deps[key] = []
-            edge2deps[key].append((component, comp2))
+            edge2deps[key].append((component, dep_component))
     return digraph, edge2deps, node2externalpkgs
 
 
@@ -284,8 +290,8 @@ def create_graph_pkggrp_pkg(group_name, packages):
             node2externalpkgs[pkg_name] = set()
         for component in packages[group_name][pkg_name]:
             node2externalpkgs[pkg_name].update(component.dep_external_pkgs)
-            for comp2 in component.dep_components:
-                (group_name2, pkg_name2) = comp2.package
+            for dep_component in component.dep_components:
+                (group_name2, pkg_name2) = dep_component.package
                 if group_name != group_name2 or pkg_name == pkg_name2:
                     continue
                 assert group_name == group_name2 and pkg_name != pkg_name2
@@ -295,7 +301,7 @@ def create_graph_pkggrp_pkg(group_name, packages):
                 key = (pkg_name, pkg_name2)
                 if key not in edge2deps:
                     edge2deps[key] = []
-                edge2deps[key].append((component, comp2))
+                edge2deps[key].append((component, dep_component))
     return digraph, edge2deps, node2externalpkgs
 
 
@@ -304,11 +310,9 @@ def create_graph_pkg_component(group_name, pkg_name, packages):
     package = (group_name, pkg_name)
     for component in packages[group_name][pkg_name]:
         digraph.add_node(str(component))
-        for comp2 in component.dep_components:
-            package2 = comp2.package
-            if package2 != package:
-                continue
-            digraph.add_edge(str(component), str(comp2))
+        for dep_component in component.dep_components:
+            if dep_component.package == package:
+                digraph.add_edge(str(component), str(dep_component))
     return digraph
 
 

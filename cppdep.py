@@ -469,8 +469,8 @@ class Analysis(object):
             else:
                 str_component = 'does not associate with any component'
             print('+' * depth + '%s (%s, %s)' % (hfile, hpath, str_component))
-            for hfile2 in grep_hfiles(hpath):
-                self.show_hfile_deps(hfile2, depth + 1, dep_hfiles)
+            for dep_hfile in grep_hfiles(hpath):
+                self.show_hfile_deps(dep_hfile, depth + 1, dep_hfiles)
         elif hfile in self.external_hfiles:
             print('+' * depth + '%s (in external package %s)' %
                   (hfile, '.'.join(self.external_hfiles[hfile])))
@@ -510,18 +510,16 @@ class Analysis(object):
             for hfile in component.dep_internal_hfiles:
                 assert hfile in self.internal_hfiles
                 hbase = filename_base(hfile)
+                # An internal header that doesn't belong to any component
+                # is warned by make_components().
                 if hbase in self.components:
-                    comp2 = self.components[hbase]
-                    if comp2 != component and os.path.basename(comp2.hpath) == hfile:
-                        component.dep_components.add(comp2)
-                else:
-                    # This internal header doesn't belong to any component.
-                    # We've ever warned it at make_components().
-                    pass
+                    dep_component = self.components[hbase]
+                    if dep_component != component:
+                        assert os.path.basename(dep_component.hpath) == hfile
+                        component.dep_components.add(dep_component)
             for hfile in component.dep_external_hfiles:
                 assert hfile in self.external_hfiles
-                external_pkg = self.external_hfiles[hfile]
-                component.dep_external_pkgs.add(external_pkg)
+                component.dep_external_pkgs.add(self.external_hfiles[hfile])
 
     def output_ldep(self):
         for group_name in sorted(self.packages.keys()):
