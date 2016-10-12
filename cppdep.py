@@ -620,29 +620,27 @@ class Config(object):
 def make_graph(components, packages):
     print('@' * 80)
     print('analyzing dependencies among all components ...')
-    digraph = graph.create_graph_all_component(components)
-    graph.calculate_graph(digraph)
+    graph.calculate_graph(graph.create_graph_all_component(components))
+
+    def _analyze(graph_creator, suffix):
+        digraph, edge2deps, node2externalpkgs = graph_creator(components)
+        graph.output_original_graph_info(edge2deps, node2externalpkgs)
+        graph.calculate_graph(digraph, suffix)
 
     print('@' * 80)
     print('analyzing dependencies among all packages ...')
-    digraph, edge2deps, node2externalpkgs = \
-        graph.create_graph_all_pkg(components)
-    graph.output_original_graph_info(edge2deps, node2externalpkgs)
-    graph.calculate_graph(digraph, 'all_packages')
+    _analyze(graph.create_graph_all_pkg, 'all_packages')
 
     print('@' * 80)
     print('analyzing dependencies among all package groups ...')
-    digraph, edge2deps, node2externalpkgs = \
-        graph.create_graph_all_pkggrp(components)
-    graph.output_original_graph_info(edge2deps, node2externalpkgs)
-    graph.calculate_graph(digraph, 'all_pkggrps')
+    _analyze(graph.create_graph_all_pkggrp, 'all_pkggrps')
 
     for group_name in packages:
         print('@' * 80)
         print('analyzing dependencies among packages in ' +
               'the specified package group %s ...' % group_name)
         digraph, edge2deps, node2externalpkgs = \
-            graph.create_graph_pkggrp_pkg(group_name, packages)
+            graph.create_graph_pkggrp_pkg(group_name, packages[group_name])
         graph.output_original_graph_info(edge2deps, node2externalpkgs)
         graph.calculate_graph(digraph, group_name)
 
