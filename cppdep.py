@@ -616,14 +616,16 @@ class Config(object):
                                           (group_name, pkg_name, pkg_path))
 
 
-def make_graph(components, packages):
+def make_graph(components, package_groups):
     print('@' * 80)
     print('analyzing dependencies among all components ...')
     graph.calculate_graph(graph.create_graph_all_component(components))
 
-    def _analyze(graph_creator, suffix):
-        digraph, edge2deps, node2externalpkgs = graph_creator(components)
-        graph.output_original_graph_info(edge2deps, node2externalpkgs)
+    def _analyze(graph_creator, suffix, arg_components=None, print_info=True):
+        digraph, edge2deps, node2externalpkgs = \
+            graph_creator(arg_components or components)
+        if print_info:
+            graph.output_original_graph_info(edge2deps, node2externalpkgs)
         graph.calculate_graph(digraph, suffix)
 
     print('@' * 80)
@@ -634,23 +636,22 @@ def make_graph(components, packages):
     print('analyzing dependencies among all package groups ...')
     _analyze(graph.create_graph_all_pkggrp, 'all_pkggrps')
 
-    for group_name in packages:
+    for group_name, packages in package_groups.items():
         print('@' * 80)
         print('analyzing dependencies among packages in ' +
               'the specified package group %s ...' % group_name)
-        digraph, edge2deps, node2externalpkgs = \
-            graph.create_graph_pkggrp_pkg(group_name, packages[group_name])
-        graph.output_original_graph_info(edge2deps, node2externalpkgs)
-        graph.calculate_graph(digraph, group_name)
+        _analyze(graph.create_graph_pkggrp_pkg, group_name,
+                 (group_name, packages))
 
-    for group_name in packages:
-        for pkg_name in packages[group_name]:
+    for group_name, packages in package_groups.items():
+        for pkg_name, components in packages.items():
             print('@' * 80)
             print('analyzing dependencies among components in ' +
                   'the specified pakcage %s.%s ...' % (group_name, pkg_name))
-            digraph = \
-                graph.create_graph_pkg_component(group_name, pkg_name, packages)
-            graph.calculate_graph(digraph, group_name + '.' + pkg_name)
+            _analyze(graph.create_graph_pkg_component,
+                     group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
+                     ((group_name, pkg_name), components),
+                     False)
 
 
 def main():

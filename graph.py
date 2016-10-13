@@ -263,10 +263,11 @@ def create_graph_all_pkggrp(components):
     return create_graph(components.values(), lambda x: x.package[0])
 
 
-def create_graph_pkggrp_pkg(group_name, group_packages):
+def create_graph_pkggrp_pkg(package_group):
     digraph = nx.DiGraph()
     edge2deps = {}
     node2externalpkgs = {}
+    group_name, group_packages = package_group
     for pkg_name in group_packages:
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(pkg_name)
@@ -291,15 +292,16 @@ def create_graph_pkggrp_pkg(group_name, group_packages):
     return digraph, edge2deps, node2externalpkgs
 
 
-def create_graph_pkg_component(group_name, pkg_name, packages):
+# TODO: Nasty interface.
+def create_graph_pkg_component(pkg_components):
     digraph = nx.DiGraph()
-    package = (group_name, pkg_name)
-    for component in packages[group_name][pkg_name]:
+    package, components = pkg_components
+    for component in components:
         digraph.add_node(str(component))
         for dep_component in component.dep_components:
             if dep_component.package == package:
                 digraph.add_edge(str(component), str(dep_component))
-    return digraph
+    return digraph, None, None
 
 
 def output_original_graph_info(edge2deps, node2externalpkgs):
