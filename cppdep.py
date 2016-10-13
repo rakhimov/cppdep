@@ -182,6 +182,42 @@ class Component(object):
         return self.name
 
 
+class Package(object):
+    """A collection of components.
+
+    Attributes:
+        name: The unique identifier name of the package.
+        components: The list of unique components in this package.
+    """
+
+    def __init__(self, name):
+        """Constructs an empty package.
+
+        Args:
+            name: A unique identifier string.
+        """
+        self.name = name
+        self.components = []
+
+
+class PackageGroup(object):
+    """A collection of packages.
+
+    Attributes:
+        name: The unique name of the package group.
+        packages: {package_name: package} belonging to this group.
+    """
+
+    def __init__(self, name):
+        """Constructs an empty group.
+
+        Atgs:
+            name: A unique identifier string.
+        """
+        self.name = name
+        self.packages = {}
+
+
 class IncompleteComponents(object):
     """A collection of unpaired header or source files."""
 
