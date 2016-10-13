@@ -276,8 +276,8 @@ class ComponentIncludeIssues(object):
             _print_all(self.__non_first_hfile_include)
 
 
-class Analysis(object):
-    """Group of dependency analysis functions.
+class DependencyAnalysis(object):
+    """Analysis of dependencies with package groups/packages/components.
 
     Attributes:
         packages: {group_name: {pkg_name: [Component]}}
@@ -303,8 +303,7 @@ class Analysis(object):
         for group_name, packages in external_groups.items():
             for pkg_name, src_paths in packages.items():
                 for src_path in src_paths:
-                    hfiles = find_external_hfiles(src_path)
-                    for hfile in hfiles:
+                    for hfile in find_external_hfiles(src_path):
                         self.external_hfiles[hfile] = (group_name, pkg_name)
 
     def make_components(self, config):
@@ -331,13 +330,13 @@ class Analysis(object):
                         self.internal_hfiles[hfile] = hpath
 
                 hpaths, cpaths = \
-                    self.construct_components(group_name, pkg_name, hbases, cbases)
+                    self.__construct_components(group_name, pkg_name, hbases, cbases)
                 incomplete_components.register(group_name, pkg_name, hpaths, cpaths)
 
         # Report files failed to associated with any component
         incomplete_components.print_warning()
 
-    def construct_components(self, group_name, pkg_name, hbases, cbases):
+    def __construct_components(self, group_name, pkg_name, hbases, cbases):
         """Pairs header and implementation files into components.
 
         Even though John Lakos defined a component as a pair of h and c files,
@@ -677,7 +676,7 @@ def main():
         return 0
 
     config = Config(args.path_conf)
-    analysis = Analysis()
+    analysis = DependencyAnalysis()
     analysis.make_components(config)
     analysis.make_cdep()
 
