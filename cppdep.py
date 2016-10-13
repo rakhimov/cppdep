@@ -182,6 +182,12 @@ class Component(object):
     def __str__(self):
         return self.name
 
+    def dependencies(self):
+        return self.dep_components
+
+    def external_graphs(self):
+        return self.dep_external_pkgs
+
 
 class Package(object):
     """A collection of components.
@@ -201,6 +207,19 @@ class Package(object):
         self.name = name
         self.components = []
         self.group = group
+
+    def dependencies(self):
+        for component in self.components:
+            for dep_component in component.dep_components:
+                if (dep_component.package.group == self.group and
+                        dep_component.package != self):
+                    yield dep_component.package
+
+    def external_graphs(self):
+        external_packages = set()
+        for component in self.components:
+            external_packages.update(component.dep_external_pkgs)
+        return external_packages
 
 
 class PackageGroup(object):
@@ -663,14 +682,16 @@ class Config(object):
 def make_graph(components, package_groups):
     print('@' * 80)
     print('analyzing dependencies among all components ...')
-    graph.calculate_graph(graph.create_graph_all_component(components))
+    graph.calculate_graph(graph.create_graph_all_component(components).digraph)
 
     def _analyze(graph_creator, suffix, arg_components=None, print_info=True):
-        digraph, edge2deps, node2externalpkgs = \
-            graph_creator(arg_components or components)
+        digraph = graph_creator(arg_components or components)
         if print_info:
-            graph.output_original_graph_info(edge2deps, node2externalpkgs)
-        graph.calculate_graph(digraph, suffix)
+            digraph.print_info()
+        if hasattr(digraph, 'digraph'):
+            graph.calculate_graph(digraph.digraph, suffix)
+        else:
+            graph.calculate_graph(digraph, suffix)
 
     print('@' * 80)
     print('analyzing dependencies among all packages ...')

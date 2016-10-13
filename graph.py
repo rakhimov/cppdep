@@ -204,90 +204,90 @@ def output_graph(digraph, destination=sys.stdout):
           file=destination)
 
 
-"""
-create_graph_<range>_<level>
-        <range> is one of [all, pkggrp, pkg].
-        It indicates those components included in the graph.
+class Graph(object):
+    """Graph for dependency analysis among its nodes.
 
-        <level> is one of [component, pkg, pkggrp].
-        It indicates what a node represents.
+    create_graph_<range>_<level>
+            <range> is one of [all, pkggrp, pkg].
+            It indicates those components included in the graph.
 
-Return Value:
-        If <level> is "component", return digraph.
-        Else return (digraph, edge2deps, node2externalpkgs).
-        edge2deps: edge -> list of component direct dependencies
-            which been indicated by the edge.
-        node2externalpkgs: node -> set of external packages
-            on which the node depends.
-"""
+            <level> is one of [component, pkg, pkggrp].
+            It indicates what a node represents.
+
+    Return Value:
+            If <level> is "component", return digraph.
+            Else return (digraph, edge2deps, node2externalpkgs).
+            edge2deps: edge -> list of component direct dependencies
+                which been indicated by the edge.
+            node2externalpkgs: node -> set of external packages
+                on which the node depends.
+    """
+
+    def __init__(self, nodes, node_name_generator, gather_metrics=True):
+        self.digraph = nx.DiGraph()
+        self.__edge2deps = {}
+        self.__external_graphs = {}
+        for node in nodes:
+            node_name = node_name_generator(node)
+            # Adding a node does nothing if it is already in the graph.
+            self.digraph.add_node(node_name)
+            for dependency in node.dependencies():
+                dependency_name = node_name_generator(dependency)
+                if node_name == dependency_name:
+                    continue
+                # Duplicated edges between two nodes will be stripped afterwards.
+                self.digraph.add_edge(node_name, dependency_name)
+
+        if gather_metrics:
+            self.gather_dependency_metrics(nodes, node_name_generator)
+
+    def gather_dependency_metrics(self, nodes, node_name_generator):
+        for node in nodes:
+            node_name = node_name_generator(node)
+            if node_name not in self.__external_graphs:
+                self.__external_graphs[node_name] = set()
+            self.__external_graphs[node_name].update(node.external_graphs())
+            for dependency in node.dependencies():
+                dependency_name = node_name_generator(dependency)
+                if node_name == dependency_name:
+                    continue
+                key = (node_name, dependency_name)
+                if key not in self.__edge2deps:
+                    self.__edge2deps[key] = []
+                self.__edge2deps[key].append((node, dependency))
+
+    def print_info(self):
+        print('=' * 80)
+        print('each edge in the original graph logically consists of '
+              'some cross-component dependencies:')
+        for edge, nodes in self.__edge2deps.items():
+            message = '->'.join(edge) + ': '
+            num_deps = 5 if len(nodes) > 5 else len(nodes)
+            message += ' '.join('->'.join(x) for x in nodes[0:num_deps])
+            if num_deps < len(nodes):
+                message += ' ...'
+            print(message)
+        print('=' * 80)
+        print('each node in the original graph depends on some external packages:')
+        for node_name, graphs in self.__external_graphs.items():
+            print(node_name + ': ' + ' '.join('.'.join(x) for x in graphs))
 
 
 def create_graph_all_component(components):
-    digraph = nx.DiGraph()
-    for component in components.values():
-        digraph.add_node(str(component))
-        for dep_component in component.dep_components:
-            digraph.add_edge(str(component), str(dep_component))
-    return digraph
-
-
-def create_graph(components, node_name_generator):
-    digraph = nx.DiGraph()
-    edge2deps = {}
-    node2externalpkgs = {}
-    for component in components:
-        node_name = node_name_generator(component)
-        # Adding a node does nothing if it is already in the graph.
-        digraph.add_node(node_name)
-        if node_name not in node2externalpkgs:
-            node2externalpkgs[node_name] = set()
-        node2externalpkgs[node_name].update(component.dep_external_pkgs)
-        for dep_component in component.dep_components:
-            dep_node_name = node_name_generator(dep_component)
-            if node_name == dep_node_name:
-                continue
-            # Duplicated edges between two nodes will be stipped afterwards.
-            digraph.add_edge(node_name, dep_node_name)
-            key = (node_name, dep_node_name)
-            if key not in edge2deps:
-                edge2deps[key] = []
-            edge2deps[key].append((component, dep_component))
-    return digraph, edge2deps, node2externalpkgs
+    return Graph(components.values(), str, False)
 
 
 def create_graph_all_pkg(components):
-    return create_graph(components.values(),
-                        lambda x: x.package.group.name + '.' + x.package.name)
+    return Graph(components.values(),
+                 lambda x: x.package.group.name + '.' + x.package.name)
 
 
 def create_graph_all_pkggrp(components):
-    return create_graph(components.values(), lambda x: x.package.group.name)
+    return Graph(components.values(), lambda x: x.package.group.name)
 
 
 def create_graph_pkggrp_pkg(group_packages):
-    digraph = nx.DiGraph()
-    edge2deps = {}
-    node2externalpkgs = {}
-    for pkg_name, package in group_packages.items():
-        # Adding a node does nothing if it is already in the graph.
-        digraph.add_node(pkg_name)
-        if pkg_name not in node2externalpkgs:
-            node2externalpkgs[pkg_name] = set()
-
-        for component in package.components:
-            node2externalpkgs[pkg_name].update(component.dep_external_pkgs)
-            for dep_component in component.dep_components:
-                if (dep_component.package.group == package.group and
-                        dep_component.package != package):
-                    # Duplicated edges between two nodes will be stipped
-                    # afterwards.
-                    digraph.add_edge(package.name, dep_component.package.name)
-                    key = (package.name, dep_component.package.name)
-                    if key not in edge2deps:
-                        edge2deps[key] = []
-                    edge2deps[key].append((component, dep_component))
-
-    return digraph, edge2deps, node2externalpkgs
+    return Graph(group_packages.values(), lambda x: x.name)
 
 
 def create_graph_pkg_component(pkg_components):
@@ -298,26 +298,7 @@ def create_graph_pkg_component(pkg_components):
             if (dep_component.package.group == component.package.group and
                     dep_component.package == component.package):
                 digraph.add_edge(str(component), str(dep_component))
-    return digraph, None, None
-
-
-def output_original_graph_info(edge2deps, node2externalpkgs):
-    print('=' * 80)
-    print('each edge in the original graph logically consists of '
-          'some cross-component dependencies:')
-    for item in edge2deps.items():
-        message = '->'.join(item[0]) + ': '
-        num_deps = 5 if len(item[1]) > 5 else len(item[1])
-        message += ' '.join(str(x[0]) + '->' + str(x[1])
-                            for x in item[1][0:num_deps])
-        if num_deps < len(item[1]):
-            message += ' ...'
-        print(message)
-    print('=' * 80)
-    print('each node in the original graph depends on some external packages:')
-    for item in node2externalpkgs.items():
-        print(str(item[0]) + ': ' +
-              ' '.join('.'.join(x) for x in list(item[1])))
+    return digraph
 
 
 def _print_cycles(cycles, key_node, key_edge):
