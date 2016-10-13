@@ -1,6 +1,6 @@
 <cppdep>
   <package-group role="external" name="STD" path="/">
-    <package name="C_C++_LIB">
+    <package name="C/C++ LIB">
       <path>/usr/include</path>
     </package>
   </package-group>
