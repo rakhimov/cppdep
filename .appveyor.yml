@@ -1,10 +1,15 @@
+environment:
+    matrix:
+        - PYTHON: Python27
+        - PYTHON: Python35
+
 install:
-    - C:\Python27\Scripts\pip install networkx pydotplus nose
+    - C:\%PYTHON%\Scripts\pip install networkx pydotplus nose
 
 build: off
 
 test_script:
-    - C:\Python27\Scripts\nosetests test\
+    - C:\%PYTHON%\Scripts\nosetests test\
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
     - cd scram
-    - python ..\cppdep.py -f cppdep-win.xml
+    - C:\%PYTHON%\python ..\cppdep.py -f cppdep-win.xml
