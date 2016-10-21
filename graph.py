@@ -256,50 +256,48 @@ def create_graph(components, node_name_generator):
 
 
 def create_graph_all_pkg(components):
-    return create_graph(components.values(), lambda x: '.'.join(x.package))
+    return create_graph(components.values(),
+                        lambda x: x.package.group.name + '.' + x.package.name)
 
 
 def create_graph_all_pkggrp(components):
-    return create_graph(components.values(), lambda x: x.package[0])
+    return create_graph(components.values(), lambda x: x.package.group.name)
 
 
-def create_graph_pkggrp_pkg(package_group):
+def create_graph_pkggrp_pkg(group_packages):
     digraph = nx.DiGraph()
     edge2deps = {}
     node2externalpkgs = {}
-    group_name, group_packages = package_group
-    for pkg_name in group_packages:
+    for pkg_name, components in group_packages.items():
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(pkg_name)
         if pkg_name not in node2externalpkgs:
             node2externalpkgs[pkg_name] = set()
 
-        for component in group_packages[pkg_name]:
+        for component in components:
             node2externalpkgs[pkg_name].update(component.dep_external_pkgs)
             for dep_component in component.dep_components:
-                (group_name2, pkg_name2) = dep_component.package
-                if group_name != group_name2 or pkg_name == pkg_name2:
-                    continue
-                assert group_name == group_name2 and pkg_name != pkg_name2
-                # Duplicated edges between two nodes will be stipped
-                # afterwards.
-                digraph.add_edge(pkg_name, pkg_name2)
-                key = (pkg_name, pkg_name2)
-                if key not in edge2deps:
-                    edge2deps[key] = []
-                edge2deps[key].append((component, dep_component))
+                if (dep_component.package.group == component.package.group and
+                        dep_component.package != component.package):
+                    # Duplicated edges between two nodes will be stipped
+                    # afterwards.
+                    digraph.add_edge(component.package.name,
+                                     dep_component.package.name)
+                    key = (component.package.name, dep_component.package.name)
+                    if key not in edge2deps:
+                        edge2deps[key] = []
+                    edge2deps[key].append((component, dep_component))
 
     return digraph, edge2deps, node2externalpkgs
 
 
-# TODO: Nasty interface.
 def create_graph_pkg_component(pkg_components):
     digraph = nx.DiGraph()
-    package, components = pkg_components
-    for component in components:
+    for component in pkg_components:
         digraph.add_node(str(component))
         for dep_component in component.dep_components:
-            if dep_component.package == package:
+            if (dep_component.package.group == component.package.group and
+                    dep_component.package == component.package):
                 digraph.add_edge(str(component), str(dep_component))
     return digraph, None, None
 

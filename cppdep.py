@@ -155,24 +155,25 @@ class Component(object):
         name: A unique name as an identifier of the component.
         hpath: The path to the header file of the component.
         cpath: The path to the implementation file of the component.
-        package: (group_name, pkg_name)
+        package: The package this components belongs to.
         dep_internal_hfiles: Internal header files the component depends upon.
         dep_external_hfiles: External header files the component depends upon.
         dep_external_pkgs: External packages the component depends upon.
     """
 
-    def __init__(self, name, hpath, cpath):
+    def __init__(self, name, hpath, cpath, package=None):
         """Initialization of a free-standing component.
 
         Args:
             name: A unique identifier name for the component.
             hpath: The path to the header file of the component.
             cpath: The path to the implementation file of the component.
+            package: The package this components belongs to.
         """
         self.name = name
         self.hpath = hpath
         self.cpath = cpath
-        self.package = ('anonymous', 'anonymous')  # TODO: Reason for defaults?
+        self.package = package
         self.dep_internal_hfiles = set()
         self.dep_external_hfiles = set()
         self.dep_components = set()
@@ -188,9 +189,10 @@ class Package(object):
     Attributes:
         name: The unique identifier name of the package.
         components: The list of unique components in this package.
+        group: The package group this package belongs to.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, group=None):
         """Constructs an empty package.
 
         Args:
@@ -198,6 +200,7 @@ class Package(object):
         """
         self.name = name
         self.components = []
+        self.group = group
 
 
 class PackageGroup(object):
@@ -373,6 +376,7 @@ class DependencyAnalysis(object):
                     self.__construct_components(group_name, pkg_name, hbases, cbases)
                 incomplete_components.register(group_name, pkg_name, hpaths, cpaths)
                 package_group.packages[pkg_name] = package
+                package.group = package_group
             self.package_groups[group_name] = package_group
 
         # Report files failed to associated with any component
@@ -420,7 +424,7 @@ class DependencyAnalysis(object):
             component = Component(key, hbases[key], cbases[key])
             self.packages[group_name][pkg_name].append(component)
             package.components.append(component)
-            component.package = (group_name, pkg_name)
+            component.package = package
             self.components[key] = component
             del hbases[key]  # TODO Smells?!
             del cbases[key]  # TODO Smells?!
@@ -506,10 +510,10 @@ class DependencyAnalysis(object):
                 component = self.components[hbase]
                 if os.path.basename(component.hpath) == hfile:
                     str_component = 'associates with %s in %s.%s' % (
-                        component.name, component.package[0], component.package[1])
+                        component.name, component.package.group.name, component.package.name)
                 else:
                     str_component = 'basename conflicts with %s in %s.%s' % (
-                        component.name, component.package[0], component.package[1])
+                        component.name, component.package.group.name, component.package.name)
             else:
                 str_component = 'does not associate with any component'
             print('+' * depth + '%s (%s, %s)' % (hfile, hpath, str_component))
@@ -533,8 +537,8 @@ class DependencyAnalysis(object):
             dep_hfiles = set()
             print('-' * 80)
             print('%s (%s in package %s.%s):' %
-                  (component.name, component.cpath, component.package[0],
-                   component.package[1]))
+                  (component.name, component.cpath, component.package.group.name,
+                   component.package.name))
             for hfile in grep_hfiles(component.cpath):
                 self.show_hfile_deps(hfile, depth, dep_hfiles)
             for hfile in dep_hfiles:
@@ -685,17 +689,16 @@ def make_graph(components, package_groups):
         print('@' * 80)
         print('analyzing dependencies among packages in ' +
               'the specified package group %s ...' % group_name)
-        _analyze(graph.create_graph_pkggrp_pkg, group_name,
-                 (group_name, packages))
+        _analyze(graph.create_graph_pkggrp_pkg, group_name, packages)
 
     for group_name, packages in package_groups.items():
-        for pkg_name, components in packages.items():
+        for pkg_name, pkg_components in packages.items():
             print('@' * 80)
             print('analyzing dependencies among components in ' +
                   'the specified pakcage %s.%s ...' % (group_name, pkg_name))
             _analyze(graph.create_graph_pkg_component,
                      group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
-                     ((group_name, pkg_name), components),
+                     pkg_components,
                      False)
 
 
