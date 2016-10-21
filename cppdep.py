@@ -49,7 +49,7 @@ VERSION = '0.0.2'  # The latest release version.
 # A search pattern for include directives.
 _RE_INCLUDE = re.compile(r'^\s*#include\s*(<(?P<system>.+)>|"(?P<local>.+)")')
 # STL/Boost/Qt and other libraries can provide extension-less system headers.
-_RE_SYSTEM_HFILE = re.compile(r'(?i)[^.]*$')
+_RE_SYSTEM_HFILE = re.compile(r'[^.]*$')
 _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
 _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 
@@ -316,6 +316,7 @@ class DependencyAnalysis(object):
     """Analysis of dependencies with package groups/packages/components.
 
     Attributes:
+        package_groups: {group_name: PackageGroup}
         packages: {group_name: {pkg_name: [Component]}}
         components: {base_name: Component}
         external_hfiles: {hfile: (group_name, pkg_name)}
@@ -324,6 +325,7 @@ class DependencyAnalysis(object):
 
     def __init__(self):
         """Initializes analysis containers."""
+        self.package_groups = {}
         self.packages = {}
         self.components = {}
         self.external_hfiles = {}
@@ -352,6 +354,8 @@ class DependencyAnalysis(object):
 
         incomplete_components = IncompleteComponents()
         for group_name, packages in config.internal_groups.items():
+            assert group_name not in self.package_groups
+            package_group = PackageGroup(group_name)
             self.packages[group_name] = {}
             for pkg_name, src_paths in packages.items():
                 hbases = {}
@@ -365,9 +369,11 @@ class DependencyAnalysis(object):
                     if hfile not in self.internal_hfiles:
                         self.internal_hfiles[hfile] = hpath
 
-                hpaths, cpaths = \
+                hpaths, cpaths, package = \
                     self.__construct_components(group_name, pkg_name, hbases, cbases)
                 incomplete_components.register(group_name, pkg_name, hpaths, cpaths)
+                package_group.packages[pkg_name] = package
+            self.package_groups[group_name] = package_group
 
         # Report files failed to associated with any component
         incomplete_components.print_warning()
@@ -392,9 +398,10 @@ class DependencyAnalysis(object):
 
         Returns:
             collection(unpaired header paths), collection(unpaired source paths)
+            Package containing the components
 
         TODO:
-        Refactor Component to allow header-only/source-only components.
+            Refactor Component to allow header-only/source-only components.
 
         TODO:
             Consider the main implementation file of an application
@@ -404,6 +411,7 @@ class DependencyAnalysis(object):
             Supply an option to disable unpaired header component considerations.
         """
         assert pkg_name not in self.packages[group_name]
+        package = Package(pkg_name)
         self.packages[group_name][pkg_name] = []
         # TODO: Workaround for Python 3.
         paired_components = set(hbases.keys()) & set(cbases.keys())
@@ -411,11 +419,12 @@ class DependencyAnalysis(object):
             assert key not in self.components
             component = Component(key, hbases[key], cbases[key])
             self.packages[group_name][pkg_name].append(component)
+            package.components.append(component)
             component.package = (group_name, pkg_name)
             self.components[key] = component
             del hbases[key]  # TODO Smells?!
             del cbases[key]  # TODO Smells?!
-        return hbases.values(), cbases.values()
+        return hbases.values(), cbases.values(), package
 
     def __expand_hfile_deps(self, header_file):
         """Recursively expands include directives.
