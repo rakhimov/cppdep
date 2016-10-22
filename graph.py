@@ -320,20 +320,9 @@ def output_original_graph_info(edge2deps, node2externalpkgs):
               ' '.join('.'.join(x) for x in list(item[1])))
 
 
-def calculate_graph(digraph, dot_basename=None):
-    size_graph = digraph.number_of_nodes()
-    if size_graph == 0:
+def _print_cycles(cycles, key_node, key_edge):
+    if not cycles:
         return
-    if dot_basename:
-        write_dot(digraph, dot_basename + '_orig.dot')
-    key_node = str
-
-    def key_edge(edge):
-        return str(edge[0]) + '->' + str(edge[1])
-
-    cycles, node2cycle = make_dag(digraph, key_node)
-    layers, _, redundant_edges = layering_dag(digraph, key_node)
-    ccd, _ = calc_ccd(digraph, cycles, layers)
     print('=' * 80)
     print('cycles detected(%d cycles): ' % len(cycles))
     for min_node in sorted(cycles.keys(), key=str):
@@ -346,6 +335,9 @@ def calculate_graph(digraph, dot_basename=None):
             str(min_node), cycle.number_of_edges())
         message += ' '.join(sorted(key_edge(x) for x in cycle.edges()))
         print(message)
+
+
+def _print_layers(layers, node2cycle, digraph):
     print('=' * 80)
     print('layers(%d layers):' % len(layers))
 
@@ -366,8 +358,14 @@ def calculate_graph(digraph, dot_basename=None):
                                        digraph.successors(node)))
             print(message)
 
+
+def _print_redundant_edges(redundant_edges, key_edge):
     print('redundant edges stripped(%d edges): ' % len(redundant_edges))
     print(' '.join(sorted(key_edge(x) for x in redundant_edges)))
+
+
+def _print_ccd(digraph, cycles, layers, size_graph):
+    ccd, _ = calc_ccd(digraph, cycles, layers)
     # CCD_fullBTree = (N+1)*log2(N+1)-N
     # ACD = CCD/N
     # NCCD = CCD/CCD_fullBTree
@@ -381,10 +379,35 @@ def calculate_graph(digraph, dot_basename=None):
           (size_graph, len(cycles), len(layers)))
     print('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
           (ccd, acd, nccd))
-    if dot_basename:
+
+
+def _dot_cycles(digraph, cycles, dot_basename):
+    if cycles and dot_basename:
         if cycles:
             cycle_graph = nx.DiGraph()
             for cycle in cycles.values():
                 cycle_graph.add_edges_from(cycle.edges_iter())
             write_dot(cycle_graph, dot_basename + '_cycles.dot')
         write_dot(digraph, dot_basename + '_final.dot')
+
+
+def calculate_graph(digraph, dot_basename=None):
+    size_graph = digraph.number_of_nodes()
+    if size_graph == 0:
+        return
+    if dot_basename:
+        write_dot(digraph, dot_basename + '_orig.dot')
+
+    key_node = str
+    def key_edge(edge):
+        return str(edge[0]) + '->' + str(edge[1])
+
+    # TODO: Side effect on graph size?!
+    cycles, node2cycle = make_dag(digraph, key_node)
+    layers, _, redundant_edges = layering_dag(digraph, key_node)
+
+    _print_cycles(cycles, key_node, key_edge)
+    _print_layers(layers, node2cycle, digraph)
+    _print_redundant_edges(redundant_edges, key_edge)
+    _print_ccd(digraph, cycles, layers, size_graph)
+    _dot_cycles(digraph, cycles, dot_basename)
