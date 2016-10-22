@@ -268,22 +268,21 @@ def create_graph_pkggrp_pkg(group_packages):
     digraph = nx.DiGraph()
     edge2deps = {}
     node2externalpkgs = {}
-    for pkg_name, components in group_packages.items():
+    for pkg_name, package in group_packages.items():
         # Adding a node does nothing if it is already in the graph.
         digraph.add_node(pkg_name)
         if pkg_name not in node2externalpkgs:
             node2externalpkgs[pkg_name] = set()
 
-        for component in components:
+        for component in package.components:
             node2externalpkgs[pkg_name].update(component.dep_external_pkgs)
             for dep_component in component.dep_components:
-                if (dep_component.package.group == component.package.group and
-                        dep_component.package != component.package):
+                if (dep_component.package.group == package.group and
+                        dep_component.package != package):
                     # Duplicated edges between two nodes will be stipped
                     # afterwards.
-                    digraph.add_edge(component.package.name,
-                                     dep_component.package.name)
-                    key = (component.package.name, dep_component.package.name)
+                    digraph.add_edge(package.name, dep_component.package.name)
+                    key = (package.name, dep_component.package.name)
                     if key not in edge2deps:
                         edge2deps[key] = []
                     edge2deps[key].append((component, dep_component))
