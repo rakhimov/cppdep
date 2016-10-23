@@ -3,7 +3,7 @@
 
 To upload the release to PyPi:
     $ ./setup.py sdist
-    $ ./setup.py bdist wheel --universal
+    $ ./setup.py bdist_wheel --universal
     $ twine upload dist/*
 """
 
