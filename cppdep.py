@@ -596,6 +596,47 @@ class DependencyAnalysis(object):
                         sorted('.'.join(x) for x in component.dep_external_pkgs))
                     print(message)
 
+    def make_graph(self):
+        print('@' * 80)
+        print('analyzing dependencies among all components ...')
+        graph.calculate_graph(
+            graph.create_graph_all_component(self.components).digraph)
+
+        def _analyze(graph_creator, suffix, arg_components=None,
+                     print_info=True):
+            digraph = graph_creator(arg_components or self.components)
+            if print_info:
+                digraph.print_info()
+            if hasattr(digraph, 'digraph'):
+                graph.calculate_graph(digraph.digraph, suffix)
+            else:
+                graph.calculate_graph(digraph, suffix)
+
+        print('@' * 80)
+        print('analyzing dependencies among all packages ...')
+        _analyze(graph.create_graph_all_pkg, 'all_packages')
+
+        print('@' * 80)
+        print('analyzing dependencies among all package groups ...')
+        _analyze(graph.create_graph_all_pkggrp, 'all_pkggrps')
+
+        for group_name, package_group in self.package_groups.items():
+            print('@' * 80)
+            print('analyzing dependencies among packages in ' +
+                'the specified package group %s ...' % group_name)
+            _analyze(graph.create_graph_pkggrp_pkg, group_name,
+                    package_group.packages)
+
+        for group_name, package_group in self.package_groups.items():
+            for pkg_name, package in package_group.packages.items():
+                print('@' * 80)
+                print('analyzing dependencies among components in ' +
+                    'the specified pakcage %s.%s ...' % (group_name, pkg_name))
+                _analyze(graph.create_graph_pkg_component,
+                        group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
+                        package.components,
+                        False)
+
 
 class ConfigXmlParseError(Exception):
     """Parsing errors in XML configuration file."""
@@ -679,46 +720,6 @@ class Config(object):
                                           (group_name, pkg_name, pkg_path))
 
 
-def make_graph(components, package_groups):
-    print('@' * 80)
-    print('analyzing dependencies among all components ...')
-    graph.calculate_graph(graph.create_graph_all_component(components).digraph)
-
-    def _analyze(graph_creator, suffix, arg_components=None, print_info=True):
-        digraph = graph_creator(arg_components or components)
-        if print_info:
-            digraph.print_info()
-        if hasattr(digraph, 'digraph'):
-            graph.calculate_graph(digraph.digraph, suffix)
-        else:
-            graph.calculate_graph(digraph, suffix)
-
-    print('@' * 80)
-    print('analyzing dependencies among all packages ...')
-    _analyze(graph.create_graph_all_pkg, 'all_packages')
-
-    print('@' * 80)
-    print('analyzing dependencies among all package groups ...')
-    _analyze(graph.create_graph_all_pkggrp, 'all_pkggrps')
-
-    for group_name, package_group in package_groups.items():
-        print('@' * 80)
-        print('analyzing dependencies among packages in ' +
-              'the specified package group %s ...' % group_name)
-        _analyze(graph.create_graph_pkggrp_pkg, group_name,
-                 package_group.packages)
-
-    for group_name, package_group in package_groups.items():
-        for pkg_name, package in package_group.packages.items():
-            print('@' * 80)
-            print('analyzing dependencies among components in ' +
-                  'the specified pakcage %s.%s ...' % (group_name, pkg_name))
-            _analyze(graph.create_graph_pkg_component,
-                     group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
-                     package.components,
-                     False)
-
-
 def main():
     parser = ap.ArgumentParser(description=__doc__)
 
@@ -752,7 +753,7 @@ def main():
 
     analysis.make_ldep()
     analysis.output_ldep()
-    make_graph(analysis.components, analysis.package_groups)
+    analysis.make_graph()
 
 
 if __name__ == '__main__':
