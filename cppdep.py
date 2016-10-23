@@ -389,8 +389,9 @@ class DependencyAnalysis(object):
                         self.internal_hfiles[hfile] = hpath
 
                 hpaths, cpaths, package = \
-                    self.__construct_components(group_name, pkg_name, hbases, cbases)
-                incomplete_components.register(group_name, pkg_name, hpaths, cpaths)
+                    self.__construct_components(pkg_name, hbases, cbases)
+                incomplete_components.register(group_name, pkg_name, hpaths,
+                                               cpaths)
                 package_group.packages[pkg_name] = package
                 package.group = package_group
             self.package_groups[group_name] = package_group
@@ -398,7 +399,7 @@ class DependencyAnalysis(object):
         # Report files failed to associated with any component
         incomplete_components.print_warning()
 
-    def __construct_components(self, group_name, pkg_name, hbases, cbases):
+    def __construct_components(self, pkg_name, hbases, cbases):
         """Pairs header and implementation files into components.
 
         Even though John Lakos defined a component as a pair of h and c files,
@@ -406,12 +407,12 @@ class DependencyAnalysis(object):
         residing only in header files (e.g., STL/Boost/etc.).
         Moreover, some header-only components
         may contain only inline functions or macros
-        without any need for an implmentation file (e.g., inline math, Boost PPL).
+        without any need for an implmentation file
+        (e.g., inline math, Boost PPL).
         For these reason, unpaired header files
         are counted as components by default.
 
         Args:
-            group_name: The name of the package group.
             pkg_name: The name of the package.
             hbases: Base names of header files.
             cbases: Base names of implementation files.
@@ -428,7 +429,8 @@ class DependencyAnalysis(object):
             as a separate component as well.
 
         TODO:
-            Supply an option to disable unpaired header component considerations.
+            Supply an option to disable
+            unpaired header component considerations.
         """
         package = Package(pkg_name)
         # TODO: Workaround for Python 3.
@@ -523,10 +525,12 @@ class DependencyAnalysis(object):
                 component = self.components[hbase]
                 if os.path.basename(component.hpath) == hfile:
                     str_component = 'associates with %s in %s.%s' % (
-                        component.name, component.package.group.name, component.package.name)
+                        component.name, component.package.group.name,
+                        component.package.name)
                 else:
                     str_component = 'basename conflicts with %s in %s.%s' % (
-                        component.name, component.package.group.name, component.package.name)
+                        component.name, component.package.group.name,
+                        component.package.name)
             else:
                 str_component = 'does not associate with any component'
             print('+' * depth + '%s (%s, %s)' % (hfile, hpath, str_component))
@@ -550,8 +554,8 @@ class DependencyAnalysis(object):
             dep_hfiles = set()
             print('-' * 80)
             print('%s (%s in package %s.%s):' %
-                  (component.name, component.cpath, component.package.group.name,
-                   component.package.name))
+                  (component.name, component.cpath,
+                   component.package.group.name, component.package.name))
             for hfile in grep_hfiles(component.cpath):
                 self.show_hfile_deps(hfile, depth, dep_hfiles)
             for hfile in dep_hfiles:
@@ -593,7 +597,8 @@ class DependencyAnalysis(object):
                     message += ', '.join(
                         sorted(x.name for x in component.dep_components))
                     message += '+(external packages) ' + ','.join(
-                        sorted('.'.join(x) for x in component.dep_external_pkgs))
+                        sorted('.'.join(x)
+                               for x in component.dep_external_pkgs))
                     print(message)
 
     def make_graph(self):
@@ -623,19 +628,20 @@ class DependencyAnalysis(object):
         for group_name, package_group in self.package_groups.items():
             print('@' * 80)
             print('analyzing dependencies among packages in ' +
-                'the specified package group %s ...' % group_name)
+                  'the specified package group %s ...' % group_name)
             _analyze(graph.create_graph_pkggrp_pkg, group_name,
-                    package_group.packages)
+                     package_group.packages)
 
         for group_name, package_group in self.package_groups.items():
             for pkg_name, package in package_group.packages.items():
                 print('@' * 80)
                 print('analyzing dependencies among components in ' +
-                    'the specified pakcage %s.%s ...' % (group_name, pkg_name))
+                      'the specified pakcage %s.%s ...' %
+                      (group_name, pkg_name))
                 _analyze(graph.create_graph_pkg_component,
-                        group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
-                        package.components,
-                        False)
+                         group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
+                         package.components,
+                         False)
 
 
 class ConfigXmlParseError(Exception):

@@ -235,7 +235,8 @@ class Graph(object):
                 dependency_name = node_name_generator(dependency)
                 if node_name == dependency_name:
                     continue
-                # Duplicated edges between two nodes will be stripped afterwards.
+                # Duplicated edges between two nodes
+                # will be stripped afterwards.
                 self.digraph.add_edge(node_name, dependency_name)
 
         if gather_metrics:
@@ -268,7 +269,8 @@ class Graph(object):
                 message += ' ...'
             print(message)
         print('=' * 80)
-        print('each node in the original graph depends on some external packages:')
+        print('each node in the original graph'
+              ' depends on some external packages:')
         for node_name, graphs in self.__external_graphs.items():
             print(node_name + ': ' + ' '.join('.'.join(x) for x in graphs))
 
@@ -380,6 +382,7 @@ def calculate_graph(digraph, dot_basename=None):
         write_dot(digraph, dot_basename + '_orig.dot')
 
     key_node = str
+
     def key_edge(edge):
         return str(edge[0]) + '->' + str(edge[1])
 
