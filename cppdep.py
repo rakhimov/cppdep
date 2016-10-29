@@ -732,7 +732,7 @@ def main():
     parser.add_argument('--version', action='store_true', default=False,
                         help='show the version information and exit')
 
-    parser.add_argument('-f', '--conf', dest='path_conf', default='cppdep.xml',
+    parser.add_argument('-c', '--config', default='cppdep.xml',
                         help="""an XML file which describes
                         the source code structure of a C/C++ project""")
 
@@ -748,7 +748,7 @@ def main():
         print(VERSION)
         return 0
 
-    config = Config(args.path_conf)
+    config = Config(args.config)
     analysis = DependencyAnalysis()
     analysis.make_components(config)
     analysis.make_cdep()

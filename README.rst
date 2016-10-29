@@ -35,63 +35,6 @@ Differences from dep_utils
 - Support for exporting final dependency graph to Graphviz dot format.
 
 
-Analysis Warnings
-=================
-
-.. note:: A component (ideally) consists of a pair of one dotH and one dotC
-          with the same basename, e.g., ``foo.h`` and ``foo.cpp``.
-
-Each of the following cases may be considered a quality flaw.
-
-1. Failure to associate some header/implementation files with any component,
-   leading to lost dependencies.
-
-2. File name conflicts.
-
-    1. File basename conflicts among internal headers.
-       For example, libA/List.h and libA/List.hpp, libA/Stack.h and libB/Stack.hpp.
-    2. File basename conflicts among internal implementation files.
-       For example, libA/List.cc and libA/List.cpp, libA/Stack.cc and libB/Stack.cpp
-    3. File name conflicts between internal and external headers.
-       For example, libA/map.h and /usr/include/c++/4.4/debug/map.h.
-
-.. note:: This objective and initial implementation is dropped
-          for being unnecessary and out-of-scope of the tool.
-          It is dubious to qualify "non-conflicting" components
-          with the same name but under different packages
-          as a quality flaw.
-          The separation of projects into packages/modules/folders/namespaces
-          is exactly intended to free the developer
-          from coming up with quirky names for components.
-          It is the most common and best practice to include
-          external component or package headers via ``<package/folder/header>``.
-          For example, each project, library, package can have its own ``config.h``,
-          and to consider it a quality flaw is unjustifiable.
-
-.. note:: It is very rare and unlikely to see file basename conflicts among
-          headers and implementation files.
-          Codebases suffering from such silly issues
-          can leverage system tools to find the conflicts.
-
-
-.. code-block:: bash
-
-    $ # An example solution for 2.1) and 2.2) with system tools.
-    $ find -type f -regextype egrep -regex ".+\.c(c|pp|\+\+)?" -exec sh -c 'echo ${0%.*}' {} \; | sort | uniq -d
-
-
-3. ``#include`` issues:
-
-    1. Some headers included directly or indirectly don't exist.
-       The path to the dependencies may be missing from the XML configuration file.
-    2. DotC does not depend on its associated header,
-       resulting in incorrect dependencies.
-    3. DotC does not include its associated header directly.
-    4. DotC does not include its associated header before other headers.
-
-4. Cyclic dependencies among components/packages/package groups.
-
-
 Limitations
 ===========
 
@@ -116,6 +59,31 @@ The dependencies can be installed with ``pip``.
 .. code-block:: bash
 
     $ sudo pip install networkx pydotplus
+
+
+Installation
+============
+
+The latest stable release from PyPi:
+
+.. code-block:: bash
+
+    $ sudo pip install cppdep
+
+
+Usage
+=====
+
+Create an XML configuration file
+that describes the project.
+``config_example.xml`` and ``config_schema.rng`` are given for guidance.
+
+In the root directory of the project with the configuration file,
+run the following command to generate dependency analysis reports and graphs.
+
+.. code-block:: bash
+
+    $ cppdep -c /path/to/config/xml
 
 
 Graph to Image Conversion with Graphviz
