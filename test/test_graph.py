@@ -49,14 +49,13 @@ def generate_graph(destination):
     for (min_node, cycle) in cycles.items():
         print('cycle %s: ' % str(min_node), file=destination)
         output_graph(cycle, destination)
-    layers, _, redundant_edges = layering_dag(digraph)
+    layers = layering_dag(digraph)
     print('=' * 80, file=destination)
     print('after layering: ', file=destination)
     output_graph(digraph, destination)
     for i, layer in enumerate(layers):
         print('layer %d: ' % i + str(layer), file=destination)
 
-    print('redundant edges stripped:', redundant_edges, file=destination)
     (ccd, node2cd) = calc_ccd(digraph, cycles, layers)
     print('=' * 80, file=destination)
     size = len(node2cd)

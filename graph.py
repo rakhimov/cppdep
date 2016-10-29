@@ -120,13 +120,14 @@ def make_dag(digraph, key_node=None):
 def layering_dag(digraph, key_node=None):
     """Layering all nodes and strip redundant edges in the graph.
 
-    Assumption: digraph is a DAG(Directed Acyclic Graph).
+    Args:
+        digraph: The DAG(Directed Acyclic Graph).
+        key_node: An optional sorting key (str).
 
     Returns:
-        (List of layers, nodes-to-layer dictionary, list of redundant edges)
+        List of layers
     """
     out_degrees = digraph.out_degree()
-    # print(digraph.out_degree())
     nodes_layer = [k for k, v in out_degrees.items() if v == 0]
     assert nodes_layer or not list(digraph.nodes())
 
@@ -149,7 +150,6 @@ def layering_dag(digraph, key_node=None):
                        if out_degrees[node] <= 0]
         cur_layer_no += 1
 
-    redundant_edges = []
     for i in range(1, len(layers)):
         for node in layers[i]:
             for suc_node in digraph.successors(node):
@@ -158,12 +158,10 @@ def layering_dag(digraph, key_node=None):
                 if layer_no[suc_node] == i - 1:
                     continue
                 digraph.remove_edge(node, suc_node)
-                if is_reachable(digraph, node, suc_node):
-                    redundant_edges.append((node, suc_node))
-                    continue
-                digraph.add_edge(node, suc_node)
+                if not is_reachable(digraph, node, suc_node):
+                    digraph.add_edge(node, suc_node)
 
-    return layers, layer_no, redundant_edges
+    return layers
 
 
 def calc_ccd(digraph, cycles, layers):
@@ -342,11 +340,6 @@ def _print_layers(layers, node2cycle, digraph):
             print(message)
 
 
-def _print_redundant_edges(redundant_edges, key_edge):
-    print('redundant edges stripped(%d edges): ' % len(redundant_edges))
-    print(' '.join(sorted(key_edge(x) for x in redundant_edges)))
-
-
 def _print_ccd(digraph, cycles, layers, size_graph):
     ccd, _ = calc_ccd(digraph, cycles, layers)
     # CCD_fullBTree = (N+1)*log2(N+1)-N
@@ -388,10 +381,9 @@ def calculate_graph(digraph, dot_basename=None):
 
     # TODO: Side effect on graph size?!
     cycles, node2cycle = make_dag(digraph, key_node)
-    layers, _, redundant_edges = layering_dag(digraph, key_node)
+    layers = layering_dag(digraph, key_node)
 
     _print_cycles(cycles, key_node, key_edge)
     _print_layers(layers, node2cycle, digraph)
-    _print_redundant_edges(redundant_edges, key_edge)
     _print_ccd(digraph, cycles, layers, size_graph)
     _dot_cycles(digraph, cycles, dot_basename)
