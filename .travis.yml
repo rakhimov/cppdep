@@ -37,7 +37,6 @@ script:
     - if [[ $RUN_COVERAGE == true ]]; then
         cd scram &&
         nosetests -w ../ --with-coverage --cover-package=../graph.py test/ &&
-        coverage run --append --source=../ ../cppdep.py -d &&
         coverage run --append --source=../ ../cppdep.py && codecov;
       else
         nosetests test/ && cd scram && ../cppdep.py;

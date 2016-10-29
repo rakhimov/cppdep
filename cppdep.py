@@ -512,63 +512,6 @@ class DependencyAnalysis(object):
             print(' '.join(missing_hfiles))
         include_issues.report()
 
-    def show_hfile_deps(self, hfile, depth, dep_hfiles):
-        if hfile in dep_hfiles:
-            print('+' * depth + '%s (duplicated)' % hfile)
-            return
-        dep_hfiles.add(hfile)
-        if hfile in self.internal_hfiles:
-            hpath = self.internal_hfiles[hfile]
-            hbase = filename_base(hfile)
-            str_component = None
-            if hbase in self.components:
-                component = self.components[hbase]
-                if os.path.basename(component.hpath) == hfile:
-                    str_component = 'associates with %s in %s.%s' % (
-                        component.name, component.package.group.name,
-                        component.package.name)
-                else:
-                    str_component = 'basename conflicts with %s in %s.%s' % (
-                        component.name, component.package.group.name,
-                        component.package.name)
-            else:
-                str_component = 'does not associate with any component'
-            print('+' * depth + '%s (%s, %s)' % (hfile, hpath, str_component))
-            for dep_hfile in grep_hfiles(hpath):
-                self.show_hfile_deps(dep_hfile, depth + 1, dep_hfiles)
-        elif hfile in self.external_hfiles:
-            print('+' * depth + '%s (in external package %s)' %
-                  (hfile, '.'.join(self.external_hfiles[hfile])))
-        else:
-            print('+' * depth + '%s (failed to locate)' % hfile)
-
-    def show_details_of_components(self):
-        """Determines all hfiles on which the specific component depends.
-
-        Very useful for trying to understand
-        why a cross-component dependency occurs.
-        """
-        included_by = {}
-        for component in self.components.values():
-            depth = 1
-            dep_hfiles = set()
-            print('-' * 80)
-            print('%s (%s in package %s.%s):' %
-                  (component.name, component.cpath,
-                   component.package.group.name, component.package.name))
-            for hfile in grep_hfiles(component.cpath):
-                self.show_hfile_deps(hfile, depth, dep_hfiles)
-            for hfile in dep_hfiles:
-                if hfile in included_by:
-                    included_by[hfile].append(component.cpath)
-                else:
-                    included_by[hfile] = [component.cpath]
-        for hfile in sorted(list(included_by.keys())):
-            print('-' * 80)
-            print(hfile + ':')
-            for cpath in sorted(included_by[hfile]):
-                print(' ' + cpath)
-
     def make_ldep(self):
         """Determines all components on which a component depends."""
         for component in self.components.values():
@@ -736,12 +679,6 @@ def main():
                         help="""an XML file which describes
                         the source code structure of a C/C++ project""")
 
-    parser.add_argument('-d', '--debug', dest='details_of_components',
-                        action='store_true', default=False,
-                        help="""show all warnings and details
-                        of every component (aka. includes/included by),
-                        but not analyze dependencies.""")
-
     args = parser.parse_args()
 
     if args.version:
@@ -752,11 +689,6 @@ def main():
     analysis = DependencyAnalysis()
     analysis.make_components(config)
     analysis.make_cdep()
-
-    if args.details_of_components:
-        analysis.show_details_of_components()
-        return 0
-
     analysis.make_ldep()
     analysis.output_ldep()
     analysis.make_graph()
