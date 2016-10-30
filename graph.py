@@ -25,7 +25,6 @@ It seems that the best one is NetworkX(http://networkx.lanl.gov/).
 from __future__ import print_function, absolute_import, division
 
 import math
-import sys
 
 import networkx as nx
 from networkx.drawing.nx_pydot import write_dot
@@ -70,7 +69,6 @@ def make_dag(digraph, key_node=None):
     Otherwise which one being selected is an implementation specific behavior.
     Note: Selfloop edges will be stripped silently.
     """
-    # output_graph(digraph)
     cycles = {}
     node2cycle = {}
     for node in digraph.nodes_iter():
@@ -192,14 +190,6 @@ def calc_ccd(digraph, cycles, layers):
             if node != min_node:
                 node2cd[node] = min_node_cd
     return sum(node2cd.values()), node2cd
-
-
-def output_graph(digraph, destination=sys.stdout):
-    print('nodes(%d): ' % digraph.number_of_nodes(),
-          ' '.join(map(str, digraph.nodes())), file=destination)
-    print('edges(%d): ' % digraph.number_of_edges(),
-          ' '.join(str(x[0]) + '->' + str(x[1]) for x in digraph.edges()),
-          file=destination)
 
 
 class Graph(object):

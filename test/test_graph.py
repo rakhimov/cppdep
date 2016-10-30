@@ -24,10 +24,19 @@ from tempfile import NamedTemporaryFile
 import networkx as nx
 from nose.tools import assert_equal
 
-from graph import make_dag, layering_dag, calc_ccd, output_graph
+from graph import make_dag, layering_dag, calc_ccd
 
 
 _REPORT = "./test/graph_report.txt"
+
+
+def output_graph(digraph, destination):
+    """Prints the graph nodes and edges."""
+    print('nodes(%d): ' % digraph.number_of_nodes(),
+          ' '.join(map(str, digraph.nodes())), file=destination)
+    print('edges(%d): ' % digraph.number_of_edges(),
+          ' '.join(str(x[0]) + '->' + str(x[1]) for x in digraph.edges()),
+          file=destination)
 
 
 def generate_graph(destination):
