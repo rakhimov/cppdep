@@ -530,7 +530,7 @@ class DependencyAnalysis(object):
                 component.dep_external_pkgs.add(self.external_hfiles[hfile])
 
     def print_ldep(self):
-        '''Prints link time dependencies of components.'''
+        """Prints link time dependencies of components."""
         def _print_deps(deps):
             for name in sorted(deps):
                 print('\t%s' % name)
@@ -548,10 +548,14 @@ class DependencyAnalysis(object):
                                 component.dep_external_pkgs)
 
     def make_graph(self):
-        print('@' * 80)
-        print('analyzing dependencies among all components ...')
-        graph.calculate_graph(
-            graph.create_graph_all_component(self.components).digraph)
+        """Reports analysis results and graphs."""
+        num_packages = sum(len(x.packages) for x in
+                           self.package_groups.values())
+        if num_packages > 1:
+            print('\n' + '#' * 80)
+            print('analyzing dependencies among all components ...')
+            graph.calculate_graph(
+                graph.create_graph_all_component(self.components).digraph)
 
         def _analyze(graph_creator, suffix, arg_components=None,
                      print_info=True):
@@ -563,26 +567,29 @@ class DependencyAnalysis(object):
             else:
                 graph.calculate_graph(digraph, suffix)
 
-        print('@' * 80)
-        print('analyzing dependencies among all packages ...')
-        _analyze(graph.create_graph_all_pkg, 'all_packages')
+        if num_packages > 1:
+            print('\n' + '#' * 80)
+            print('analyzing dependencies among all packages ...')
+            _analyze(graph.create_graph_all_pkg, 'all_packages')
 
-        print('@' * 80)
-        print('analyzing dependencies among all package groups ...')
-        _analyze(graph.create_graph_all_pkggrp, 'all_pkggrps')
+        if len(self.package_groups) > 1:
+            print('\n' + '#' * 80)
+            print('analyzing dependencies among all package groups ...')
+            _analyze(graph.create_graph_all_pkggrp, 'all_pkggrps')
 
         for group_name, package_group in self.package_groups.items():
-            print('@' * 80)
-            print('analyzing dependencies among packages in ' +
-                  'the specified package group %s ...' % group_name)
-            _analyze(graph.create_graph_pkggrp_pkg, group_name,
-                     package_group.packages)
+            if len(package_group.packages) > 1:
+                print('\n' + '#' * 80)
+                print('analyzing dependencies among packages in ' +
+                      'the specified package group %s ...' % group_name)
+                _analyze(graph.create_graph_pkggrp_pkg, group_name,
+                         package_group.packages)
 
         for group_name, package_group in self.package_groups.items():
             for pkg_name, package in package_group.packages.items():
-                print('@' * 80)
+                print('\n' + '#' * 80)
                 print('analyzing dependencies among components in ' +
-                      'the specified pakcage %s.%s ...' %
+                      'the specified package %s.%s ...' %
                       (group_name, pkg_name))
                 _analyze(graph.create_graph_pkg_component,
                          group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
