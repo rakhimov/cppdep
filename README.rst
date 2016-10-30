@@ -53,6 +53,7 @@ Requirements
 #. `NetworkX <http://networkx.lanl.gov/>`_
 #. pydotplus
 #. (Optional) `Graphviz <http://www.graphviz.org/>`_
+#. (Optional) `xdot <https://github.com/jrfonseca/xdot.py>`_
 
 The dependencies can be installed with ``pip``.
 
@@ -86,8 +87,14 @@ run the following command to generate dependency analysis reports and graphs.
     $ cppdep -c /path/to/config/xml
 
 
-Graph to Image Conversion with Graphviz
-=======================================
+Graph to Image Conversion
+=========================
+
+To view the generated graph dot files without converting to other formats.
+
+.. code-block:: bash
+
+    $ xdot graph.dot
 
 Here's how to convert a Graphviz dot file to PDF format.
 
