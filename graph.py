@@ -320,7 +320,7 @@ def _print_cycles(cycles, key_node, key_edge):
 
 def _print_layers(layers, node2cycle, digraph):
     print('=' * 80)
-    print('layers(%d layers):' % len(layers))
+    print('layers (%d layer(s)):\n' % len(layers))
 
     def repr_node(node):
         cycle_key = node2cycle[node]
@@ -332,12 +332,14 @@ def _print_layers(layers, node2cycle, digraph):
         return str_node
 
     for i, layer in enumerate(layers):
-        print('layer %d(%d nodes): ' % (i, len(layer)))
+        print('layer %d (%d node(s)):\n' % (i, len(layer)))
         for node in layer:
-            message = repr_node(node) + ' -> '
-            message += ' '.join(sorted(repr_node(x) for x in
-                                       digraph.successors(node)))
-            print(message)
+            name = repr_node(node)
+            print('\t' + name)
+            for dep_name in sorted(repr_node(x) for x in
+                                   digraph.successors(node)):
+                print('\t' + ' ' * len(name) + '\t%s' % dep_name)
+            print()
 
 
 def _print_ccd(digraph, cycles, layers, size_graph):
