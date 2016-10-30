@@ -301,21 +301,21 @@ def create_graph_pkg_component(pkg_components):
     return digraph
 
 
-def _print_cycles(cycles, key_node, key_edge):
+def _print_cycles(cycles):
     if not cycles:
         return
     print('=' * 80)
-    print('cycles detected(%d cycles): ' % len(cycles))
+    print('cycles detected (%d cycles):\n' % len(cycles))
     for min_node in sorted(cycles.keys(), key=str):
         cycle = cycles[min_node]
-        message = '[cycle]%s nodes(%d nodes): ' % (
-            str(min_node), cycle.number_of_nodes())
-        message += ' '.join(sorted(key_node(x) for x in cycle.nodes()))
-        print(message)
-        message = '[cycle]%s edges(%d edges): ' % (
-            str(min_node), cycle.number_of_edges())
-        message += ' '.join(sorted(key_edge(x) for x in cycle.edges()))
-        print(message)
+        print('[cycle]%s nodes (%d nodes):' %
+              (str(min_node), cycle.number_of_nodes()),
+              ' '.join(sorted(str(x) for x in cycle.nodes())))
+        print('[cycle]%s edges (%d edges):' %
+              (str(min_node), cycle.number_of_edges()),
+              ' '.join(sorted(str(edge[0]) + '->' + str(edge[1])
+                              for edge in cycle.edges())))
+        print()
 
 
 def _print_layers(layers, node2cycle, digraph):
@@ -376,16 +376,11 @@ def calculate_graph(digraph, dot_basename=None):
     if dot_basename:
         write_dot(digraph, dot_basename + '_orig.dot')
 
-    key_node = str
-
-    def key_edge(edge):
-        return str(edge[0]) + '->' + str(edge[1])
-
     # TODO: Side effect on graph size?!
-    cycles, node2cycle = make_dag(digraph, key_node)
-    layers = layering_dag(digraph, key_node)
+    cycles, node2cycle = make_dag(digraph, str)
+    layers = layering_dag(digraph, str)
 
-    _print_cycles(cycles, key_node, key_edge)
+    _print_cycles(cycles)
     _print_layers(layers, node2cycle, digraph)
     _print_ccd(digraph, cycles, layers, size_graph)
     _dot_cycles(digraph, cycles, dot_basename)
