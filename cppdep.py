@@ -33,7 +33,7 @@ from xml.etree import ElementTree
 import graph
 
 
-VERSION = '0.0.3'  # The latest release version.
+VERSION = '0.0.4'  # The latest release version.
 
 # Allowed common abbreviations in the code:
 # ccd   - Cumulative Component Dependency (CCD)
