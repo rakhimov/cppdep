@@ -529,20 +529,23 @@ class DependencyAnalysis(object):
                 assert hfile in self.external_hfiles
                 component.dep_external_pkgs.add(self.external_hfiles[hfile])
 
-    def output_ldep(self):
+    def print_ldep(self):
+        '''Prints link time dependencies of components.'''
+        def _print_deps(deps):
+            for name in sorted(deps):
+                print('\t%s' % name)
+
         for group_name in sorted(self.package_groups.keys()):
             packages = self.package_groups[group_name].packages
             for pkg_name in sorted(packages.keys()):
                 print('=' * 80)
                 print('package %s.%s dependency:' % (group_name, pkg_name))
                 for component in packages[pkg_name].components:
-                    message = '%s -> ' % component.name
-                    message += ', '.join(
-                        sorted(x.name for x in component.dep_components))
-                    message += '+(external packages) ' + ','.join(
-                        sorted('.'.join(x)
-                               for x in component.dep_external_pkgs))
-                    print(message)
+                    print('%s:' % component.name)
+                    _print_deps(x.name for x in component.dep_components)
+                    print('  (external)')
+                    _print_deps('.'.join(x) for x in
+                                component.dep_external_pkgs)
 
     def make_graph(self):
         print('@' * 80)
@@ -690,7 +693,7 @@ def main():
     analysis.make_components(config)
     analysis.make_cdep()
     analysis.make_ldep()
-    analysis.output_ldep()
+    analysis.print_ldep()
     analysis.make_graph()
 
 
