@@ -135,7 +135,7 @@ def find_cfiles(path, cbases):
 
 
 def find_external_hfiles(path):
-    """Returns a list of all header files from the given path.
+    """Yields a list of all header files from the given path.
 
     The directories are traversed recursively
     to extract header files from sub-directories.
@@ -144,8 +144,10 @@ def find_external_hfiles(path):
     The function handles system headers specially
     by allowing extension-less header files.
     """
-    return [hfile for hfile, _ in find(path, _RE_HFILE)] + \
-           [hfile for hfile, _ in find(path, _RE_SYSTEM_HFILE)]
+    for hfile, _ in find(path, _RE_HFILE):
+        yield hfile
+    for hfile, _ in find(path, _RE_SYSTEM_HFILE):
+        yield hfile
 
 
 class Component(object):
