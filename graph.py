@@ -342,6 +342,14 @@ class Graph(object):
                                   for edge in cycle.edges())))
             print()
 
+    def write_dot(self, file_basename):
+        """Writes graph into a file in Graphviz DOT format.
+
+        Args:
+            file_basename: The output file name without extension.
+        """
+        write_dot(self.digraph, file_basename + '.dot')
+
 
 def create_graph_all_component(components):
     return Graph(components.values(), str, False)
@@ -412,15 +420,12 @@ def _print_ccd(digraph, cycles, layers, size_graph):
           (ccd, acd, nccd))
 
 
-def calculate_graph(digraph, dot_basename=None):
+def calculate_graph(digraph):
+    assert digraph.number_of_nodes()
     size_graph = digraph.number_of_nodes()
-    if size_graph == 0:
-        return
     # TODO: Side effect on graph size?!
     cycles, node2cycle = make_dag(digraph, str)
     layers = layering_dag(digraph, str)
 
     _print_layers(layers, node2cycle, digraph)
     _print_ccd(digraph, cycles, layers, size_graph)
-    if dot_basename:
-        write_dot(digraph, dot_basename + '.dot')

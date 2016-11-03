@@ -566,7 +566,8 @@ class DependencyAnalysis(object):
                 digraph.print_info()
             digraph.reduce()
             digraph.print_cycles()
-            graph.calculate_graph(digraph.digraph, suffix)
+            digraph.write_dot(suffix)
+            graph.calculate_graph(digraph.digraph)
 
         if num_packages > 1:
             print('\n' + '#' * 80)
