@@ -429,9 +429,6 @@ def calculate_graph(digraph, dot_basename=None):
     size_graph = digraph.number_of_nodes()
     if size_graph == 0:
         return
-    if dot_basename:
-        write_dot(digraph, dot_basename + '_orig.dot')
-
     # TODO: Side effect on graph size?!
     cycles, node2cycle = make_dag(digraph, str)
     layers = layering_dag(digraph, str)
