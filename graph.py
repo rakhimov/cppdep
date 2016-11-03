@@ -328,6 +328,20 @@ class Graph(object):
         self.__transitive_reduction()
         self.__decondensation()
 
+    def print_cycles(self):
+        """Prints cycles only after reduction."""
+        if not self.cycles:
+            return
+        print('=' * 80)
+        print('%d cycles detected:\n' % len(self.cycles))
+        for i, cycle in enumerate(self.cycles):
+            print('cycle #%d (%d nodes):' % (i, cycle.number_of_nodes()),
+                  ', '.join(sorted(str(x) for x in cycle.nodes())))
+            print('cycle #%d (%d edges):' % (i, cycle.number_of_edges()),
+                  ' '.join(sorted(str(edge[0]) + '->' + str(edge[1])
+                                  for edge in cycle.edges())))
+            print()
+
 
 def create_graph_all_component(components):
     return Graph(components.values(), str, False)
@@ -355,23 +369,6 @@ def create_graph_pkg_component(pkg_components):
             if dep_component.package == component.package:
                 digraph.add_edge(str(component), str(dep_component))
     return package_graph
-
-
-def _print_cycles(cycles):
-    if not cycles:
-        return
-    print('=' * 80)
-    print('cycles detected (%d cycles):\n' % len(cycles))
-    for min_node in sorted(cycles.keys(), key=str):
-        cycle = cycles[min_node]
-        print('[cycle]%s nodes (%d nodes):' %
-              (str(min_node), cycle.number_of_nodes()),
-              ' '.join(sorted(str(x) for x in cycle.nodes())))
-        print('[cycle]%s edges (%d edges):' %
-              (str(min_node), cycle.number_of_edges()),
-              ' '.join(sorted(str(edge[0]) + '->' + str(edge[1])
-                              for edge in cycle.edges())))
-        print()
 
 
 def _print_layers(layers, node2cycle, digraph):
@@ -423,7 +420,6 @@ def calculate_graph(digraph, dot_basename=None):
     cycles, node2cycle = make_dag(digraph, str)
     layers = layering_dag(digraph, str)
 
-    _print_cycles(cycles)
     _print_layers(layers, node2cycle, digraph)
     _print_ccd(digraph, cycles, layers, size_graph)
     if dot_basename:

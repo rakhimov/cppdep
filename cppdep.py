@@ -564,6 +564,8 @@ class DependencyAnalysis(object):
             digraph = graph_creator(arg_components or self.components)
             if print_info:
                 digraph.print_info()
+            digraph.reduce()
+            digraph.print_cycles()
             graph.calculate_graph(digraph.digraph, suffix)
 
         if num_packages > 1:
