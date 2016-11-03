@@ -564,10 +564,7 @@ class DependencyAnalysis(object):
             digraph = graph_creator(arg_components or self.components)
             if print_info:
                 digraph.print_info()
-            if hasattr(digraph, 'digraph'):
-                graph.calculate_graph(digraph.digraph, suffix)
-            else:
-                graph.calculate_graph(digraph, suffix)
+            graph.calculate_graph(digraph.digraph, suffix)
 
         if num_packages > 1:
             print('\n' + '#' * 80)

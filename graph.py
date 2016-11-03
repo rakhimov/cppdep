@@ -347,14 +347,14 @@ def create_graph_pkggrp_pkg(group_packages):
 
 
 def create_graph_pkg_component(pkg_components):
-    digraph = nx.DiGraph()
+    package_graph = Graph([], None)
+    digraph = package_graph.digraph
     for component in pkg_components:
         digraph.add_node(str(component))
         for dep_component in component.dep_components:
-            if (dep_component.package.group == component.package.group and
-                    dep_component.package == component.package):
+            if dep_component.package == component.package:
                 digraph.add_edge(str(component), str(dep_component))
-    return digraph
+    return package_graph
 
 
 def _print_cycles(cycles):
