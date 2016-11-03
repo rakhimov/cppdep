@@ -415,16 +415,6 @@ def _print_ccd(digraph, cycles, layers, size_graph):
           (ccd, acd, nccd))
 
 
-def _dot_cycles(digraph, cycles, dot_basename):
-    if cycles and dot_basename:
-        if cycles:
-            cycle_graph = nx.DiGraph()
-            for cycle in cycles.values():
-                cycle_graph.add_edges_from(cycle.edges_iter())
-            write_dot(cycle_graph, dot_basename + '_cycles.dot')
-        write_dot(digraph, dot_basename + '_final.dot')
-
-
 def calculate_graph(digraph, dot_basename=None):
     size_graph = digraph.number_of_nodes()
     if size_graph == 0:
@@ -436,4 +426,5 @@ def calculate_graph(digraph, dot_basename=None):
     _print_cycles(cycles)
     _print_layers(layers, node2cycle, digraph)
     _print_ccd(digraph, cycles, layers, size_graph)
-    _dot_cycles(digraph, cycles, dot_basename)
+    if dot_basename:
+        write_dot(digraph, dot_basename + '.dot')
