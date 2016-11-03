@@ -187,9 +187,6 @@ class Component(object):
     def dependencies(self):
         return self.dep_components
 
-    def external_graphs(self):
-        return self.dep_external_pkgs
-
 
 class Package(object):
     """A collection of components.
@@ -216,12 +213,6 @@ class Package(object):
                 if (dep_component.package.group == self.group and
                         dep_component.package != self):
                     yield dep_component.package
-
-    def external_graphs(self):
-        external_packages = set()
-        for component in self.components:
-            external_packages.update(component.dep_external_pkgs)
-        return external_packages
 
 
 class PackageGroup(object):
@@ -559,11 +550,8 @@ class DependencyAnalysis(object):
             graph.calculate_graph(
                 graph.create_graph_all_component(self.components).digraph)
 
-        def _analyze(graph_creator, suffix, arg_components=None,
-                     print_info=True):
+        def _analyze(graph_creator, suffix, arg_components=None):
             digraph = graph_creator(arg_components or self.components)
-            if print_info:
-                digraph.print_info()
             digraph.reduce()
             digraph.print_cycles()
             digraph.write_dot(suffix)
@@ -595,8 +583,7 @@ class DependencyAnalysis(object):
                       (group_name, pkg_name))
                 _analyze(graph.create_graph_pkg_component,
                          group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
-                         package.components,
-                         False)
+                         package.components)
 
 
 class ConfigXmlParseError(Exception):

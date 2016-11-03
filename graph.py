@@ -211,12 +211,10 @@ class Graph(object):
                 on which the node depends.
     """
 
-    def __init__(self, nodes, node_name_generator, gather_metrics=True):
+    def __init__(self, nodes, node_name_generator):
         self.digraph = nx.DiGraph()
         self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
         self.node2cycle = {}  # {node: cyclic_graph}
-        self.__edge2deps = {}
-        self.__external_graphs = {}
         for node in nodes:
             node_name = node_name_generator(node)
             # Adding a node does nothing if it is already in the graph.
@@ -228,41 +226,6 @@ class Graph(object):
                 # Duplicated edges between two nodes
                 # will be stripped afterwards.
                 self.digraph.add_edge(node_name, dependency_name)
-
-        if gather_metrics:
-            self.gather_dependency_metrics(nodes, node_name_generator)
-
-    def gather_dependency_metrics(self, nodes, node_name_generator):
-        for node in nodes:
-            node_name = node_name_generator(node)
-            if node_name not in self.__external_graphs:
-                self.__external_graphs[node_name] = set()
-            self.__external_graphs[node_name].update(node.external_graphs())
-            for dependency in node.dependencies():
-                dependency_name = node_name_generator(dependency)
-                if node_name == dependency_name:
-                    continue
-                key = (node_name, dependency_name)
-                if key not in self.__edge2deps:
-                    self.__edge2deps[key] = []
-                self.__edge2deps[key].append((node, dependency))
-
-    def print_info(self):
-        print('=' * 80)
-        print('each edge in the original graph logically consists of '
-              'some cross-component dependencies:')
-        for edge, nodes in self.__edge2deps.items():
-            message = '->'.join(edge) + ': '
-            num_deps = 5 if len(nodes) > 5 else len(nodes)
-            message += ' '.join('->'.join(x) for x in nodes[0:num_deps])
-            if num_deps < len(nodes):
-                message += ' ...'
-            print(message)
-        print('=' * 80)
-        print('each node in the original graph'
-              ' depends on some external packages:')
-        for node_name, graphs in self.__external_graphs.items():
-            print(node_name + ': ' + ' '.join('.'.join(x) for x in graphs))
 
     # pylint: disable=invalid-name
     def __transitive_reduction(self):
@@ -352,7 +315,7 @@ class Graph(object):
 
 
 def create_graph_all_component(components):
-    return Graph(components.values(), str, False)
+    return Graph(components.values(), str)
 
 
 def create_graph_all_pkg(components):
