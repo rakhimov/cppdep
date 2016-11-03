@@ -213,6 +213,8 @@ class Graph(object):
 
     def __init__(self, nodes, node_name_generator, gather_metrics=True):
         self.digraph = nx.DiGraph()
+        self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
+        self.node2cycle = {}  # {node: cyclic_graph}
         self.__edge2deps = {}
         self.__external_graphs = {}
         for node in nodes:
@@ -261,6 +263,70 @@ class Graph(object):
               ' depends on some external packages:')
         for node_name, graphs in self.__external_graphs.items():
             print(node_name + ': ' + ' '.join('.'.join(x) for x in graphs))
+
+    # pylint: disable=invalid-name
+    def __transitive_reduction(self):
+        """Transitive reduction for acyclic graphs."""
+        assert nx.is_directed_acyclic_graph(self.digraph)
+        for u in self.digraph:
+            transitive_vertex = []
+            for v in self.digraph[u]:
+                transitive_vertex.extend(x for _, x in
+                                         nx.dfs_edges(self.digraph, v))
+            self.digraph.remove_edges_from((u, x) for x in transitive_vertex)
+
+    def __condensation(self):
+        """Produces condensation of cyclic graphs."""
+        subgraphs = nx.strongly_connected_component_subgraphs(self.digraph)
+        for subgraph in list(subgraphs):
+            if subgraph.number_of_nodes() == 1:
+                continue  # not a cycle
+            pre_edges = []
+            suc_edges = []
+            for node in subgraph:
+                assert node not in self.node2cycle
+                self.node2cycle[node] = subgraph
+                for pre_node in self.digraph.predecessors(node):
+                    if not subgraph.has_node(pre_node):
+                        pre_edges.append((pre_node, node))
+                        self.digraph.add_edge(pre_node, subgraph)
+                for suc_node in self.digraph.successors(node):
+                    if not subgraph.has_node(suc_node):
+                        suc_edges.append((node, suc_node))
+                        self.digraph.add_edge(subgraph, suc_node)
+                self.digraph.remove_node(node)
+            assert subgraph not in self.cycles
+            self.cycles[subgraph] = (pre_edges, suc_edges)
+
+    # pylint: disable=invalid-name
+    def __decondensation(self):
+        """Reverts the effect of the condensation."""
+        for subgraph, (pre_edges, suc_edges) in self.cycles.items():
+            assert self.digraph.has_node(subgraph)
+            for u, v in pre_edges:
+                if (self.digraph.has_edge(u, subgraph) or
+                        (u in self.node2cycle and
+                         self.digraph.has_edge(self.node2cycle[u], subgraph))):
+                    self.digraph.add_edge(u, v)
+            for u, v in suc_edges:
+                if (self.digraph.has_edge(subgraph, v) or
+                        (v in self.node2cycle and
+                         self.digraph.has_edge(subgraph, self.node2cycle[v]))):
+                    self.digraph.add_edge(u, v)
+            self.digraph.add_nodes_from(subgraph)
+            self.digraph.add_edges_from(subgraph.edges())
+            self.digraph.remove_node(subgraph)
+
+    def reduce(self):
+        """Applies transitive reduction to the graph.
+
+        If the graph contains cycles,
+        the graph is minimized instead.
+        """
+        assert self.digraph.number_of_selfloops() == 0
+        self.__condensation()
+        self.__transitive_reduction()
+        self.__decondensation()
 
 
 def create_graph_all_component(components):
