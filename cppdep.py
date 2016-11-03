@@ -542,25 +542,12 @@ class DependencyAnalysis(object):
 
     def make_graph(self):
         """Reports analysis results and graphs."""
-        num_packages = sum(len(x.packages) for x in
-                           self.package_groups.values())
-        if num_packages > 1:
-            print('\n' + '#' * 80)
-            print('analyzing dependencies among all components ...')
-            graph.calculate_graph(
-                graph.create_graph_all_component(self.components).digraph)
-
         def _analyze(graph_creator, suffix, arg_components=None):
             digraph = graph_creator(arg_components or self.components)
             digraph.reduce()
             digraph.print_cycles()
             digraph.write_dot(suffix)
             graph.calculate_graph(digraph.digraph)
-
-        if num_packages > 1:
-            print('\n' + '#' * 80)
-            print('analyzing dependencies among all packages ...')
-            _analyze(graph.create_graph_all_pkg, 'all_packages')
 
         if len(self.package_groups) > 1:
             print('\n' + '#' * 80)

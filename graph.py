@@ -193,23 +193,7 @@ def calc_ccd(digraph, cycles, layers):
 
 
 class Graph(object):
-    """Graph for dependency analysis among its nodes.
-
-    create_graph_<range>_<level>
-            <range> is one of [all, pkggrp, pkg].
-            It indicates those components included in the graph.
-
-            <level> is one of [component, pkg, pkggrp].
-            It indicates what a node represents.
-
-    Return Value:
-            If <level> is "component", return digraph.
-            Else return (digraph, edge2deps, node2externalpkgs).
-            edge2deps: edge -> list of component direct dependencies
-                which been indicated by the edge.
-            node2externalpkgs: node -> set of external packages
-                on which the node depends.
-    """
+    """Graph for dependency analysis among its nodes."""
 
     def __init__(self, nodes, node_name_generator):
         self.digraph = nx.DiGraph()
@@ -312,15 +296,6 @@ class Graph(object):
             file_basename: The output file name without extension.
         """
         write_dot(self.digraph, file_basename + '.dot')
-
-
-def create_graph_all_component(components):
-    return Graph(components.values(), str)
-
-
-def create_graph_all_pkg(components):
-    return Graph(components.values(),
-                 lambda x: x.package.group.name + '.' + x.package.name)
 
 
 def create_graph_all_pkggrp(components):
