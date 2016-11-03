@@ -182,10 +182,14 @@ class Component(object):
         self.dep_external_pkgs = set()
 
     def __str__(self):
+        """For printing graph nodes."""
         return self.name
 
     def dependencies(self):
-        return self.dep_components
+        """Yeilds dependency components within the same package."""
+        for dep_component in self.dep_components:
+            if dep_component.package == self.package:
+                yield dep_component
 
 
 class Package(object):
@@ -207,7 +211,12 @@ class Package(object):
         self.components = []
         self.group = group
 
+    def __str__(self):
+        """For printing graph nodes."""
+        return self.name
+
     def dependencies(self):
+        """Yields dependency packages within the same package group."""
         for component in self.components:
             for dep_component in component.dep_components:
                 if (dep_component.package.group == self.group and
@@ -231,6 +240,18 @@ class PackageGroup(object):
         """
         self.name = name
         self.packages = {}
+
+    def __str__(self):
+        """For printing graph nodes."""
+        return self.name
+
+    def dependencies(self):
+        """Yields dependency package groups."""
+        for package in self.packages.values():
+            for component in package.components:
+                for dep_component in component.dep_components:
+                    if dep_component.package.group != self:
+                        yield dep_component.package.group
 
 
 class IncompleteComponents(object):
@@ -542,8 +563,8 @@ class DependencyAnalysis(object):
 
     def make_graph(self):
         """Reports analysis results and graphs."""
-        def _analyze(graph_creator, suffix, arg_components=None):
-            digraph = graph_creator(arg_components or self.components)
+        def _analyze(suffix, arg_components):
+            digraph = graph.Graph(arg_components)
             digraph.reduce()
             digraph.print_cycles()
             digraph.write_dot(suffix)
@@ -552,15 +573,14 @@ class DependencyAnalysis(object):
         if len(self.package_groups) > 1:
             print('\n' + '#' * 80)
             print('analyzing dependencies among all package groups ...')
-            _analyze(graph.create_graph_all_pkggrp, 'all_pkggrps')
+            _analyze('system', self.package_groups.values())
 
         for group_name, package_group in self.package_groups.items():
             if len(package_group.packages) > 1:
                 print('\n' + '#' * 80)
                 print('analyzing dependencies among packages in ' +
                       'the specified package group %s ...' % group_name)
-                _analyze(graph.create_graph_pkggrp_pkg, group_name,
-                         package_group.packages)
+                _analyze(group_name, package_group.packages.values())
 
         for group_name, package_group in self.package_groups.items():
             for pkg_name, package in package_group.packages.items():
@@ -568,9 +588,7 @@ class DependencyAnalysis(object):
                 print('analyzing dependencies among components in ' +
                       'the specified package %s.%s ...' %
                       (group_name, pkg_name))
-                _analyze(graph.create_graph_pkg_component,
-                         group_name + '.' + pkg_name,  # TODO: Nasty ad-hoc.
-                         package.components)
+                _analyze('_'.join((group_name, pkg_name)), package.components)
 
 
 class ConfigXmlParseError(Exception):

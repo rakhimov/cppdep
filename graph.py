@@ -193,23 +193,26 @@ def calc_ccd(digraph, cycles, layers):
 
 
 class Graph(object):
-    """Graph for dependency analysis among its nodes."""
+    """Graph for dependency analysis among its nodes.
 
-    def __init__(self, nodes, node_name_generator):
+    Attributes:
+        digraph: The underlying directed graph without self-loops.
+    """
+
+    def __init__(self, nodes):
+        """Constructs a digraph for dependency analysis.
+
+        Args:
+            nodes: Graph nodes with dependencies.
+        """
         self.digraph = nx.DiGraph()
         self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
         self.node2cycle = {}  # {node: cyclic_graph}
         for node in nodes:
-            node_name = node_name_generator(node)
-            # Adding a node does nothing if it is already in the graph.
-            self.digraph.add_node(node_name)
+            self.digraph.add_node(str(node))
             for dependency in node.dependencies():
-                dependency_name = node_name_generator(dependency)
-                if node_name == dependency_name:
-                    continue
-                # Duplicated edges between two nodes
-                # will be stripped afterwards.
-                self.digraph.add_edge(node_name, dependency_name)
+                assert node != dependency
+                self.digraph.add_edge(str(node), str(dependency))
 
     # pylint: disable=invalid-name
     def __transitive_reduction(self):
@@ -296,25 +299,6 @@ class Graph(object):
             file_basename: The output file name without extension.
         """
         write_dot(self.digraph, file_basename + '.dot')
-
-
-def create_graph_all_pkggrp(components):
-    return Graph(components.values(), lambda x: x.package.group.name)
-
-
-def create_graph_pkggrp_pkg(group_packages):
-    return Graph(group_packages.values(), lambda x: x.name)
-
-
-def create_graph_pkg_component(pkg_components):
-    package_graph = Graph([], None)
-    digraph = package_graph.digraph
-    for component in pkg_components:
-        digraph.add_node(str(component))
-        for dep_component in component.dep_components:
-            if dep_component.package == component.package:
-                digraph.add_edge(str(component), str(dep_component))
-    return package_graph
 
 
 def _print_layers(layers, node2cycle, digraph):
