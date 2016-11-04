@@ -30,168 +30,6 @@ import networkx as nx
 from networkx.drawing.nx_pydot import write_dot
 
 
-def is_reachable(digraph, node_parent, node_target):
-    """Determines if a node is a descendant of another.
-
-    Args:
-        digraph: The host graph.
-        node_parent: The node to start the reachability search.
-        node_target: The target node under reachability question.
-
-    Returns:
-        True if node_target is reachable from node_parent.
-        False if the node parent is the node target.
-    """
-    if node_parent == node_target:
-        return False
-    reachable_nodes = set([node_parent])
-    current_nodes = set([node_parent])
-    while current_nodes:
-        next_nodes = set()
-        for node in current_nodes:
-            next_nodes.update(digraph.successors(node))
-        if node_target in next_nodes:
-            return True
-        next_nodes.difference_update(reachable_nodes)
-        reachable_nodes.update(next_nodes)
-        current_nodes = next_nodes
-
-    return False
-
-
-def make_dag(digraph, key_node=None):
-    """Makes out a DAG.
-
-    Only one node in each cycle is kept in the original graph.
-    That node is used as the key of cycle subgraphs.
-    (key_node != None) indicates selecting the minimal one
-    among all nodes of the cycle per key_node.
-    Otherwise which one being selected is an implementation specific behavior.
-    Note: Selfloop edges will be stripped silently.
-    """
-    cycles = {}
-    node2cycle = {}
-    for node in digraph.nodes_iter():
-        node2cycle[node] = None
-    # Strip all selfloop edges silently.
-    digraph.remove_edges_from(digraph.selfloop_edges())
-    for subgraph in nx.strongly_connected_component_subgraphs(digraph):
-        if subgraph.number_of_nodes() == 1:
-            # Selfloop edges have been stripped.
-            assert not subgraph.number_of_edges()
-            continue
-        nodes = subgraph.nodes()
-        if key_node:
-            min_node = min(nodes, key=key_node)
-        else:
-            min_node = nodes[0]
-        cycles[min_node] = subgraph
-        for node in nodes:
-            node2cycle[node] = min_node
-
-    for min_node in cycles:
-        nodes = cycles[min_node].nodes()
-        nodes.remove(min_node)
-        # print('min_node: %s, other nodes: ' % str(min_node), ')
-        # '.join(map(str, nodes))
-        for node in nodes:
-            pre_nodes = digraph.predecessors(node)
-            suc_nodes = digraph.successors(node)
-            for pre_node in pre_nodes:
-                if (pre_node == min_node or
-                        (pre_node in nodes) or
-                        digraph.has_edge(pre_node, min_node)):
-                    continue
-                digraph.add_edge(pre_node, min_node)
-            for suc_node in suc_nodes:
-                if (suc_node == min_node or
-                        (suc_node in nodes) or
-                        digraph.has_edge(min_node, suc_node)):
-                    continue
-                digraph.add_edge(min_node, suc_node)
-            # All edges assiciated with a node will also be removed when
-            # removing the node from the graph.
-            digraph.remove_node(node)
-    return cycles, node2cycle
-
-
-def layering_dag(digraph, key_node=None):
-    """Layering all nodes and strip redundant edges in the graph.
-
-    Args:
-        digraph: The DAG(Directed Acyclic Graph).
-        key_node: An optional sorting key (str).
-
-    Returns:
-        List of layers
-    """
-    out_degrees = digraph.out_degree()
-    nodes_layer = [k for k, v in out_degrees.items() if v == 0]
-    assert nodes_layer or not list(digraph.nodes())
-
-    layer_no = {}
-    layers = []
-    cur_layer_no = 0
-    while nodes_layer:
-        layer_no.update({node: cur_layer_no for node in nodes_layer})
-        if key_node:
-            nodes_layer.sort(key=key_node)
-        layers.append(nodes_layer)
-
-        nodes_layer_next = set()
-        for node in nodes_layer:
-            for predecessor in digraph.predecessors(node):
-                out_degrees[predecessor] -= 1
-                nodes_layer_next.add(predecessor)
-
-        nodes_layer = [node for node in nodes_layer_next
-                       if out_degrees[node] <= 0]
-        cur_layer_no += 1
-
-    for i in range(1, len(layers)):
-        for node in layers[i]:
-            for suc_node in digraph.successors(node):
-                # Edges between adjacent layers are always non-redundant
-                # if the graph is a DAG(ie. no cycles).
-                if layer_no[suc_node] == i - 1:
-                    continue
-                digraph.remove_edge(node, suc_node)
-                if not is_reachable(digraph, node, suc_node):
-                    digraph.add_edge(node, suc_node)
-
-    return layers
-
-
-def calc_ccd(digraph, cycles, layers):
-    """Calculates CCD.
-
-    Args:
-        digraph: A general graph of components, or packages, or groups.
-        cycles: Cycles in the graph.
-        layers: Layered nodes.
-
-    Returns:
-        (CCD value, {node: ccd})
-    """
-    assert digraph.nodes()
-    node2cd = {}
-    for node in digraph.nodes():
-        node2cd[node] = 1
-    min_nodes = set(cycles.keys())
-    for layer in layers:
-        for node in layer:
-            for suc_node in digraph.successors(node):
-                node2cd[node] += node2cd[suc_node]
-            if node in min_nodes:
-                node2cd[node] += len(cycles[node]) - 1
-    for min_node in cycles:
-        min_node_cd = node2cd[min_node]
-        for node in cycles[min_node].nodes_iter():
-            if node != min_node:
-                node2cd[node] = min_node_cd
-    return sum(node2cd.values()), node2cd
-
-
 class Graph(object):
     """Graph for dependency analysis among its nodes.
 
@@ -208,6 +46,7 @@ class Graph(object):
         self.digraph = nx.DiGraph()
         self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
         self.node2cycle = {}  # {node: cyclic_graph}
+        self.node2cd = {}  # {node: cd}
         for node in nodes:
             self.digraph.add_node(str(node))
             for dependency in node.dependencies():
@@ -267,8 +106,8 @@ class Graph(object):
             self.digraph.add_edges_from(subgraph.edges())
             self.digraph.remove_node(subgraph)
 
-    def reduce(self):
-        """Applies transitive reduction to the graph.
+    def analyze(self):
+        """Applies transitive reduction to the graph and calculates metrics.
 
         If the graph contains cycles,
         the graph is minimized instead.
@@ -276,7 +115,35 @@ class Graph(object):
         assert self.digraph.number_of_selfloops() == 0
         self.__condensation()
         self.__transitive_reduction()
+        self.__calculate_ccd()
         self.__decondensation()
+
+    def __calculate_ccd(self):
+        """Calculates CCD for nodes.
+
+        The graph must be minimized with condensed cycles.
+        """
+        descendants = {}  # {node: set(descendant_node)} for memoization.
+
+        def _get_descendants(node):
+            """Returns a set of descendants of a node."""
+            if node not in descendants:
+                node_descendants = set()
+                for v in self.digraph[node]:
+                    node_descendants.add(v)
+                    node_descendants.update(_get_descendants(v))
+                descendants[node] = node_descendants
+            return descendants[node]
+
+        def _get_cd(node):
+            """Retruns CD contribution of a node."""
+            return 1 if node not in self.cycles else node.number_of_nodes()
+
+        for node in self.digraph:
+            cd = _get_cd(node)
+            for descendant in _get_descendants(node):
+                cd += _get_cd(descendant)
+            self.node2cd[node] = cd
 
     def print_cycles(self):
         """Prints cycles only after reduction."""
@@ -291,6 +158,29 @@ class Graph(object):
                   ' '.join(sorted(str(edge[0]) + '->' + str(edge[1])
                                   for edge in cycle.edges())))
             print()
+
+    def print_summary(self):
+        """Calculates and prints overall CCD metrics."""
+        ccd = 0
+        for node, cd in self.node2cd.items():
+            if node in self.cycles:
+                ccd += node.number_of_nodes() * cd
+            else:
+                ccd += cd
+        # CCD_fullBTree = (N+1)*log2(N+1)-N
+        # ACD = CCD/N
+        # NCCD = CCD/CCD_fullBTree
+        num_nodes = self.digraph.number_of_nodes()
+        acd = ccd / num_nodes
+        ccd_full_btree = (num_nodes + 1) * (math.log(num_nodes + 1, 2)) - \
+            num_nodes
+        nccd = ccd / ccd_full_btree
+        print('=' * 80)
+        print('SUMMARY:')
+        print('Nodes: %d\t Cycles: %d\t Layers: %d' %
+              (num_nodes, len(self.cycles), -1))
+        print('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
+              (ccd, acd, nccd))
 
     def write_dot(self, file_basename):
         """Writes graph into a file in Graphviz DOT format.
@@ -323,31 +213,3 @@ def _print_layers(layers, node2cycle, digraph):
                                    digraph.successors(node)):
                 print('\t' + ' ' * len(name) + '\t%s' % dep_name)
             print()
-
-
-def _print_ccd(digraph, cycles, layers, size_graph):
-    ccd, _ = calc_ccd(digraph, cycles, layers)
-    # CCD_fullBTree = (N+1)*log2(N+1)-N
-    # ACD = CCD/N
-    # NCCD = CCD/CCD_fullBTree
-    acd = ccd / size_graph
-    ccd_full_btree = (size_graph + 1) * \
-        (math.log(size_graph + 1, 2)) - size_graph
-    nccd = ccd / ccd_full_btree
-    print('=' * 80)
-    print('SUMMARY:')
-    print('Nodes: %d\t Cycles: %d\t Layers: %d' %
-          (size_graph, len(cycles), len(layers)))
-    print('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
-          (ccd, acd, nccd))
-
-
-def calculate_graph(digraph):
-    assert digraph.number_of_nodes()
-    size_graph = digraph.number_of_nodes()
-    # TODO: Side effect on graph size?!
-    cycles, node2cycle = make_dag(digraph, str)
-    layers = layering_dag(digraph, str)
-
-    _print_layers(layers, node2cycle, digraph)
-    _print_ccd(digraph, cycles, layers, size_graph)

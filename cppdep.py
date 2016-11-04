@@ -565,10 +565,10 @@ class DependencyAnalysis(object):
         """Reports analysis results and graphs."""
         def _analyze(suffix, arg_components):
             digraph = graph.Graph(arg_components)
-            digraph.reduce()
+            digraph.analyze()
             digraph.print_cycles()
             digraph.write_dot(suffix)
-            graph.calculate_graph(digraph.digraph)
+            digraph.print_summary()
 
         if len(self.package_groups) > 1:
             print('\n' + '#' * 80)
