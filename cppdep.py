@@ -675,21 +675,23 @@ class Config(object):
 
 
 def main():
-    parser = ap.ArgumentParser(description=__doc__)
+    """Runs the dependency analysis and prints results and graphs.
 
+    Raises:
+        IOError: filesystem operations failed.
+        ConfigXmlParseError: XML configuration validity issues.
+    """
+    parser = ap.ArgumentParser(description=__doc__)
     parser.add_argument('--version', action='store_true', default=False,
                         help='show the version information and exit')
 
     parser.add_argument('-c', '--config', default='cppdep.xml',
                         help="""an XML file which describes
                         the source code structure of a C/C++ project""")
-
     args = parser.parse_args()
-
     if args.version:
         print(VERSION)
-        return 0
-
+        return
     config = Config(args.config)
     analysis = DependencyAnalysis()
     analysis.make_components(config)
