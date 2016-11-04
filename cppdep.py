@@ -567,8 +567,9 @@ class DependencyAnalysis(object):
             digraph = graph.Graph(arg_components)
             digraph.analyze()
             digraph.print_cycles()
-            digraph.write_dot(suffix)
+            digraph.print_levels()
             digraph.print_summary()
+            digraph.write_dot(suffix)
 
         if len(self.package_groups) > 1:
             print('\n' + '#' * 80)

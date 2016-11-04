@@ -47,6 +47,7 @@ class Graph(object):
         self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
         self.node2cycle = {}  # {node: cyclic_graph}
         self.node2cd = {}  # {node: cd}
+        self.node2level = {}  # {node: level}
         for node in nodes:
             self.digraph.add_node(str(node))
             for dependency in node.dependencies():
@@ -116,6 +117,7 @@ class Graph(object):
         self.__condensation()
         self.__transitive_reduction()
         self.__calculate_ccd()
+        self.__calculate_levels()
         self.__decondensation()
 
     def __calculate_ccd(self):
@@ -145,6 +147,18 @@ class Graph(object):
                 cd += _get_cd(descendant)
             self.node2cd[node] = cd
 
+    def __calculate_levels(self):
+        """Calculates levels for nodes."""
+        def _get_level(node):
+            if node not in self.node2level:
+                level = 1 if node not in self.cycles else node.number_of_nodes()
+                if self.digraph[node]:
+                    level += max(_get_level(x) for x in self.digraph[node])
+                self.node2level[node] = level
+            return self.node2level[node]
+        for node in self.digraph:
+            _get_level(node)
+
     def print_cycles(self):
         """Prints cycles only after reduction."""
         if not self.cycles:
@@ -159,6 +173,25 @@ class Graph(object):
                                   for edge in cycle.edges())))
             print()
 
+    def print_levels(self):
+        """Prints levels of nodes."""
+        print('=' * 80)
+        max_level = max(self.node2level.values())
+        print('%d level(s):\n' % max_level)
+        level_num = 0
+        cycle_num = 0
+        for node, level in sorted(self.node2level.items(), key=lambda x: x[1]):
+            if level > level_num:
+                while level > level_num:
+                    level_num += 1
+                    print('level %d:' % level_num)
+            if node in self.cycles:
+                cycle_num += 1
+                for v in node:
+                    print('\t%s <%d>' % (str(v), cycle_num))
+            else:
+                print('\t' + str(node))
+
     def print_summary(self):
         """Calculates and prints overall CCD metrics."""
         ccd = 0
@@ -167,20 +200,18 @@ class Graph(object):
                 ccd += node.number_of_nodes() * cd
             else:
                 ccd += cd
-        # CCD_fullBTree = (N+1)*log2(N+1)-N
-        # ACD = CCD/N
-        # NCCD = CCD/CCD_fullBTree
         num_nodes = self.digraph.number_of_nodes()
-        acd = ccd / num_nodes
+        average_cd = ccd / num_nodes
+        # CCD_fullBTree = (N+1)*log2(N+1)-N
         ccd_full_btree = (num_nodes + 1) * (math.log(num_nodes + 1, 2)) - \
             num_nodes
-        nccd = ccd / ccd_full_btree
+        normalized_ccd = ccd / ccd_full_btree
         print('=' * 80)
         print('SUMMARY:')
-        print('Nodes: %d\t Cycles: %d\t Layers: %d' %
-              (num_nodes, len(self.cycles), -1))
+        print('Nodes: %d\t Cycles: %d\t Levels: %d' %
+              (num_nodes, len(self.cycles), max(self.node2level.values())))
         print('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
-              (ccd, acd, nccd))
+              (ccd, average_cd, normalized_ccd))
 
     def write_dot(self, file_basename):
         """Writes graph into a file in Graphviz DOT format.
@@ -189,27 +220,3 @@ class Graph(object):
             file_basename: The output file name without extension.
         """
         write_dot(self.digraph, file_basename + '.dot')
-
-
-def _print_layers(layers, node2cycle, digraph):
-    print('=' * 80)
-    print('layers (%d layer(s)):\n' % len(layers))
-
-    def repr_node(node):
-        cycle_key = node2cycle[node]
-        if cycle_key:
-            assert node == cycle_key
-            str_node = '[cycle]' + str(node)
-        else:
-            str_node = str(node)
-        return str_node
-
-    for i, layer in enumerate(layers):
-        print('layer %d (%d node(s)):\n' % (i, len(layer)))
-        for node in layer:
-            name = repr_node(node)
-            print('\t' + name)
-            for dep_name in sorted(repr_node(x) for x in
-                                   digraph.successors(node)):
-                print('\t' + ' ' * len(name) + '\t%s' % dep_name)
-            print()
