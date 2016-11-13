@@ -653,10 +653,9 @@ class Config(object):
 
         for pkg_element in pkg_group_element.findall('package'):
             pkg_name = pkg_element.get('name')
-            src_paths = [x.text.strip() for x in pkg_element.findall('path')]
             pkg_groups[group_name][pkg_name] = \
-                [os.path.normpath(os.path.join(group_path, x))
-                 for x in src_paths]
+                [os.path.normpath(os.path.join(group_path, x.text.strip()))
+                 for x in pkg_element.findall('path')]
 
         for pkg_element in pkg_group_element.findall('path'):
             pkg_path = os.path.normpath(os.path.join(group_path,
@@ -664,11 +663,12 @@ class Config(object):
             pkg_name = os.path.basename(pkg_path)
             pkg_groups[group_name][pkg_name] = [pkg_path]
 
-        for pkg_path in pkg_groups[group_name][pkg_name]:
-            if not os.path.exists(pkg_path):
-                raise ConfigXmlParseError("""detected a config error for package
-                                             %s.%s: %s does not exist!""" %
-                                          (group_name, pkg_name, pkg_path))
+        for pkg_name, pkg_paths in pkg_groups[group_name].items():
+            for pkg_path in pkg_paths:
+                if not os.path.exists(pkg_path):
+                    raise ConfigXmlParseError(
+                        "package %s.%s: %s does not exist!" %
+                        (group_name, pkg_name, pkg_path))
 
 
 def main():
