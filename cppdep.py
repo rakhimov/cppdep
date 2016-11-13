@@ -135,7 +135,7 @@ def find_cfiles(path, cbases):
 
 
 def find_external_hfiles(path):
-    """Yields a list of all header files from the given path.
+    """Yields header files from the given path.
 
     The directories are traversed recursively
     to extract header files from sub-directories.
@@ -163,7 +163,7 @@ class Component(object):
         dep_external_pkgs: External packages the component depends upon.
     """
 
-    def __init__(self, name, hpath, cpath, package=None):
+    def __init__(self, name, hpath, cpath=None, package=None):
         """Initialization of a free-standing component.
 
         Args:
@@ -305,6 +305,7 @@ class ComponentIncludeIssues(object):
             component: The component under examination.
             hfiles: The header files included by the implementation file.
         """
+        assert component.cpath
         cpath = component.cpath
         hfile = os.path.basename(component.hpath)
         try:  # Check if the component header file is the first include.
@@ -399,10 +400,9 @@ class DependencyAnalysis(object):
                     if hfile not in self.internal_hfiles:
                         self.internal_hfiles[hfile] = hpath
 
-                hpaths, cpaths, package = \
-                    self.__construct_components(pkg_name, hbases, cbases)
-                incomplete_components.register(group_name, pkg_name, hpaths,
-                                               cpaths)
+                package = self.__construct_components(pkg_name, hbases, cbases)
+                incomplete_components.register(group_name, pkg_name, [],
+                                               cbases.values())
                 package_group.packages[pkg_name] = package
                 package.group = package_group
             self.package_groups[group_name] = package_group
@@ -420,41 +420,30 @@ class DependencyAnalysis(object):
         may contain only inline functions or macros
         without any need for an implmentation file
         (e.g., inline math, Boost PPL).
-        For these reason, unpaired header files
+        For these reasons, unpaired header files
         are counted as components by default.
 
         Args:
             pkg_name: The name of the package.
             hbases: Base names of header files.
             cbases: Base names of implementation files.
+                    The paired base names will be removed from this container.
 
         Returns:
-            collection(unpaired header paths), collection(unpaired source paths)
             Package containing the components
-
-        TODO:
-            Refactor Component to allow header-only/source-only components.
-
-        TODO:
-            Consider the main implementation file of an application
-            as a separate component as well.
-
-        TODO:
-            Supply an option to disable
-            unpaired header component considerations.
         """
         package = Package(pkg_name)
-        # TODO: Workaround for Python 3.
-        paired_components = set(hbases.keys()) & set(cbases.keys())
-        for key in paired_components:
+        for key, hpath in hbases.items():
             assert key not in self.components
-            component = Component(key, hbases[key], cbases[key])
+            cpath = None
+            if key in cbases:
+                cpath = cbases[key]
+                del cbases[key]
+            component = Component(key, hpath, cpath)
             package.components.append(component)
             component.package = package
             self.components[key] = component
-            del hbases[key]  # TODO Smells?!
-            del cbases[key]  # TODO Smells?!
-        return hbases.values(), cbases.values(), package
+        return package
 
     def __expand_hfile_deps(self, header_file):
         """Recursively expands include directives.
@@ -503,6 +492,8 @@ class DependencyAnalysis(object):
         missing_hfiles = set()
         include_issues = ComponentIncludeIssues()
         for component in self.components.values():
+            if not component.cpath:
+                continue  # header only component
             hfiles = grep_hfiles(component.cpath)
             for hfile in hfiles:
                 if hfile in self.external_hfiles:
@@ -529,8 +520,6 @@ class DependencyAnalysis(object):
             for hfile in component.dep_internal_hfiles:
                 assert hfile in self.internal_hfiles
                 hbase = filename_base(hfile)
-                # An internal header that doesn't belong to any component
-                # is warned by make_components().
                 if hbase in self.components:
                     dep_component = self.components[hbase]
                     if dep_component != component:
