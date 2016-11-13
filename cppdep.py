@@ -280,16 +280,13 @@ class IncompleteComponents(object):
         """Prints a warning message about incomplete components."""
         if not self.__data:
             return
-        message = ''
-        for group_name, pkg_name, hpaths, cpaths in self.__data:
-            message += 'in package %s.%s: ' % (group_name, pkg_name)
-            message += ', '.join(os.path.basename(x) for x in hpaths)
-            message += ' ' + ', '.join(os.path.basename(x) for x in cpaths)
-            message += '\n'
         print('-' * 80)
         print('warning: detected files failed to associate '
               'with any component (all will be ignored): ')
-        print(message)
+        for group_name, pkg_name, hpaths, cpaths in self.__data:
+            print('in package %s.%s:' % (group_name, pkg_name),
+                  ', '.join(os.path.basename(x) for x in hpaths),
+                  ', '.join(os.path.basename(x) for x in cpaths))
 
 
 class ComponentIncludeIssues(object):
