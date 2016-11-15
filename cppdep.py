@@ -504,9 +504,6 @@ class DependencyAnalysis(object):
                 continue  # header only component
             hfiles = grep_hfiles(component.cpath)
             for hfile in hfiles:
-                if hfile in self.external_hfiles:
-                    component.dep_external_hfiles.add(hfile)
-                    continue
                 internal_hfiles, external_hfiles, unknown_hfiles = \
                     self.__expand_hfile_deps(hfile)
                 component.dep_internal_hfiles.update(internal_hfiles)
