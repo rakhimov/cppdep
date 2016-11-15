@@ -281,8 +281,7 @@ class IncompleteComponents(object):
         if not self.__data:
             return
         print('-' * 80)
-        print('warning: detected files failed to associate '
-              'with any component (all will be ignored): ')
+        print('warning: incomplete components: ')
         for group_name, pkg_name, hpaths, cpaths in self.__data:
             print('in package %s.%s:' % (group_name, pkg_name),
                   ', '.join(os.path.basename(x) for x in hpaths),
@@ -306,6 +305,8 @@ class ComponentIncludeIssues(object):
             hfiles: The header files included by the implementation file.
         """
         assert component.cpath
+        if not component.hpath:
+            return
         cpath = component.cpath
         hfile = os.path.basename(component.hpath)
         try:  # Check if the component header file is the first include.
@@ -433,16 +434,23 @@ class DependencyAnalysis(object):
             Package containing the components
         """
         package = Package(pkg_name)
-        for key, hpath in hbases.items():
+
+        def _register(key, component):
             assert key not in self.components
+            package.components.append(component)
+            component.package = package
+            self.components[key] = component
+
+        for key, hpath in hbases.items():
             cpath = None
             if key in cbases:
                 cpath = cbases[key]
                 del cbases[key]
-            component = Component(key, hpath, cpath)
-            package.components.append(component)
-            component.package = package
-            self.components[key] = component
+            _register(key, Component(key, hpath, cpath))
+
+        for key, cpath in cbases.items():
+            _register(key, Component(key, None, cpath))
+
         return package
 
     def __expand_hfile_deps(self, header_file):
