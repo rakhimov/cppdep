@@ -304,9 +304,8 @@ class ComponentIncludeIssues(object):
             component: The component under examination.
             hfiles: The header files included by the implementation file.
         """
-        assert component.cpath
-        if not component.hpath:
-            return
+        if not component.hpath or not component.cpath:
+            return  # Header-only or incomplete components.
         cpath = component.cpath
         hfile = os.path.basename(component.hpath)
         try:  # Check if the component header file is the first include.
@@ -408,7 +407,7 @@ class DependencyAnalysis(object):
                 package.group = package_group
             self.package_groups[group_name] = package_group
 
-        # Report files failed to associated with any component
+        # Report files failed to associate with any component
         incomplete_components.print_warning()
 
     def __construct_components(self, pkg_name, hbases, cbases):
@@ -500,9 +499,7 @@ class DependencyAnalysis(object):
         missing_hfiles = set()
         include_issues = ComponentIncludeIssues()
         for component in self.components.values():
-            if not component.cpath:
-                continue  # header only component
-            hfiles = grep_hfiles(component.cpath)
+            hfiles = grep_hfiles(component.cpath or component.hpath)
             for hfile in hfiles:
                 internal_hfiles, external_hfiles, unknown_hfiles = \
                     self.__expand_hfile_deps(hfile)
