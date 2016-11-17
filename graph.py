@@ -181,14 +181,13 @@ class Graph(object):
         level_num = 0
         cycle_num = 0
         for node, level in sorted(self.node2level.items(), key=lambda x: x[1]):
-            if level > level_num:
-                while level > level_num:
-                    level_num += 1
-                    print('level %d:' % level_num)
+            while level > level_num:
+                level_num += 1
+                print('level %d:' % level_num)
             if node in self.cycles:
-                cycle_num += 1
                 for v in node:
                     print('\t%s <%d>' % (str(v), cycle_num))
+                cycle_num += 1
             else:
                 print('\t' + str(node))
 
@@ -202,10 +201,9 @@ class Graph(object):
                 ccd += cd
         num_nodes = self.digraph.number_of_nodes()
         average_cd = ccd / num_nodes
-        # CCD_fullBTree = (N+1)*log2(N+1)-N
-        ccd_full_btree = (num_nodes + 1) * (math.log(num_nodes + 1, 2)) - \
-            num_nodes
-        normalized_ccd = ccd / ccd_full_btree
+        # CCD_Balanced_BTree = (N + 1) * log2(N + 1) - N
+        ccd_btree = (num_nodes + 1) * math.log(num_nodes + 1, 2) - num_nodes
+        normalized_ccd = ccd / ccd_btree
         print('=' * 80)
         print('SUMMARY:')
         print('Nodes: %d\t Cycles: %d\t Levels: %d' %
