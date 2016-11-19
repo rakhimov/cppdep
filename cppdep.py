@@ -85,11 +85,12 @@ def grep_hfiles(src_file_path):
     Args:
         src_file_path: The path to the source file to parse.
 
-    Returns:
+    Yields:
         A list of inlcuded header files into the argument source file.
     """
     with open(src_file_path) as src_file:
-        return [os.path.basename(header) for header in grep_include(src_file)]
+        for header in grep_include(src_file):
+            yield os.path.basename(header)
 
 
 def find(path, fnmatcher):
@@ -161,6 +162,7 @@ class Component(object):
     Attributes:
         name: A unique name as an identifier of the component.
         hpath: The path to the header file of the component.
+        hfile: The basename of the header file.
         cpath: The path to the implementation file of the component.
         package: The package this components belongs to.
         dep_internal_hfiles: Internal header files the component depends upon.
@@ -186,6 +188,7 @@ class Component(object):
                  (name, package.name, package.group.name))
         self.name = name
         self.hpath = hpath
+        self.hfile = None if not hpath else os.path.basename(hpath)
         self.cpath = cpath
         self.package = package
         self.dep_internal_hfiles = set()
@@ -193,6 +196,8 @@ class Component(object):
         self.dep_components = set()
         self.dep_external_pkgs = set()
         package.components.append(self)
+        self.__is_hfile_first_include = None  # The first include header error.
+        self.__is_hfile_included = False  # The header isn't included.
 
     def __str__(self):
         """For printing graph nodes."""
@@ -203,6 +208,37 @@ class Component(object):
         for dep_component in self.dep_components:
             if dep_component.package == self.package:
                 yield dep_component
+
+    def register_include(self, hfile):
+        """Registers component's direct includes for error detection."""
+        if not self.hpath or not self.cpath:
+            return  # Header-only or incomplete components.
+        if self.__is_hfile_first_include is None:
+            self.__is_hfile_first_include = self.hfile == hfile
+        if not self.__is_hfile_included:
+            self.__is_hfile_included = self.hfile == hfile
+
+    def check_include_issues(self):
+        """Checks for issues with header inclusion in implementation files.
+
+        Precondition:
+            All includes are registered with 'register_include()'.
+            All dependency headers have been expanded for this component.
+        """
+        if not self.hpath or not self.cpath:
+            return  # Header-only or incomplete components.
+        if not self.__is_hfile_included:
+            if self.hfile in self.dep_internal_hfiles:
+                warn('warning: include issues: indirect include: '
+                     '%s: does not include %s directly.' %
+                     (self.cpath, self.hfile))
+            else:
+                warn('warning: include issues: missing include: '
+                     '%s: does not depend on %s.' % (self.cpath, self.hfile))
+        elif not self.__is_hfile_first_include:
+            warn('warning: include issues: include order: '
+                 '%s: %s should be the first include.' %
+                 (self.cpath, self.hfile))
 
 
 class Package(object):
@@ -269,34 +305,6 @@ class PackageGroup(object):
                 for dep_component in component.dep_components:
                     if dep_component.package.group != self:
                         yield dep_component.package.group
-
-
-class ComponentIncludeIssues(object):
-    """Detector of include issues in a component."""
-
-    @staticmethod
-    def check(component, hfiles):
-        """Checks for issues with header inclusion in implementation files.
-
-        Args:
-            component: The component under examination.
-            hfiles: The header files included by the implementation file.
-        """
-        if not component.hpath or not component.cpath:
-            return  # Header-only or incomplete components.
-        cpath = component.cpath
-        hfile = os.path.basename(component.hpath)
-        try:  # Check if the component header file is the first include.
-            if hfiles.index(hfile):
-                warn('warning: include issues: include order: '
-                     '%s: %s should be the first include.' % (cpath, hfile))
-        except ValueError:  # The header include is missing.
-            if hfile in component.dep_internal_hfiles:
-                warn('warning: include issues: indirect include: '
-                     '%s: does not include %s directly.' % (cpath, hfile))
-            else:
-                warn('warning: include issues: missing include: '
-                     '%s: does not depend on %s.' % (cpath, hfile))
 
 
 class DependencyAnalysis(object):
@@ -441,14 +449,13 @@ class DependencyAnalysis(object):
             since there may be a cyclic dependency among headers.
         """
         for component in self.components.values():
-            hfiles = grep_hfiles(component.cpath or component.hpath)
-            for hfile in hfiles:
+            for hfile in grep_hfiles(component.cpath or component.hpath):
+                component.register_include(hfile)
                 internal_hfiles, external_hfiles = \
                     self.__expand_hfile_deps(hfile)
                 component.dep_internal_hfiles.update(internal_hfiles)
                 component.dep_external_hfiles.update(external_hfiles)
-            # Check for include issues only after gathering all includes.
-            ComponentIncludeIssues.check(component, hfiles)
+            component.check_include_issues()
 
     def make_ldep(self):
         """Determines all components on which a component depends."""
