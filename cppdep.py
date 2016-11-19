@@ -228,7 +228,6 @@ class Package(object):
         self.group = group
         group.packages[name] = self
 
-
     def __str__(self):
         """For printing graph nodes."""
         return self.name
@@ -275,13 +274,8 @@ class PackageGroup(object):
 class ComponentIncludeIssues(object):
     """Detector of include issues in a component."""
 
-    def __init__(self):
-        """Empty issues as success by default."""
-        self.__non_first_hfile_include = []
-        self.__indirect_hfile_include = []
-        self.__missing_hfile_include = []
-
-    def check(self, component, hfiles):
+    @staticmethod
+    def check(component, hfiles):
         """Checks for issues with header inclusion in implementation files.
 
         Args:
@@ -294,40 +288,15 @@ class ComponentIncludeIssues(object):
         hfile = os.path.basename(component.hpath)
         try:  # Check if the component header file is the first include.
             if hfiles.index(hfile):
-                self.__non_first_hfile_include.append('%s: %s, should be %s.' %
-                                                      (cpath, hfiles[0], hfile))
+                warn('warning: include issues: include order: '
+                     '%s: %s should be the first include.' % (cpath, hfile))
         except ValueError:  # The header include is missing.
             if hfile in component.dep_internal_hfiles:
-                self.__indirect_hfile_include.append(
-                    '%s: does not include %s directly.' % (cpath, hfile))
+                warn('warning: include issues: indirect include: '
+                     '%s: does not include %s directly.' % (cpath, hfile))
             else:
-                self.__missing_hfile_include.append(
-                    '%s: does not depend on %s.' % (cpath, hfile))
-
-    def report(self):
-        """Reports gathered issues with header inclusion."""
-        def _print_all(messages):
-            """Prints all error messages one on each line."""
-            for message in messages:
-                warn(message)
-
-        if self.__missing_hfile_include:
-            warn('-' * 80)
-            warn('warning: following every dotC does not depend on '
-                 'its associated header: ')
-            _print_all(self.__missing_hfile_include)
-
-        if self.__indirect_hfile_include:
-            warn('-' * 80)
-            warn('warning: following every dotC does not include '
-                 'its associated header directly: ')
-            _print_all(self.__indirect_hfile_include)
-
-        if self.__non_first_hfile_include:
-            warn('-' * 80)
-            warn('warning: following every dotC does not include '
-                 'its associated header before other headers: ')
-            _print_all(self.__non_first_hfile_include)
+                warn('warning: include issues: missing include: '
+                     '%s: does not depend on %s.' % (cpath, hfile))
 
 
 class DependencyAnalysis(object):
@@ -471,7 +440,6 @@ class DependencyAnalysis(object):
             since there may be a cyclic dependency among headers.
         """
         missing_hfiles = set()
-        include_issues = ComponentIncludeIssues()
         for component in self.components.values():
             hfiles = grep_hfiles(component.cpath or component.hpath)
             for hfile in hfiles:
@@ -481,14 +449,13 @@ class DependencyAnalysis(object):
                 component.dep_external_hfiles.update(external_hfiles)
                 missing_hfiles.update(unknown_hfiles)
             # Check for include issues only after gathering all includes.
-            include_issues.check(component, hfiles)
+            ComponentIncludeIssues.check(component, hfiles)
 
         # Report headers failed to locate.
         if missing_hfiles:
             warn('-' * 80)
             warn('warning: failed to locate following headers: ')
             warn(' '.join(missing_hfiles))
-        include_issues.report()
 
     def make_ldep(self):
         """Determines all components on which a component depends."""
