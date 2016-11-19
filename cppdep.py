@@ -168,8 +168,11 @@ class Component(object):
         dep_external_pkgs: External packages the component depends upon.
     """
 
-    def __init__(self, name, hpath, cpath=None, package=None):
+    def __init__(self, name, hpath, cpath, package):
         """Initialization of a free-standing component.
+
+        Registers the component in the package upon initialization.
+        Warns about incomplete components.
 
         Args:
             name: A unique identifier name for the component.
@@ -177,6 +180,10 @@ class Component(object):
             cpath: The path to the implementation file of the component.
             package: The package this components belongs to.
         """
+        assert hpath or cpath
+        if not hpath:
+            warn('warning: incomplete component: missing header: %s in %s.%s' %
+                 (name, package.name, package.group.name))
         self.name = name
         self.hpath = hpath
         self.cpath = cpath
@@ -185,6 +192,7 @@ class Component(object):
         self.dep_external_hfiles = set()
         self.dep_components = set()
         self.dep_external_pkgs = set()
+        package.components.append(self)
 
     def __str__(self):
         """For printing graph nodes."""
@@ -206,15 +214,20 @@ class Package(object):
         group: The package group this package belongs to.
     """
 
-    def __init__(self, name, group=None):
+    def __init__(self, name, group):
         """Constructs an empty package.
+
+        Registers the package in the package group.
 
         Args:
             name: A unique identifier string.
+            group: The package group.
         """
         self.name = name
         self.components = []
         self.group = group
+        group.packages[name] = self
+
 
     def __str__(self):
         """For printing graph nodes."""
@@ -257,40 +270,6 @@ class PackageGroup(object):
                 for dep_component in component.dep_components:
                     if dep_component.package.group != self:
                         yield dep_component.package.group
-
-
-class IncompleteComponents(object):
-    """A collection of unpaired header or source files."""
-
-    def __init__(self):
-        """Initializes an empty container."""
-        self.__data = []  # [(group_name, pkg_name, hpaths, cpaths)]
-
-    def register(self, group_name, pkg_name, hpaths, cpaths):
-        """Registers unpaired files.
-
-        Args:
-            group_name: The name of the package group.
-            pkg_name: The name of the package.
-            hpaths: A collection of the header file path in the package.
-            cpaths: A collection of the source file path in the package.
-
-        Precondition:
-            No duplicate packages.
-        """
-        if hpaths or cpaths:
-            self.__data.append((group_name, pkg_name, hpaths, cpaths))
-
-    def print_warning(self):
-        """Prints a warning message about incomplete components."""
-        if not self.__data:
-            return
-        warn('-' * 80)
-        warn('warning: incomplete components: ')
-        for group_name, pkg_name, hpaths, cpaths in self.__data:
-            warn('in package %s.%s:' % (group_name, pkg_name),
-                 ', '.join(os.path.basename(x) for x in hpaths),
-                 ', '.join(os.path.basename(x) for x in cpaths))
 
 
 class ComponentIncludeIssues(object):
@@ -389,7 +368,6 @@ class DependencyAnalysis(object):
         """
         self.__gather_external_hfiles(config.external_groups)
 
-        incomplete_components = IncompleteComponents()
         for group_name, packages in config.internal_groups.items():
             assert group_name not in self.package_groups
             package_group = PackageGroup(group_name)
@@ -405,17 +383,11 @@ class DependencyAnalysis(object):
                     if hfile not in self.internal_hfiles:
                         self.internal_hfiles[hfile] = hpath
 
-                package = self.__construct_components(pkg_name, hbases, cbases)
-                incomplete_components.register(group_name, pkg_name, [],
-                                               cbases.values())
-                package_group.packages[pkg_name] = package
-                package.group = package_group
+                self.__construct_components(pkg_name, package_group, hbases,
+                                            cbases)
             self.package_groups[group_name] = package_group
 
-        # Report files failed to associate with any component
-        incomplete_components.print_warning()
-
-    def __construct_components(self, pkg_name, hbases, cbases):
+    def __construct_components(self, pkg_name, group, hbases, cbases):
         """Pairs header and implementation files into components.
 
         Even though John Lakos defined a component as a pair of h and c files,
@@ -430,6 +402,7 @@ class DependencyAnalysis(object):
 
         Args:
             pkg_name: The name of the package.
+            group: The package group.
             hbases: Base names of header files.
             cbases: Base names of implementation files.
                     The paired base names will be removed from this container.
@@ -437,23 +410,19 @@ class DependencyAnalysis(object):
         Returns:
             Package containing the components
         """
-        package = Package(pkg_name)
-
-        def _register(key, component):
-            assert key not in self.components
-            package.components.append(component)
-            component.package = package
-            self.components[key] = component
+        package = Package(pkg_name, group)
 
         for key, hpath in hbases.items():
             cpath = None
             if key in cbases:
                 cpath = cbases[key]
                 del cbases[key]
-            _register(key, Component(key, hpath, cpath))
+            assert key not in self.components
+            self.components[key] = Component(key, hpath, cpath, package)
 
         for key, cpath in cbases.items():
-            _register(key, Component(key, None, cpath))
+            assert key not in self.components
+            self.components[key] = Component(key, None, cpath, package)
 
         return package
 
