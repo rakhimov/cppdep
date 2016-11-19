@@ -398,39 +398,40 @@ class DependencyAnalysis(object):
     def __expand_hfile_deps(self, header_file):
         """Recursively expands include directives.
 
+        Produces warning if a header file is not found.
+
         Args:
             header_file: The source header file.
 
         Returns:
-            (internal header files, external header files, unknown header files)
+            (internal header files, external header files)
         """
-        if header_file in self.__internal_hfile_deps:
-            return self.__internal_hfile_deps[header_file]
-        dep_internal_hfiles = set()
-        dep_external_hfiles = set()
-        dep_bad_hfiles = set()
+        if header_file not in self.__internal_hfile_deps:
+            dep_internal_hfiles = set()
+            dep_external_hfiles = set()
+            dep_missing_hfiles = set()
+            current_hfiles = set([header_file])
+            while current_hfiles:
+                next_hfiles = set()
+                for hfile in current_hfiles:
+                    if hfile in self.internal_hfiles:
+                        dep_internal_hfiles.add(hfile)
+                        hpath = self.internal_hfiles[hfile]
+                        next_hfiles.update(grep_hfiles(hpath))
+                    elif hfile in self.external_hfiles:
+                        dep_external_hfiles.add(hfile)
+                    else:
+                        warn('warning: include issues: header not found: %s' %
+                             hfile)
+                        dep_missing_hfiles.add(hfile)
+                next_hfiles.difference_update(dep_internal_hfiles)
+                next_hfiles.difference_update(dep_external_hfiles)
+                next_hfiles.difference_update(dep_missing_hfiles)
+                current_hfiles = next_hfiles
 
-        current_hfiles = set([header_file])
-        while current_hfiles:
-            next_hfiles = set()
-            for hfile in current_hfiles:
-                if hfile in self.internal_hfiles:
-                    dep_internal_hfiles.add(hfile)
-                    hpath = self.internal_hfiles[hfile]
-                    next_hfiles.update(grep_hfiles(hpath))
-                elif hfile in self.external_hfiles:
-                    dep_external_hfiles.add(hfile)
-                else:
-                    # Detect headers failed to locate.
-                    dep_bad_hfiles.add(hfile)
-            next_hfiles.difference_update(dep_internal_hfiles)
-            next_hfiles.difference_update(dep_external_hfiles)
-            next_hfiles.difference_update(dep_bad_hfiles)
-            current_hfiles = next_hfiles
-
-        self.__internal_hfile_deps[header_file] = \
-            (dep_internal_hfiles, dep_external_hfiles, dep_bad_hfiles)
-        return dep_internal_hfiles, dep_external_hfiles, dep_bad_hfiles
+            self.__internal_hfile_deps[header_file] = \
+                (dep_internal_hfiles, dep_external_hfiles)
+        return self.__internal_hfile_deps[header_file]
 
     def make_cdep(self):
         """Determines all hfiles on which a cfile depends.
@@ -439,23 +440,15 @@ class DependencyAnalysis(object):
             Simple recursive parsing does not work
             since there may be a cyclic dependency among headers.
         """
-        missing_hfiles = set()
         for component in self.components.values():
             hfiles = grep_hfiles(component.cpath or component.hpath)
             for hfile in hfiles:
-                internal_hfiles, external_hfiles, unknown_hfiles = \
+                internal_hfiles, external_hfiles = \
                     self.__expand_hfile_deps(hfile)
                 component.dep_internal_hfiles.update(internal_hfiles)
                 component.dep_external_hfiles.update(external_hfiles)
-                missing_hfiles.update(unknown_hfiles)
             # Check for include issues only after gathering all includes.
             ComponentIncludeIssues.check(component, hfiles)
-
-        # Report headers failed to locate.
-        if missing_hfiles:
-            warn('-' * 80)
-            warn('warning: failed to locate following headers: ')
-            warn(' '.join(missing_hfiles))
 
     def make_ldep(self):
         """Determines all components on which a component depends."""
