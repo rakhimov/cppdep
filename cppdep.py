@@ -54,6 +54,11 @@ _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
 _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 
 
+def warn(*args, **kwargs):
+    """Prints a warning message into the standard error."""
+    print(*args, file=sys.stderr, **kwargs)
+
+
 def filename_base(filename):
     """Strips the extension from a filename."""
     return os.path.splitext(filename)[0]
@@ -280,12 +285,12 @@ class IncompleteComponents(object):
         """Prints a warning message about incomplete components."""
         if not self.__data:
             return
-        print('-' * 80)
-        print('warning: incomplete components: ')
+        warn('-' * 80)
+        warn('warning: incomplete components: ')
         for group_name, pkg_name, hpaths, cpaths in self.__data:
-            print('in package %s.%s:' % (group_name, pkg_name),
-                  ', '.join(os.path.basename(x) for x in hpaths),
-                  ', '.join(os.path.basename(x) for x in cpaths))
+            warn('in package %s.%s:' % (group_name, pkg_name),
+                 ', '.join(os.path.basename(x) for x in hpaths),
+                 ', '.join(os.path.basename(x) for x in cpaths))
 
 
 class ComponentIncludeIssues(object):
@@ -325,24 +330,24 @@ class ComponentIncludeIssues(object):
         def _print_all(messages):
             """Prints all error messages one on each line."""
             for message in messages:
-                print(message)
+                warn(message)
 
         if self.__missing_hfile_include:
-            print('-' * 80)
-            print('warning: following every dotC does not depend on '
-                  'its associated header: ')
+            warn('-' * 80)
+            warn('warning: following every dotC does not depend on '
+                 'its associated header: ')
             _print_all(self.__missing_hfile_include)
 
         if self.__indirect_hfile_include:
-            print('-' * 80)
-            print('warning: following every dotC does not include '
-                  'its associated header directly: ')
+            warn('-' * 80)
+            warn('warning: following every dotC does not include '
+                 'its associated header directly: ')
             _print_all(self.__indirect_hfile_include)
 
         if self.__non_first_hfile_include:
-            print('-' * 80)
-            print('warning: following every dotC does not include '
-                  'its associated header before other headers: ')
+            warn('-' * 80)
+            warn('warning: following every dotC does not include '
+                 'its associated header before other headers: ')
             _print_all(self.__non_first_hfile_include)
 
 
@@ -511,9 +516,9 @@ class DependencyAnalysis(object):
 
         # Report headers failed to locate.
         if missing_hfiles:
-            print('-' * 80)
-            print('warning: failed to locate following headers: ')
-            print(' '.join(missing_hfiles))
+            warn('-' * 80)
+            warn('warning: failed to locate following headers: ')
+            warn(' '.join(missing_hfiles))
         include_issues.report()
 
     def make_ldep(self):
@@ -693,8 +698,8 @@ if __name__ == '__main__':
     try:
         main()
     except IOError as err:
-        print("IO Error:\n" + str(err))
+        warn("IO Error:\n" + str(err))
         sys.exit(1)
     except ConfigXmlParseError as err:
-        print("Configuration XML Error:\n" + str(err))
+        warn("Configuration XML Error:\n" + str(err))
         sys.exit(1)
