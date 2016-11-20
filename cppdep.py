@@ -46,8 +46,6 @@ VERSION = '0.0.7'  # The latest release version.
 # dep   - dependency (discouraged abbreviation!)
 
 
-# A search pattern for include directives.
-_RE_INCLUDE = re.compile(r'^\s*#include\s*(<(?P<system>.+)>|"(?P<local>.+)")')
 # STL/Boost/Qt and other libraries can provide extension-less system headers.
 _RE_SYSTEM_HFILE = re.compile(r'[^.]*$')
 _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
@@ -64,21 +62,6 @@ def filename_base(filename):
     return os.path.splitext(filename)[0]
 
 
-def grep_include(file_obj):
-    """Finds include directives in source files.
-
-    Args:
-        file_obj: A source file opened for read.
-
-    Yields:
-        The string name of included header file.
-    """
-    for line in file_obj:
-        match_text = _RE_INCLUDE.search(line)
-        if match_text:
-            yield match_text.group("system") or match_text.group("local")
-
-
 def grep_hfiles(src_file_path):
     """Processes include directives in source files.
 
@@ -88,9 +71,7 @@ def grep_hfiles(src_file_path):
     Yields:
         Inlcuded header file names.
     """
-    with open(src_file_path) as src_file:
-        for header in grep_include(src_file):
-            yield os.path.basename(header)
+    return (os.path.basename(x.hfile) for x in Include.grep(src_file_path))
 
 
 def find(path, fnmatcher):
@@ -162,6 +143,46 @@ def find_external_hfiles(path):
         yield x
 
 
+class Include(object):
+    """Representation of an include directive.
+
+    Attributes:
+        with_quotes: True if the include is within quotes ("")
+            instead of angle brackets (<>).
+        hfile: The header file in the directive.
+    """
+
+    _RE_INCLUDE = re.compile(r'^\s*#include\s*'
+                             '(<(?P<brackets>.+)>|"(?P<quotes>.+)")')
+
+    __slots__ = ['hfile', 'with_quotes']
+
+    def __init__(self, hfile, with_quotes):
+        """Initializes with attributes."""
+        self.hfile = hfile
+        self.with_quotes = with_quotes
+
+    @staticmethod
+    def grep(file_path):
+        """Processes include directives in a source file.
+
+        Args:
+            file_path: The full path to the source file.
+
+        Yields:
+            Include objects constructed with the directives.
+        """
+        with open(file_path) as src_file:
+            for line in src_file:
+                include = Include._RE_INCLUDE.search(line)
+                if not include:
+                    continue
+                if include.group("brackets"):
+                    yield Include(include.group("brackets"), False)
+                else:
+                    yield Include(include.group("quotes"), True)
+
+
 class Component(object):
     """Representation of a component in a package.
 
@@ -173,6 +194,8 @@ class Component(object):
         package: The package this components belongs to.
         dep_internal_hfiles: Internal header files the component depends upon.
         dep_external_components: External dependency component.
+        includes_in_h: Include directives in the header file.
+        includes_in_c: Include directives in the implementation file.
     """
 
     def __init__(self, name, hpath, cpath, package):
@@ -199,6 +222,8 @@ class Component(object):
         self.dep_internal_hfiles = set()
         self.dep_components = set()
         self.dep_external_components = set()
+        self.includes_in_h = [] if not hpath else list(Include.grep(hpath))
+        self.includes_in_c = [] if not cpath else list(Include.grep(cpath))
         package.components.append(self)
         self.__is_hfile_first_include = None  # The first include header error.
         self.__is_hfile_included = False  # The header isn't included.
@@ -493,11 +518,10 @@ class DependencyAnalysis(object):
             for hfile in component.dep_internal_hfiles:
                 assert hfile in self.internal_hfiles
                 hbase = filename_base(hfile)
-                if hbase in self.components:
-                    dep_component = self.components[hbase]
-                    if dep_component != component:
-                        assert os.path.basename(dep_component.hpath) == hfile
-                        component.dep_components.add(dep_component)
+                dep_component = self.components[hbase]
+                if dep_component != component:
+                    assert os.path.basename(dep_component.hpath) == hfile
+                    component.dep_components.add(dep_component)
 
     def print_ldep(self):
         """Prints link time dependencies of components."""
