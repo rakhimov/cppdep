@@ -86,7 +86,7 @@ def grep_hfiles(src_file_path):
         src_file_path: The path to the source file to parse.
 
     Yields:
-        A list of inlcuded header files into the argument source file.
+        Inlcuded header file names.
     """
     with open(src_file_path) as src_file:
         for header in grep_include(src_file):
@@ -94,11 +94,14 @@ def grep_hfiles(src_file_path):
 
 
 def find(path, fnmatcher):
-    """Yields basename and full path to header files.
+    """Finds files with their names matching a regex pattern.
 
     Args:
         path: The root path to start the search.
         fnmatcher: regex for filename.
+
+    Yields:
+        The basename and full path to the matching files.
     """
     if os.path.isfile(path):
         filename = os.path.basename(path)
@@ -141,7 +144,7 @@ def find_cfiles(path, cbases):
 
 
 def find_external_hfiles(path):
-    """Yields header files from the given path.
+    """Finds header files for external packages.
 
     The directories are traversed recursively
     to extract header files from sub-directories.
@@ -149,11 +152,14 @@ def find_external_hfiles(path):
 
     The function handles system headers specially
     by allowing extension-less header files.
+
+    Yields:
+        The base names and full paths to header files from the given path.
     """
-    for hfile, _ in find(path, _RE_HFILE):
-        yield hfile
-    for hfile, _ in find(path, _RE_SYSTEM_HFILE):
-        yield hfile
+    for x in find(path, _RE_HFILE):
+        yield x
+    for x in find(path, _RE_SYSTEM_HFILE):
+        yield x
 
 
 class Component(object):
@@ -166,8 +172,7 @@ class Component(object):
         cpath: The path to the implementation file of the component.
         package: The package this components belongs to.
         dep_internal_hfiles: Internal header files the component depends upon.
-        dep_external_hfiles: External header files the component depends upon.
-        dep_external_pkgs: External packages the component depends upon.
+        dep_external_components: External dependency component.
     """
 
     def __init__(self, name, hpath, cpath, package):
@@ -177,7 +182,7 @@ class Component(object):
         Warns about incomplete components.
 
         Args:
-            name: A unique identifier name for the component.
+            name: A unique identifier within the package.
             hpath: The path to the header file of the component.
             cpath: The path to the implementation file of the component.
             package: The package this components belongs to.
@@ -192,9 +197,8 @@ class Component(object):
         self.cpath = cpath
         self.package = package
         self.dep_internal_hfiles = set()
-        self.dep_external_hfiles = set()
         self.dep_components = set()
-        self.dep_external_pkgs = set()
+        self.dep_external_components = set()
         package.components.append(self)
         self.__is_hfile_first_include = None  # The first include header error.
         self.__is_hfile_included = False  # The header isn't included.
@@ -240,6 +244,32 @@ class Component(object):
                  '%s: %s should be the first include.' %
                  (self.cpath, self.hfile))
 
+    @property
+    def dep_external_packages(self):
+        """Yields external dependency group.packages."""
+        for group, package in set((x.group, x.package)
+                                  for x in self.dep_external_components):
+            yield '.'.join((group, package))
+
+
+class ExternalComponent(object):
+    """Representation of an external component.
+
+    Note that external components are degenerate.
+    There's no need to acquire full information about exteranal dependencies.
+
+    Attributes:
+        hpath: Full path to the component header as an identifier.
+        package: The package identifier.
+        group: The external group identifier.
+    """
+
+    def __init__(self, hpath, package, group):
+        """Constructs an external component with its attributes."""
+        self.hpath = hpath
+        self.package = package
+        self.group = group
+
 
 class Package(object):
     """A collection of components.
@@ -256,7 +286,7 @@ class Package(object):
         Registers the package in the package group.
 
         Args:
-            name: A unique identifier string.
+            name: A unique identifier within the package group.
             group: The package group.
         """
         self.name = name
@@ -289,7 +319,7 @@ class PackageGroup(object):
         """Constructs an empty group.
 
         Atgs:
-            name: A unique identifier string.
+            name: A unique global identifier.
         """
         self.name = name
         self.packages = {}
@@ -313,7 +343,7 @@ class DependencyAnalysis(object):
     Attributes:
         package_groups: {group_name: PackageGroup}
         components: {base_name: Component}
-        external_hfiles: {hfile: (group_name, pkg_name)}
+        external_components: {include: ExternalComponent}
         internal_hfiles: {hfile: hpath}
     """
 
@@ -321,12 +351,12 @@ class DependencyAnalysis(object):
         """Initializes analysis containers."""
         self.package_groups = {}
         self.components = {}
-        self.external_hfiles = {}
+        self.external_components = {}
         self.internal_hfiles = {}
         self.__internal_hfile_deps = {}
 
-    def __gather_external_hfiles(self, external_groups):
-        """Populates databases of external dependency headers.
+    def __gather_external_components(self, external_groups):
+        """Populates databases of external dependency components.
 
         Args:
             external_groups: A database of external groups and its source paths.
@@ -334,8 +364,9 @@ class DependencyAnalysis(object):
         for group_name, packages in external_groups.items():
             for pkg_name, src_paths in packages.items():
                 for src_path in src_paths:
-                    for hfile in find_external_hfiles(src_path):
-                        self.external_hfiles[hfile] = (group_name, pkg_name)
+                    for hfile, hpath in find_external_hfiles(src_path):
+                        self.external_components[hfile] = \
+                            ExternalComponent(hfile, group_name, pkg_name)
 
     def make_components(self, config):
         """Pairs hfiles and cfiles.
@@ -343,7 +374,7 @@ class DependencyAnalysis(object):
         Args:
             config: The project configurations with package groups.
         """
-        self.__gather_external_hfiles(config.external_groups)
+        self.__gather_external_components(config.external_groups)
 
         for group_name, packages in config.internal_groups.items():
             assert group_name not in self.package_groups
@@ -412,12 +443,11 @@ class DependencyAnalysis(object):
             header_file: The source header file.
 
         Returns:
-            (internal header files, external header files)
+            (internal header files, external components)
         """
         if header_file not in self.__internal_hfile_deps:
             dep_internal_hfiles = set()
-            dep_external_hfiles = set()
-            dep_missing_hfiles = set()
+            dep_external_components = set()
             current_hfiles = set([header_file])
             while current_hfiles:
                 next_hfiles = set()
@@ -426,19 +456,19 @@ class DependencyAnalysis(object):
                         dep_internal_hfiles.add(hfile)
                         hpath = self.internal_hfiles[hfile]
                         next_hfiles.update(grep_hfiles(hpath))
-                    elif hfile in self.external_hfiles:
-                        dep_external_hfiles.add(hfile)
+                    elif hfile in self.external_components:
+                        dep_external_components.add(
+                            self.external_components[hfile])
                     else:
                         warn('warning: include issues: header not found: %s' %
                              hfile)
-                        dep_missing_hfiles.add(hfile)
                 next_hfiles.difference_update(dep_internal_hfiles)
-                next_hfiles.difference_update(dep_external_hfiles)
-                next_hfiles.difference_update(dep_missing_hfiles)
+                next_hfiles.difference_update(
+                    x.hpath for x in dep_external_components)
                 current_hfiles = next_hfiles
 
             self.__internal_hfile_deps[header_file] = \
-                (dep_internal_hfiles, dep_external_hfiles)
+                (dep_internal_hfiles, dep_external_components)
         return self.__internal_hfile_deps[header_file]
 
     def make_cdep(self):
@@ -451,10 +481,10 @@ class DependencyAnalysis(object):
         for component in self.components.values():
             for hfile in grep_hfiles(component.cpath or component.hpath):
                 component.register_include(hfile)
-                internal_hfiles, external_hfiles = \
+                internal_hfiles, external_components = \
                     self.__expand_hfile_deps(hfile)
                 component.dep_internal_hfiles.update(internal_hfiles)
-                component.dep_external_hfiles.update(external_hfiles)
+                component.dep_external_components.update(external_components)
             component.check_include_issues()
 
     def make_ldep(self):
@@ -468,9 +498,6 @@ class DependencyAnalysis(object):
                     if dep_component != component:
                         assert os.path.basename(dep_component.hpath) == hfile
                         component.dep_components.add(dep_component)
-            for hfile in component.dep_external_hfiles:
-                assert hfile in self.external_hfiles
-                component.dep_external_pkgs.add(self.external_hfiles[hfile])
 
     def print_ldep(self):
         """Prints link time dependencies of components."""
@@ -487,8 +514,7 @@ class DependencyAnalysis(object):
                     print('%s:' % component.name)
                     _print_deps(x.name for x in component.dep_components)
                     print('  (external)')
-                    _print_deps('.'.join(x) for x in
-                                component.dep_external_pkgs)
+                    _print_deps(component.dep_external_packages)
 
     def make_graph(self):
         """Reports analysis results and graphs."""
