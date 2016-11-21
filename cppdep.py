@@ -162,17 +162,19 @@ class Include(object):
         with_quotes: True if the include is within quotes ("")
             instead of angle brackets (<>).
         hfile: The header file in the directive.
+        hpath: The absolute path to the header file.
     """
 
     _RE_INCLUDE = re.compile(r'^\s*#include\s*'
                              '(<(?P<brackets>.+)>|"(?P<quotes>.+)")')
 
-    __slots__ = ['hfile', 'with_quotes']
+    __slots__ = ['hfile', 'with_quotes', 'hpath']
 
     def __init__(self, hfile, with_quotes):
         """Initializes with attributes."""
         self.hfile = hfile
         self.with_quotes = with_quotes
+        self.hpath = None
 
     @staticmethod
     def grep(file_path):
@@ -193,6 +195,34 @@ class Include(object):
                     yield Include(include.group("brackets"), False)
                 else:
                     yield Include(include.group("quotes"), True)
+
+    def locate(self, cwd, include_dirs):
+        """Locates the included header file path.
+
+        All input directory paths must be absolute.
+        If the file is not located,
+        only a warning message is produced.
+
+        Args:
+            cwd: The working directory for source file processing.
+            include_dirs: The directories to search for the file.
+        """
+        assert self.hpath is None
+
+        def _find_in(include_dir):
+            """Returns True if the path is found."""
+            file_hpath = os.path.join(include_dir, self.hfile)
+            if os.path.isfile(file_hpath):
+                self.hpath = file_hpath
+                return True
+            return False
+
+        if self.with_quotes and _find_in(cwd):
+            return
+        for include_dir in include_dirs:
+            if _find_in(include_dir):
+                return
+        warn('warning: include issues: header not found: %s' % self.hfile)
 
 
 class Component(object):
