@@ -59,10 +59,6 @@ class InvalidArgumentError(Exception):
     pass
 
 
-_RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
-_RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
-
-
 def warn(*args, **kwargs):
     """Prints a warning message into the standard error."""
     print(*args, file=sys.stderr, **kwargs)
@@ -83,56 +79,6 @@ def common_path(paths):
     if all(len(x) == sep_pos or x[sep_pos] == os.path.sep for x in paths):
         return path
     return os.path.dirname(path)
-
-
-def find(path, fnmatcher):
-    """Finds files with their names matching a regex pattern.
-
-    Args:
-        path: The root path to start the search.
-        fnmatcher: regex for filename.
-
-    Yields:
-        The basename and full path to the matching files.
-    """
-    if os.path.isfile(path):
-        filename = os.path.basename(path)
-        if fnmatcher.match(filename):
-            yield filename, path
-    else:
-        for root, _, files in os.walk(path):
-            for entry in files:
-                if fnmatcher.match(entry):
-                    full_path = os.path.join(root, entry)
-                    yield entry, full_path
-
-
-def find_hfiles(path, hbases, hfiles):
-    """Finds package header files.
-
-    Args:
-        path: The root path to start the search.
-        hbases: The destination container for header file basenames.
-        hfiles: The destination container for header file paths.
-    """
-    for hfile, hpath in find(path, _RE_HFILE):
-        if hfile not in hfiles:
-            hfiles[hfile] = hpath
-        hbase = strip_ext(hfile)
-        hbases[hbase] = hpath
-
-
-def find_cfiles(path, cbases):
-    """Finds package implement files.
-
-    Args:
-        path: The root path to start the search.
-        cbases: The destination container for implementation file basenames.
-    """
-    for cfile, cpath in find(path, _RE_CFILE):
-        cbase = strip_ext(cfile)
-        assert cbase not in cbases
-        cbases[cbase] = cpath
 
 
 class Include(object):
@@ -229,7 +175,6 @@ class Component(object):
     def __init__(self, hpath, cpath, package):
         """Initialization of a free-standing component.
 
-        Registers the component in the package upon initialization.
         Warns about incomplete components.
 
         Args:
@@ -250,7 +195,6 @@ class Component(object):
         self.dep_external_components = set()
         self.includes_in_h = [] if not hpath else list(Include.grep(hpath))
         self.includes_in_c = [] if not cpath else list(Include.grep(cpath))
-        package.components.append(self)
 
     def __str__(self):
         """For printing graph nodes."""
@@ -313,6 +257,9 @@ class Package(object):
         components: The list of unique components in this package.
     """
 
+    _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
+    _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
+
     def __init__(self, paths, group, name=None):
         """Constructs an empty package.
 
@@ -353,6 +300,50 @@ class Package(object):
     def __str__(self):
         """For printing graph nodes."""
         return self.name
+
+    def construct_components(self):
+        """Traverses the package paths and constructs package components.
+
+        Even though John Lakos defined a component as a pair of h and c files,
+        C++ can have template only components
+        residing only in header files (e.g., STL/Boost/etc.).
+        Moreover, some header-only components
+        may contain only inline functions or macros
+        without any need for an implmentation file
+        (e.g., inline math, Boost PPL).
+        For these reasons, unpaired header files
+        are counted as components by default.
+
+        Unpaired c files are counted as incomplete components with warnings.
+        """
+        hpaths = []
+        cpaths = []
+
+        def _gather_files(path):
+            for root, _, files in os.walk(path):
+                for filename in files:
+                    if Package._RE_HFILE.match(filename):
+                        hpaths.append(os.path.join(root, filename))
+                    elif Package._RE_CFILE.match(filename):
+                        cpaths.append(os.path.join(root, filename))
+
+        for src_path in self.paths:
+            _gather_files(src_path)
+
+        # This approach assumes
+        # that the header and implementation are in the same directory.
+        # TODO: Implement less-restricted, general pairing.
+        cbases = dict((strip_ext(x), x) for x in cpaths)
+        for hpath in hpaths:
+            cpath = None
+            key = strip_ext(hpath)
+            if key in cbases:
+                cpath = cbases[key]
+                del cbases[key]
+            self.components.append(Component(hpath, cpath, self))
+
+        for cpath in cbases.values():
+            self.components.append(Component(None, cpath, self))
 
     def dependencies(self):
         """Yields dependency packages within the same package group."""
@@ -423,10 +414,8 @@ class DependencyAnalysis(object):
 
     Attributes:
         config_file: The path to the configuration file.
-        components: {base_name: Component}
         external_components: {hpath: ExternalComponent}
         internal_components: {hpath: Component}
-        internal_hfiles: {hfile: hpath}
         external_groups: External dependency packages and package groups.
               {group_name: PackageGroup}
         internal_groups: The package groups of the project under analysis.
@@ -444,11 +433,8 @@ class DependencyAnalysis(object):
             InvalidArgumentError: The configuration has is invalid values.
         """
         self.config_file = config_file
-        self.components = {}
         self.external_components = {}
         self.internal_components = {}
-        self.internal_hfiles = {}
-        self.__internal_hfile_deps = {}
         self.external_groups = {}
         self.internal_groups = {}
         self.__parse_xml_config(config_file)
@@ -557,55 +543,13 @@ class DependencyAnalysis(object):
         """Pairs hfiles and cfiles."""
         for group in self.internal_groups.values():
             for package in group.packages.values():
-                hbases = {}
-                cbases = {}
-                hfiles = {}
-                for src_path in package.paths:
-                    find_hfiles(src_path, hbases, hfiles)
-                    find_cfiles(src_path, cbases)
-
-                for hfile, hpath in hfiles.items():
-                    if hfile not in self.internal_hfiles:
-                        self.internal_hfiles[hfile] = hpath
-
-                self.__construct_components(package, hbases, cbases)
-
-    def __construct_components(self, package, hbases, cbases):
-        """Pairs header and implementation files into components.
-
-        Even though John Lakos defined a component as a pair of h and c files,
-        C++ can have template only components
-        residing only in header files (e.g., STL/Boost/etc.).
-        Moreover, some header-only components
-        may contain only inline functions or macros
-        without any need for an implmentation file
-        (e.g., inline math, Boost PPL).
-        For these reasons, unpaired header files
-        are counted as components by default.
-
-        Args:
-            package: The host package.
-            hbases: Base names of header files.
-            cbases: Base names of implementation files.
-                    The paired base names will be removed from this container.
-        """
-        for key, hpath in hbases.items():
-            cpath = None
-            if key in cbases:
-                cpath = cbases[key]
-                del cbases[key]
-            assert key not in self.components
-            component = Component(hpath, cpath, package)
-            self.components[key] = component
-            self.internal_components[component.hfile] = component
-
-        for key, cpath in cbases.items():
-            assert key not in self.components
-            self.components[key] = Component(None, cpath, package)
+                package.construct_components()
+                self.internal_components.update(
+                    (x.hfile or x.cpath, x) for x in package.components)
 
     def analyze(self):
         """Runs the analysis."""
-        for component in self.components.values():
+        for component in self.internal_components.values():
             for include in itertools.chain(component.includes_in_h,
                                            component.includes_in_c):
                 if not self.locate(include, component):
