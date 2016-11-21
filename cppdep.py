@@ -235,7 +235,8 @@ class Component(object):
         cpath: The path to the implementation file of the component.
         package: The package this components belongs to.
         dep_internal_hfiles: Internal header files the component depends upon.
-        dep_external_components: External dependency component.
+        dep_internal_components: Internal dependency components.
+        dep_external_components: External dependency components.
         includes_in_h: Include directives in the header file.
         includes_in_c: Include directives in the implementation file.
     """
@@ -262,7 +263,7 @@ class Component(object):
         self.cpath = cpath
         self.package = package
         self.dep_internal_hfiles = set()
-        self.dep_components = set()
+        self.dep_internal_components = set()
         self.dep_external_components = set()
         self.includes_in_h = [] if not hpath else list(Include.grep(hpath))
         self.includes_in_c = [] if not cpath else list(Include.grep(cpath))
@@ -276,7 +277,7 @@ class Component(object):
 
     def dependencies(self):
         """Yeilds dependency components within the same package."""
-        for dep_component in self.dep_components:
+        for dep_component in self.dep_internal_components:
             if dep_component.package == self.package:
                 yield dep_component
 
@@ -385,7 +386,7 @@ class Package(object):
     def dependencies(self):
         """Yields dependency packages within the same package group."""
         for component in self.components:
-            for dep_component in component.dep_components:
+            for dep_component in component.dep_internal_components:
                 if (dep_component.package.group == self.group and
                         dep_component.package != self):
                     yield dep_component.package
@@ -424,7 +425,7 @@ class PackageGroup(object):
         """Yields dependency package groups."""
         for package in self.packages.values():
             for component in package.components:
-                for dep_component in component.dep_components:
+                for dep_component in component.dep_internal_components:
                     if dep_component.package.group != self:
                         yield dep_component.package.group
 
@@ -628,7 +629,7 @@ class DependencyAnalysis(object):
                 dep_component = self.components[hbase]
                 if dep_component != component:
                     assert os.path.basename(dep_component.hpath) == hfile
-                    component.dep_components.add(dep_component)
+                    component.dep_internal_components.add(dep_component)
 
     def print_ldep(self):
         """Prints link time dependencies of components."""
@@ -643,7 +644,8 @@ class DependencyAnalysis(object):
                 print('package %s.%s dependency:' % (group_name, pkg_name))
                 for component in packages[pkg_name].components:
                     print('%s:' % component.name)
-                    _print_deps(x.name for x in component.dep_components)
+                    _print_deps(x.name for x
+                                in component.dep_internal_components)
                     print('  (external)')
                     _print_deps(component.dep_external_packages)
 
