@@ -46,8 +46,14 @@ VERSION = '0.0.7'  # The latest release version.
 # dep   - dependency (discouraged abbreviation!)
 
 
-class ConfigXmlParseError(Exception):
+class XmlError(Exception):
     """Parsing errors in XML configuration file."""
+
+    pass
+
+
+class InvalidArgumentError(Exception):
+    """General errors with invalid arguments."""
 
     pass
 
@@ -278,7 +284,7 @@ class Component(object):
     @property
     def dep_external_packages(self):
         """Yields external dependency group.packages."""
-        for group, package in set((x.group, x.package)
+        for group, package in set((x.package.group.name, x.package.name)
                                   for x in self.dep_external_components):
             yield '.'.join((group, package))
 
@@ -287,43 +293,66 @@ class ExternalComponent(object):
     """Representation of an external component.
 
     Note that external components are degenerate.
-    There's no need to acquire full information about exteranal dependencies.
+    There's no need to acquire full information about their dependencies.
 
     Attributes:
         hpath: Full path to the component header as an identifier.
-        package: The package identifier.
-        group: The external group identifier.
+        package: The package.
     """
 
-    def __init__(self, hpath, package, group):
+    __slots__ = ['hpath', 'package']
+
+    def __init__(self, hpath, package):
         """Constructs an external component with its attributes."""
         self.hpath = hpath
         self.package = package
-        self.group = group
 
 
 class Package(object):
     """A collection of components.
 
     Attributes:
-        name: The unique identifier name of the package.
-        components: The list of unique components in this package.
+        name: The unique identifier name of the package within its group.
+        paths: The absolute directory paths in the package.
         group: The package group this package belongs to.
+        components: The list of unique components in this package.
     """
 
-    def __init__(self, name, group):
+    def __init__(self, paths, group, name=None):
         """Constructs an empty package.
 
         Registers the package in the package group.
 
         Args:
-            name: A unique identifier within the package group.
+            paths: The directory paths relative to the package group directory.
             group: The package group.
+            name: A unique identifier within the package group.
+                If not provided, only one path is accepted
+                for the identifier deduction.
+
+        Raises:
+            InvalidArgumentError: Issues with the argument directory paths.
         """
-        self.name = name
-        self.components = []
+        self.paths = set()
+        path = None  # Relative and normalized path to the group root path.
+        for path in paths:
+            path = os.path.normpath(path)
+            abs_path = os.path.join(group.path, path)
+            if not os.path.isdir(abs_path):
+                raise InvalidArgumentError(
+                    '%s is not a directory in %s (group %s).' %
+                    (path, group.path, group.name))
+            if abs_path in self.paths:
+                assert name
+                raise InvalidArgumentError('%s is duplicated in %s.%s' %
+                                           (abs_path, name, group.name))
+            self.paths.add(abs_path)
+        assert self.paths, "No package directory paths are provided."
+        assert name or len(self.paths) == 1, "The package name is undefined."
+        self.name = name or '_'.join(x for x in path.split(os.path.sep) if x)
         self.group = group
-        group.packages[name] = self
+        self.components = []
+        group.packages[self.name] = self
 
     def __str__(self):
         """For printing graph nodes."""
@@ -343,16 +372,24 @@ class PackageGroup(object):
 
     Attributes:
         name: The unique name of the package group.
+        path: The absolute path to the group directory.
         packages: {package_name: package} belonging to this group.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, path):
         """Constructs an empty group.
 
-        Atgs:
+        Args:
             name: A unique global identifier.
+            path: The directory path to the group.
+
+        Raises:
+            InvalidArgumentError: The path is not a directory.
         """
+        if not os.path.isdir(path):
+            raise InvalidArgumentError('%s is not a directory.' % path)
         self.name = name
+        self.path = os.path.abspath(os.path.normpath(path))
         self.packages = {}
 
     def __str__(self):
@@ -378,9 +415,9 @@ class DependencyAnalysis(object):
         external_components: {include: ExternalComponent}
         internal_hfiles: {hfile: hpath}
         external_groups: External dependency packages and package groups.
-                         {pkg_group_name: {pkg_name: [full_src_paths]}}
+              {group_name: PackageGroup}
         internal_groups: The package groups of the project under analysis.
-                         {pkg_group_name: {pkg_name: [full_src_paths]}}
+              {group_name: PackageGroup}
     """
 
     def __init__(self, config_file):
@@ -390,7 +427,8 @@ class DependencyAnalysis(object):
             config_file: The path to the configuration file.
 
         Raises:
-            ConfigXmlParseError: The configuration or XML is invalid.
+            XmlError: The XML is malformed or invalid.
+            InvalidArgumentError: The configuration has is invalid values.
         """
         self.config_file = config_file
         self.package_groups = {}
@@ -409,7 +447,8 @@ class DependencyAnalysis(object):
             config_file: The path to the configuration file.
 
         Raises:
-            ConfigXmlParseError: The configuration or XML is invalid.
+            XmlError: The XML is malformed or invalid.
+            InvalidArgumentError: The configuration has is invalid values.
         """
         root = ElementTree.parse(config_file).getroot()
         for pkg_group_element in root.findall('package-group'):
@@ -427,57 +466,45 @@ class DependencyAnalysis(object):
             pkg_groups: The destination dictionary for member packages.
 
         Raises:
-            ConfigXmlParseError: Invalid configuration or parsing error.
+            InvalidArgumentError: Invalid configuration.
         """
         group_name = pkg_group_element.get('name')
         group_path = pkg_group_element.get('path')
-        assert group_name not in pkg_groups  # TODO: Handle duplicate groups.
-        pkg_groups[group_name] = {}
+        if group_name in pkg_groups:
+            raise InvalidArgumentError('Redefinition of %s group' % group_name)
+
+        package_group = PackageGroup(group_name, group_path)
 
         for pkg_element in pkg_group_element.findall('package'):
-            pkg_name = pkg_element.get('name')
-            pkg_groups[group_name][pkg_name] = \
-                [os.path.normpath(os.path.join(group_path, x.text.strip()))
-                 for x in pkg_element.findall('path')]
+            Package((x.text.strip() for x in pkg_element.findall('path')),
+                    package_group,
+                    pkg_element.get('name'))
 
         for pkg_element in pkg_group_element.findall('path'):
-            pkg_path = os.path.normpath(os.path.join(group_path,
-                                                     pkg_element.text.strip()))
-            pkg_name = os.path.basename(pkg_path)
-            pkg_groups[group_name][pkg_name] = [pkg_path]
+            Package([pkg_element.text.strip()], package_group)
 
-        for pkg_name, pkg_paths in pkg_groups[group_name].items():
-            for pkg_path in pkg_paths:
-                if not os.path.exists(pkg_path):
-                    raise ConfigXmlParseError(
-                        "package %s.%s: %s does not exist!" %
-                        (group_name, pkg_name, pkg_path))
+        pkg_groups[group_name] = package_group
 
-    def __gather_external_components(self, external_groups):
-        """Populates databases of external dependency components.
-
-        Args:
-            external_groups: A database of external groups and its source paths.
-        """
-        for group_name, packages in external_groups.items():
-            for pkg_name, src_paths in packages.items():
-                for src_path in src_paths:
+    def __gather_external_components(self):
+        """Populates databases of external dependency components."""
+        for group in self.external_groups.values():
+            for package in group.packages.values():
+                for src_path in package.paths:
                     for hfile, hpath in find_external_hfiles(src_path):
                         self.external_components[hfile] = \
-                            ExternalComponent(hfile, group_name, pkg_name)
+                            ExternalComponent(hfile, package)
 
     def make_components(self):
         """Pairs hfiles and cfiles."""
-        self.__gather_external_components(self.external_groups)
+        self.__gather_external_components()
 
-        for group_name, packages in self.internal_groups.items():
-            assert group_name not in self.package_groups
-            package_group = PackageGroup(group_name)
-            for pkg_name, src_paths in packages.items():
+        for group in self.internal_groups.values():
+            assert group.name not in self.package_groups
+            for package in group.packages.values():
                 hbases = {}
                 cbases = {}
                 hfiles = {}
-                for src_path in src_paths:
+                for src_path in package.paths:
                     find_hfiles(src_path, hbases, hfiles)
                     find_cfiles(src_path, cbases)
 
@@ -485,11 +512,10 @@ class DependencyAnalysis(object):
                     if hfile not in self.internal_hfiles:
                         self.internal_hfiles[hfile] = hpath
 
-                self.__construct_components(pkg_name, package_group, hbases,
-                                            cbases)
-            self.package_groups[group_name] = package_group
+                self.__construct_components(package, hbases, cbases)
+            self.package_groups[group.name] = group
 
-    def __construct_components(self, pkg_name, group, hbases, cbases):
+    def __construct_components(self, package, hbases, cbases):
         """Pairs header and implementation files into components.
 
         Even though John Lakos defined a component as a pair of h and c files,
@@ -503,17 +529,11 @@ class DependencyAnalysis(object):
         are counted as components by default.
 
         Args:
-            pkg_name: The name of the package.
-            group: The package group.
+            package: The host package.
             hbases: Base names of header files.
             cbases: Base names of implementation files.
                     The paired base names will be removed from this container.
-
-        Returns:
-            Package containing the components
         """
-        package = Package(pkg_name, group)
-
         for key, hpath in hbases.items():
             cpath = None
             if key in cbases:
@@ -525,8 +545,6 @@ class DependencyAnalysis(object):
         for key, cpath in cbases.items():
             assert key not in self.components
             self.components[key] = Component(key, None, cpath, package)
-
-        return package
 
     def __expand_hfile_deps(self, header_file):
         """Recursively expands include directives.
@@ -645,7 +663,8 @@ def main():
 
     Raises:
         IOError: filesystem operations failed.
-        ConfigXmlParseError: XML configuration validity issues.
+        XmlError: XML configuration validity issues.
+        InvalidArgumentError: The configuration has is invalid values.
     """
     parser = ap.ArgumentParser(description=__doc__)
     parser.add_argument('--version', action='store_true', default=False,
@@ -670,8 +689,11 @@ if __name__ == '__main__':
     try:
         main()
     except IOError as err:
-        warn("IO Error:\n" + str(err))
+        warn('IO Error:\n' + str(err))
         sys.exit(1)
-    except ConfigXmlParseError as err:
-        warn("Configuration XML Error:\n" + str(err))
+    except XmlError as err:
+        warn('Configuration XML Error:\n' + str(err))
+        sys.exit(1)
+    except InvalidArgumentError as err:
+        warn('Invalid Argument Error:\n' + str(err))
         sys.exit(1)
