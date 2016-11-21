@@ -410,7 +410,6 @@ class DependencyAnalysis(object):
 
     Attributes:
         config_file: The path to the configuration file.
-        package_groups: {group_name: PackageGroup}
         components: {base_name: Component}
         external_components: {include: ExternalComponent}
         internal_hfiles: {hfile: hpath}
@@ -431,7 +430,6 @@ class DependencyAnalysis(object):
             InvalidArgumentError: The configuration has is invalid values.
         """
         self.config_file = config_file
-        self.package_groups = {}
         self.components = {}
         self.external_components = {}
         self.internal_hfiles = {}
@@ -499,7 +497,6 @@ class DependencyAnalysis(object):
         self.__gather_external_components()
 
         for group in self.internal_groups.values():
-            assert group.name not in self.package_groups
             for package in group.packages.values():
                 hbases = {}
                 cbases = {}
@@ -513,7 +510,6 @@ class DependencyAnalysis(object):
                         self.internal_hfiles[hfile] = hpath
 
                 self.__construct_components(package, hbases, cbases)
-            self.package_groups[group.name] = group
 
     def __construct_components(self, package, hbases, cbases):
         """Pairs header and implementation files into components.
@@ -616,8 +612,8 @@ class DependencyAnalysis(object):
             for name in sorted(deps):
                 print('\t%s' % name)
 
-        for group_name in sorted(self.package_groups.keys()):
-            packages = self.package_groups[group_name].packages
+        for group_name in sorted(self.internal_groups.keys()):
+            packages = self.internal_groups[group_name].packages
             for pkg_name in sorted(packages.keys()):
                 print('=' * 80)
                 print('package %s.%s dependency:' % (group_name, pkg_name))
@@ -637,19 +633,19 @@ class DependencyAnalysis(object):
             digraph.print_summary()
             digraph.write_dot(suffix)
 
-        if len(self.package_groups) > 1:
+        if len(self.internal_groups) > 1:
             print('\n' + '#' * 80)
             print('analyzing dependencies among all package groups ...')
-            _analyze('system', self.package_groups.values())
+            _analyze('system', self.internal_groups.values())
 
-        for group_name, package_group in self.package_groups.items():
+        for group_name, package_group in self.internal_groups.items():
             if len(package_group.packages) > 1:
                 print('\n' + '#' * 80)
                 print('analyzing dependencies among packages in ' +
                       'the specified package group %s ...' % group_name)
                 _analyze(group_name, package_group.packages.values())
 
-        for group_name, package_group in self.package_groups.items():
+        for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
                 print('\n' + '#' * 80)
                 print('analyzing dependencies among components in ' +
