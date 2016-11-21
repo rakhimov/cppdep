@@ -294,22 +294,16 @@ class Component(object):
 
         Precondition:
             All includes are registered with 'register_include()'.
-            All dependency headers have been expanded for this component.
         """
         if not self.hpath or not self.cpath:
             return  # Header-only or incomplete components.
         if not self.__is_hfile_included:
-            if self.hfile in self.dep_internal_hfiles:
-                warn('warning: include issues: indirect include: '
-                     '%s: does not include %s directly.' %
-                     (self.cpath, self.hfile))
-            else:
-                warn('warning: include issues: missing include: '
-                     '%s: does not depend on %s.' % (self.cpath, self.hfile))
+            warn('warning: include issues: missing include: '
+                 '%s does not include %s.' % (self.cpath, self.hfile))
         elif not self.__is_hfile_first_include:
             warn('warning: include issues: include order: '
-                 '%s: %s should be the first include.' %
-                 (self.cpath, self.hfile))
+                 '%s should be the first include in %s.' %
+                 (self.hfile, self.cpath))
 
     @property
     def dep_external_packages(self):
