@@ -25,6 +25,7 @@ for components/packages/package groups of a large C/C++ project.
 from __future__ import print_function, division, absolute_import
 
 import argparse as ap
+import itertools
 import os.path
 import re
 import sys
@@ -58,8 +59,6 @@ class InvalidArgumentError(Exception):
     pass
 
 
-# STL/Boost/Qt and other libraries can provide extension-less system headers.
-_RE_SYSTEM_HFILE = re.compile(r'[^.]*$')
 _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
 _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
 
@@ -72,18 +71,6 @@ def warn(*args, **kwargs):
 def filename_base(filename):
     """Strips the extension from a filename."""
     return os.path.splitext(filename)[0]
-
-
-def grep_hfiles(src_file_path):
-    """Processes include directives in source files.
-
-    Args:
-        src_file_path: The path to the source file to parse.
-
-    Yields:
-        Inlcuded header file names.
-    """
-    return (os.path.basename(x.hfile) for x in Include.grep(src_file_path))
 
 
 def find(path, fnmatcher):
@@ -136,25 +123,6 @@ def find_cfiles(path, cbases):
         cbases[cbase] = cpath
 
 
-def find_external_hfiles(path):
-    """Finds header files for external packages.
-
-    The directories are traversed recursively
-    to extract header files from sub-directories.
-    The effect is as-if the whole package header files were gathered.
-
-    The function handles system headers specially
-    by allowing extension-less header files.
-
-    Yields:
-        The base names and full paths to header files from the given path.
-    """
-    for x in find(path, _RE_HFILE):
-        yield x
-    for x in find(path, _RE_SYSTEM_HFILE):
-        yield x
-
-
 class Include(object):
     """Representation of an include directive.
 
@@ -175,6 +143,12 @@ class Include(object):
         self.hfile = hfile
         self.with_quotes = with_quotes
         self.hpath = None
+
+    def __str__(self):
+        """Produces the original include with quotes or brackets."""
+        if self.with_quotes:
+            return '"%s"' % self.hfile
+        return '<%s>' % self.hfile
 
     @staticmethod
     def grep(file_path):
@@ -230,11 +204,10 @@ class Component(object):
 
     Attributes:
         name: A unique name as an identifier of the component.
-        hpath: The path to the header file of the component.
+        hpath: The absolute path to the header file.
         hfile: The basename of the header file.
-        cpath: The path to the implementation file of the component.
+        cpath: The absolute path to the implementation file.
         package: The package this components belongs to.
-        dep_internal_hfiles: Internal header files the component depends upon.
         dep_internal_components: Internal dependency components.
         dep_external_components: External dependency components.
         includes_in_h: Include directives in the header file.
@@ -262,14 +235,11 @@ class Component(object):
         self.hfile = None if not hpath else os.path.basename(hpath)
         self.cpath = cpath
         self.package = package
-        self.dep_internal_hfiles = set()
         self.dep_internal_components = set()
         self.dep_external_components = set()
         self.includes_in_h = [] if not hpath else list(Include.grep(hpath))
         self.includes_in_c = [] if not cpath else list(Include.grep(cpath))
         package.components.append(self)
-        self.__is_hfile_first_include = None  # The first include header error.
-        self.__is_hfile_included = False  # The header isn't included.
 
     def __str__(self):
         """For printing graph nodes."""
@@ -281,27 +251,15 @@ class Component(object):
             if dep_component.package == self.package:
                 yield dep_component
 
-    def register_include(self, hfile):
-        """Registers component's direct includes for error detection."""
-        if not self.hpath or not self.cpath:
-            return  # Header-only or incomplete components.
-        if self.__is_hfile_first_include is None:
-            self.__is_hfile_first_include = self.hfile == hfile
-        if not self.__is_hfile_included:
-            self.__is_hfile_included = self.hfile == hfile
-
     def check_include_issues(self):
-        """Checks for issues with header inclusion in implementation files.
-
-        Precondition:
-            All includes are registered with 'register_include()'.
-        """
+        """Checks for issues with header inclusion in implementation files."""
         if not self.hpath or not self.cpath:
             return  # Header-only or incomplete components.
-        if not self.__is_hfile_included:
+        if self.hfile not in (os.path.basename(x.hfile)
+                              for x in self.includes_in_c):
             warn('warning: include issues: missing include: '
                  '%s does not include %s.' % (self.cpath, self.hfile))
-        elif not self.__is_hfile_first_include:
+        elif self.hfile != os.path.basename(self.includes_in_c[0].hfile):
             warn('warning: include issues: include order: '
                  '%s should be the first include in %s.' %
                  (self.hfile, self.cpath))
@@ -453,7 +411,8 @@ class DependencyAnalysis(object):
     Attributes:
         config_file: The path to the configuration file.
         components: {base_name: Component}
-        external_components: {include: ExternalComponent}
+        external_components: {hpath: ExternalComponent}
+        internal_components: {hpath: Component}
         internal_hfiles: {hfile: hpath}
         external_groups: External dependency packages and package groups.
               {group_name: PackageGroup}
@@ -474,6 +433,7 @@ class DependencyAnalysis(object):
         self.config_file = config_file
         self.components = {}
         self.external_components = {}
+        self.internal_components = {}
         self.internal_hfiles = {}
         self.__internal_hfile_deps = {}
         self.external_groups = {}
@@ -496,9 +456,11 @@ class DependencyAnalysis(object):
             assert pkg_role is None or pkg_role in ('external', 'internal')
             pkg_groups = self.external_groups if pkg_role == 'external' \
                 else self.internal_groups
-            self.__add_package_group(pkg_group_element, pkg_groups)
+            DependencyAnalysis.__add_package_group(pkg_group_element,
+                                                   pkg_groups)
 
-    def __add_package_group(self, pkg_group_element, pkg_groups):
+    @staticmethod
+    def __add_package_group(pkg_group_element, pkg_groups):
         """Parses the body of <package-group/> in XML config file.
 
         Args:
@@ -525,19 +487,61 @@ class DependencyAnalysis(object):
 
         pkg_groups[group_name] = package_group
 
-    def __gather_external_components(self):
-        """Populates databases of external dependency components."""
-        for group in self.external_groups.values():
-            for package in group.packages.values():
-                for src_path in package.paths:
-                    for hfile, hpath in find_external_hfiles(src_path):
-                        self.external_components[hfile] = \
-                            ExternalComponent(hfile, package)
+    def locate(self, include, component):
+        """Locates the dependency component.
+
+        The current approach is naive.
+        It searches for a file by its basename
+        as if every subdirectory were an include path.
+
+        Args:
+            include: The include object representing the directive.
+            component: The dependent component.
+
+        Returns:
+            True if the include is found.
+        """
+        hfile = os.path.basename(include.hfile)
+        if hfile == component.hfile:
+            include.hpath = component.hpath
+            return True
+
+        if hfile in self.internal_components:
+            dep_component = self.internal_components[hfile]
+            include.hpath = dep_component.hpath
+            component.dep_internal_components.add(dep_component)
+            return True
+
+        if hfile in self.external_components:
+            dep_component = self.external_components[hfile]
+            include.hpath = dep_component.hpath
+            component.dep_external_components.add(dep_component)
+            return True
+
+        def _find_in(dir_path):
+            for root, _, files in os.walk(dir_path):
+                if hfile in files:
+                    include.hpath = os.path.join(root, hfile)
+                    return True
+            return False
+
+        def _find_external_component():
+            for group in self.external_groups.values():
+                for package in group.packages.values():
+                    for dir_path in package.paths:
+                        if _find_in(dir_path):
+                            return ExternalComponent(hfile, package)
+            return None
+
+        dep_component = _find_external_component()
+        if dep_component:
+            self.external_components[hfile] = dep_component
+            component.dep_external_components.add(dep_component)
+            return True
+        return False
 
     def make_components(self):
         """Pairs hfiles and cfiles."""
-        self.__gather_external_components()
-
         for group in self.internal_groups.values():
             for package in group.packages.values():
                 hbases = {}
@@ -578,75 +582,23 @@ class DependencyAnalysis(object):
                 cpath = cbases[key]
                 del cbases[key]
             assert key not in self.components
-            self.components[key] = Component(key, hpath, cpath, package)
+            component = Component(key, hpath, cpath, package)
+            self.components[key] = component
+            self.internal_components[component.hfile] = component
 
         for key, cpath in cbases.items():
             assert key not in self.components
             self.components[key] = Component(key, None, cpath, package)
 
-    def __expand_hfile_deps(self, header_file):
-        """Recursively expands include directives.
-
-        Produces warning if a header file is not found.
-
-        Args:
-            header_file: The source header file.
-
-        Returns:
-            (internal header files, external components)
-        """
-        if header_file not in self.__internal_hfile_deps:
-            dep_internal_hfiles = set()
-            dep_external_components = set()
-            current_hfiles = set([header_file])
-            while current_hfiles:
-                next_hfiles = set()
-                for hfile in current_hfiles:
-                    if hfile in self.internal_hfiles:
-                        dep_internal_hfiles.add(hfile)
-                        hpath = self.internal_hfiles[hfile]
-                        next_hfiles.update(grep_hfiles(hpath))
-                    elif hfile in self.external_components:
-                        dep_external_components.add(
-                            self.external_components[hfile])
-                    else:
-                        warn('warning: include issues: header not found: %s' %
-                             hfile)
-                next_hfiles.difference_update(dep_internal_hfiles)
-                next_hfiles.difference_update(
-                    x.hpath for x in dep_external_components)
-                current_hfiles = next_hfiles
-
-            self.__internal_hfile_deps[header_file] = \
-                (dep_internal_hfiles, dep_external_components)
-        return self.__internal_hfile_deps[header_file]
-
-    def make_cdep(self):
-        """Determines all hfiles on which a cfile depends.
-
-        Note:
-            Simple recursive parsing does not work
-            since there may be a cyclic dependency among headers.
-        """
+    def analyze(self):
+        """Runs the analysis."""
         for component in self.components.values():
-            for hfile in grep_hfiles(component.cpath or component.hpath):
-                component.register_include(hfile)
-                internal_hfiles, external_components = \
-                    self.__expand_hfile_deps(hfile)
-                component.dep_internal_hfiles.update(internal_hfiles)
-                component.dep_external_components.update(external_components)
+            for include in itertools.chain(component.includes_in_h,
+                                           component.includes_in_c):
+                if not self.locate(include, component):
+                    warn('warning: include issues: header not found: %s' %
+                         str(include))
             component.check_include_issues()
-
-    def make_ldep(self):
-        """Determines all components on which a component depends."""
-        for component in self.components.values():
-            for hfile in component.dep_internal_hfiles:
-                assert hfile in self.internal_hfiles
-                hbase = filename_base(hfile)
-                dep_component = self.components[hbase]
-                if dep_component != component:
-                    assert os.path.basename(dep_component.hpath) == hfile
-                    component.dep_internal_components.add(dep_component)
 
     def print_ldep(self):
         """Prints link time dependencies of components."""
@@ -718,8 +670,7 @@ def main():
         return
     analysis = DependencyAnalysis(args.config)
     analysis.make_components()
-    analysis.make_cdep()
-    analysis.make_ldep()
+    analysis.analyze()
     analysis.print_ldep()
     analysis.make_graph()
 
