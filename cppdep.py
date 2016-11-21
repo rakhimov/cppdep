@@ -46,6 +46,12 @@ VERSION = '0.0.7'  # The latest release version.
 # dep   - dependency (discouraged abbreviation!)
 
 
+class ConfigXmlParseError(Exception):
+    """Parsing errors in XML configuration file."""
+
+    pass
+
+
 # STL/Boost/Qt and other libraries can provide extension-less system headers.
 _RE_SYSTEM_HFILE = re.compile(r'[^.]*$')
 _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
@@ -366,19 +372,86 @@ class DependencyAnalysis(object):
     """Analysis of dependencies with package groups/packages/components.
 
     Attributes:
+        config_file: The path to the configuration file.
         package_groups: {group_name: PackageGroup}
         components: {base_name: Component}
         external_components: {include: ExternalComponent}
         internal_hfiles: {hfile: hpath}
+        external_groups: External dependency packages and package groups.
+                         {pkg_group_name: {pkg_name: [full_src_paths]}}
+        internal_groups: The package groups of the project under analysis.
+                         {pkg_group_name: {pkg_name: [full_src_paths]}}
     """
 
-    def __init__(self):
-        """Initializes analysis containers."""
+    def __init__(self, config_file):
+        """Initializes analysis containers.
+
+        Args:
+            config_file: The path to the configuration file.
+
+        Raises:
+            ConfigXmlParseError: The configuration or XML is invalid.
+        """
+        self.config_file = config_file
         self.package_groups = {}
         self.components = {}
         self.external_components = {}
         self.internal_hfiles = {}
         self.__internal_hfile_deps = {}
+        self.external_groups = {}
+        self.internal_groups = {}
+        self.__parse_xml_config(config_file)
+
+    def __parse_xml_config(self, config_file):
+        """Parses the XML configuration file.
+
+        Args:
+            config_file: The path to the configuration file.
+
+        Raises:
+            ConfigXmlParseError: The configuration or XML is invalid.
+        """
+        root = ElementTree.parse(config_file).getroot()
+        for pkg_group_element in root.findall('package-group'):
+            pkg_role = pkg_group_element.get('role')
+            assert pkg_role is None or pkg_role in ('external', 'internal')
+            pkg_groups = self.external_groups if pkg_role == 'external' \
+                else self.internal_groups
+            self.__add_package_group(pkg_group_element, pkg_groups)
+
+    def __add_package_group(self, pkg_group_element, pkg_groups):
+        """Parses the body of <package-group/> in XML config file.
+
+        Args:
+            pkg_group_element: The <package-group> XML element.
+            pkg_groups: The destination dictionary for member packages.
+
+        Raises:
+            ConfigXmlParseError: Invalid configuration or parsing error.
+        """
+        group_name = pkg_group_element.get('name')
+        group_path = pkg_group_element.get('path')
+        assert group_name not in pkg_groups  # TODO: Handle duplicate groups.
+        pkg_groups[group_name] = {}
+
+        for pkg_element in pkg_group_element.findall('package'):
+            pkg_name = pkg_element.get('name')
+            pkg_groups[group_name][pkg_name] = \
+                [os.path.normpath(os.path.join(group_path, x.text.strip()))
+                 for x in pkg_element.findall('path')]
+
+        for pkg_element in pkg_group_element.findall('path'):
+            pkg_path = os.path.normpath(os.path.join(group_path,
+                                                     pkg_element.text.strip()))
+            pkg_name = os.path.basename(pkg_path)
+            pkg_groups[group_name][pkg_name] = [pkg_path]
+
+        for pkg_name, pkg_paths in pkg_groups[group_name].items():
+            for pkg_path in pkg_paths:
+                if not os.path.exists(pkg_path):
+                    raise ConfigXmlParseError(
+                        "package %s.%s: %s does not exist!" %
+                        (group_name, pkg_name, pkg_path))
 
     def __gather_external_components(self, external_groups):
         """Populates databases of external dependency components.
@@ -393,15 +466,11 @@ class DependencyAnalysis(object):
                         self.external_components[hfile] = \
                             ExternalComponent(hfile, group_name, pkg_name)
 
-    def make_components(self, config):
-        """Pairs hfiles and cfiles.
+    def make_components(self):
+        """Pairs hfiles and cfiles."""
+        self.__gather_external_components(self.external_groups)
 
-        Args:
-            config: The project configurations with package groups.
-        """
-        self.__gather_external_components(config.external_groups)
-
-        for group_name, packages in config.internal_groups.items():
+        for group_name, packages in self.internal_groups.items():
             assert group_name not in self.package_groups
             package_group = PackageGroup(group_name)
             for pkg_name, src_paths in packages.items():
@@ -571,88 +640,6 @@ class DependencyAnalysis(object):
                 _analyze('_'.join((group_name, pkg_name)), package.components)
 
 
-class ConfigXmlParseError(Exception):
-    """Parsing errors in XML configuration file."""
-
-    pass
-
-
-class Config(object):
-    """Project configurations.
-
-    Attributes:
-        external_groups: External dependency packages and package groups.
-                         {pkg_group_name: {pkg_name: [full_src_paths]}}
-        internal_groups: The package groups of the project under analysis.
-                         {pkg_group_name: {pkg_name: [full_src_paths]}}
-    """
-
-    def __init__(self, config_file):
-        """Initializes configuraions from an XML config file.
-
-        Args:
-            config_file: The path to the XML config file.
-
-        Raises:
-            ConfigXmlParseError: The configuration or XML is invalid.
-        """
-        self.external_groups = {}
-        self.internal_groups = {}
-        self.__parse_xml_config(config_file)
-
-    def __parse_xml_config(self, config_file):
-        """Parses the XML configuration file.
-
-        Args:
-            config_file: The path to the configuration file.
-
-        Raises:
-            ConfigXmlParseError: The configuration or XML is invalid.
-        """
-        root = ElementTree.parse(config_file).getroot()
-        for pkg_group_element in root.findall('package-group'):
-            pkg_role = pkg_group_element.get('role')
-            assert pkg_role is None or pkg_role in ('external', 'internal')
-            pkg_groups = self.external_groups if pkg_role == 'external' \
-                else self.internal_groups
-            Config.__add_package_group(pkg_group_element, pkg_groups)
-
-    @staticmethod
-    def __add_package_group(pkg_group_element, pkg_groups):
-        """Parses the body of <package-group/> in XML config file.
-
-        Args:
-            pkg_group_element: The <package-group> XML element.
-            pkg_groups: The destination dictionary for member packages.
-
-        Raises:
-            ConfigXmlParseError: Invalid configuration or parsing error.
-        """
-        group_name = pkg_group_element.get('name')
-        group_path = pkg_group_element.get('path')
-        assert group_name not in pkg_groups  # TODO: Handle duplicate groups.
-        pkg_groups[group_name] = {}
-
-        for pkg_element in pkg_group_element.findall('package'):
-            pkg_name = pkg_element.get('name')
-            pkg_groups[group_name][pkg_name] = \
-                [os.path.normpath(os.path.join(group_path, x.text.strip()))
-                 for x in pkg_element.findall('path')]
-
-        for pkg_element in pkg_group_element.findall('path'):
-            pkg_path = os.path.normpath(os.path.join(group_path,
-                                                     pkg_element.text.strip()))
-            pkg_name = os.path.basename(pkg_path)
-            pkg_groups[group_name][pkg_name] = [pkg_path]
-
-        for pkg_name, pkg_paths in pkg_groups[group_name].items():
-            for pkg_path in pkg_paths:
-                if not os.path.exists(pkg_path):
-                    raise ConfigXmlParseError(
-                        "package %s.%s: %s does not exist!" %
-                        (group_name, pkg_name, pkg_path))
-
-
 def main():
     """Runs the dependency analysis and prints results and graphs.
 
@@ -671,9 +658,8 @@ def main():
     if args.version:
         print(VERSION)
         return
-    config = Config(args.config)
-    analysis = DependencyAnalysis()
-    analysis.make_components(config)
+    analysis = DependencyAnalysis(args.config)
+    analysis.make_components()
     analysis.make_cdep()
     analysis.make_ldep()
     analysis.print_ldep()
