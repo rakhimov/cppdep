@@ -68,9 +68,21 @@ def warn(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
-def filename_base(filename):
+def strip_ext(filename):
     """Strips the extension from a filename."""
     return os.path.splitext(filename)[0]
+
+
+def common_path(paths):
+    """Returns common prefix path for the argument absolute normalized paths."""
+    path = os.path.commonprefix(paths)
+    assert os.path.isabs(path)
+    if path[-1] == os.path.sep:
+        return path[:-1]
+    sep_pos = len(path)
+    if all(len(x) == sep_pos or x[sep_pos] == os.path.sep for x in paths):
+        return path
+    return os.path.dirname(path)
 
 
 def find(path, fnmatcher):
@@ -106,7 +118,7 @@ def find_hfiles(path, hbases, hfiles):
     for hfile, hpath in find(path, _RE_HFILE):
         if hfile not in hfiles:
             hfiles[hfile] = hpath
-        hbase = filename_base(hfile)
+        hbase = strip_ext(hfile)
         hbases[hbase] = hpath
 
 
@@ -118,7 +130,7 @@ def find_cfiles(path, cbases):
         cbases: The destination container for implementation file basenames.
     """
     for cfile, cpath in find(path, _RE_CFILE):
-        cbase = filename_base(cfile)
+        cbase = strip_ext(cfile)
         assert cbase not in cbases
         cbases[cbase] = cpath
 
@@ -203,7 +215,7 @@ class Component(object):
     """Representation of a component in a package.
 
     Attributes:
-        name: A unique name as an identifier of the component.
+        name: A unique name within the package.
         hpath: The absolute path to the header file.
         hfile: The basename of the header file.
         cpath: The absolute path to the implementation file.
@@ -214,23 +226,22 @@ class Component(object):
         includes_in_c: Include directives in the implementation file.
     """
 
-    def __init__(self, name, hpath, cpath, package):
+    def __init__(self, hpath, cpath, package):
         """Initialization of a free-standing component.
 
         Registers the component in the package upon initialization.
         Warns about incomplete components.
 
         Args:
-            name: A unique identifier within the package.
             hpath: The path to the header file of the component.
             cpath: The path to the implementation file of the component.
             package: The package this components belongs to.
         """
         assert hpath or cpath
+        self.name = strip_ext((hpath or cpath)[(len(package.root) + 1):])
         if not hpath:
             warn('warning: incomplete component: missing header: %s in %s.%s' %
-                 (name, package.name, package.group.name))
-        self.name = name
+                 (self.name, package.name, package.group.name))
         self.hpath = hpath
         self.hfile = None if not hpath else os.path.basename(hpath)
         self.cpath = cpath
@@ -298,6 +309,7 @@ class Package(object):
         name: The unique identifier name of the package within its group.
         paths: The absolute directory paths in the package.
         group: The package group this package belongs to.
+        root: The common root path for all the paths in the package.
         components: The list of unique components in this package.
     """
 
@@ -334,6 +346,7 @@ class Package(object):
         assert name or len(self.paths) == 1, "The package name is undefined."
         self.name = name or '_'.join(x for x in path.split(os.path.sep) if x)
         self.group = group
+        self.root = common_path(self.paths)
         self.components = []
         group.add_package(self)
 
@@ -582,13 +595,13 @@ class DependencyAnalysis(object):
                 cpath = cbases[key]
                 del cbases[key]
             assert key not in self.components
-            component = Component(key, hpath, cpath, package)
+            component = Component(hpath, cpath, package)
             self.components[key] = component
             self.internal_components[component.hfile] = component
 
         for key, cpath in cbases.items():
             assert key not in self.components
-            self.components[key] = Component(key, None, cpath, package)
+            self.components[key] = Component(None, cpath, package)
 
     def analyze(self):
         """Runs the analysis."""
