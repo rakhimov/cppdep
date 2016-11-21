@@ -377,7 +377,7 @@ class Package(object):
         self.name = name or '_'.join(x for x in path.split(os.path.sep) if x)
         self.group = group
         self.components = []
-        group.packages[self.name] = self
+        group.add_package(self)
 
     def __str__(self):
         """For printing graph nodes."""
@@ -428,6 +428,23 @@ class PackageGroup(object):
                 for dep_component in component.dep_internal_components:
                     if dep_component.package.group != self:
                         yield dep_component.package.group
+
+    def add_package(self, package):
+        """Adds a package into the group.
+
+        This function is automatically called in the package constructor.
+
+        Args:
+            package: The constructed package.
+
+        Raises:
+            InvalidArgumentError: Duplicate package.
+        """
+        if package.name in self.packages:
+            raise InvalidArgumentError(
+                '%s is a duplicate package in %s group.' %
+                (package.name, self.name))
+        self.packages[package.name] = package
 
 
 class DependencyAnalysis(object):
