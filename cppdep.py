@@ -132,12 +132,15 @@ class Include(object):
         """Locates the included header file path.
 
         All input directory paths must be absolute.
-        If the file is not located,
-        only a warning message is produced.
 
         Args:
             cwd: The working directory for source file processing.
-            include_dirs: The directories to search for the file.
+            include_dirs: The directories to search for the file,
+                ordered from internal to external/system directories.
+
+        Returns:
+            The include directory if found;
+            None, otherwise.
         """
         assert self.hpath is None
 
@@ -150,11 +153,12 @@ class Include(object):
             return False
 
         if self.with_quotes and _find_in(cwd):
-            return
-        for include_dir in include_dirs:
+            return cwd
+        iter_order = iter if self.with_quotes else reversed
+        for include_dir in iter_order(include_dirs):
             if _find_in(include_dir):
-                return
-        warn('warning: include issues: header not found: %s' % self.hfile)
+                return include_dir
+        return None
 
 
 class Component(object):
@@ -163,9 +167,9 @@ class Component(object):
     Attributes:
         name: A unique name within the package.
         hpath: The absolute path to the header file.
-        hfile: The basename of the header file.
         cpath: The absolute path to the implementation file.
         package: The package this components belongs to.
+        working_dir: The parent directory.
         dep_internal_components: Internal dependency components.
         dep_external_components: External dependency components.
         includes_in_h: Include directives in the header file.
@@ -183,14 +187,14 @@ class Component(object):
             package: The package this components belongs to.
         """
         assert hpath or cpath
-        self.name = strip_ext((hpath or cpath)[(len(package.root) + 1):])
+        self.name = strip_ext((cpath or hpath)[(len(package.root) + 1):])
         if not hpath:
             warn('warning: incomplete component: missing header: %s in %s.%s' %
                  (self.name, package.name, package.group.name))
         self.hpath = hpath
-        self.hfile = None if not hpath else os.path.basename(hpath)
         self.cpath = cpath
         self.package = package
+        self.working_dir = os.path.dirname(cpath or hpath)
         self.dep_internal_components = set()
         self.dep_external_components = set()
         self.includes_in_h = [] if not hpath else list(Include.grep(hpath))
@@ -210,14 +214,13 @@ class Component(object):
         """Checks for issues with header inclusion in implementation files."""
         if not self.hpath or not self.cpath:
             return  # Header-only or incomplete components.
-        if self.hfile not in (os.path.basename(x.hfile)
-                              for x in self.includes_in_c):
+        hfile = os.path.basename(self.hpath)
+        if hfile not in (os.path.basename(x.hfile) for x in self.includes_in_c):
             warn('warning: include issues: missing include: '
-                 '%s does not include %s.' % (self.cpath, self.hfile))
-        elif self.hfile != os.path.basename(self.includes_in_c[0].hfile):
+                 '%s does not include %s.' % (self.cpath, hfile))
+        elif hfile != os.path.basename(self.includes_in_c[0].hfile):
             warn('warning: include issues: include order: '
-                 '%s should be the first include in %s.' %
-                 (self.hfile, self.cpath))
+                 '%s should be the first include in %s.' % (hfile, self.cpath))
 
     @property
     def dep_external_packages(self):
@@ -289,8 +292,8 @@ class Package(object):
                 raise InvalidArgumentError('%s is duplicated in %s.%s' %
                                            (abs_path, name, group.name))
             self.paths.add(abs_path)
-        assert self.paths, "No package directory paths are provided."
-        assert name or len(self.paths) == 1, "The package name is undefined."
+        assert self.paths, 'No package directory paths are provided.'
+        assert name or len(self.paths) == 1, 'The package name is undefined.'
         self.name = name or '_'.join(x for x in path.split(os.path.sep) if x)
         self.group = group
         self.root = common_path(self.paths)
@@ -408,6 +411,20 @@ class PackageGroup(object):
                 (package.name, self.name))
         self.packages[package.name] = package
 
+    def get_package(self, dir_path):
+        """Finds the package by the directory.
+
+        Args:
+            dir_path: An normalized absolute directory path.
+
+        Returns:
+            None if not found.
+        """
+        for package in self.packages.values():
+            if dir_path in package.paths:
+                return package
+        return None
+
 
 class DependencyAnalysis(object):
     """Analysis of dependencies with package groups/packages/components.
@@ -420,6 +437,9 @@ class DependencyAnalysis(object):
               {group_name: PackageGroup}
         internal_groups: The package groups of the project under analysis.
               {group_name: PackageGroup}
+        include_dirs: Directories to search for included headers.
+            It is ordered,
+            starting from internal and ending with external directories.
     """
 
     def __init__(self, config_file):
@@ -437,7 +457,9 @@ class DependencyAnalysis(object):
         self.internal_components = {}
         self.external_groups = {}
         self.internal_groups = {}
+        self.include_dirs = []
         self.__parse_xml_config(config_file)
+        self.__gather_include_dirs()
 
     def __parse_xml_config(self, config_file):
         """Parses the XML configuration file.
@@ -486,6 +508,15 @@ class DependencyAnalysis(object):
 
         pkg_groups[group_name] = package_group
 
+    def __gather_include_dirs(self):
+        """Gathers include directories from packages."""
+        def _add_from(groups):
+            for group in groups.values():
+                for package in group.packages.values():
+                    self.include_dirs.extend(package.paths)
+        _add_from(self.internal_groups)
+        _add_from(self.external_groups)
+
     def locate(self, include, component):
         """Locates the dependency component.
 
@@ -500,44 +531,31 @@ class DependencyAnalysis(object):
         Returns:
             True if the include is found.
         """
-        hfile = os.path.basename(include.hfile)
-        if hfile == component.hfile:
-            include.hpath = component.hpath
-            return True
+        include_dir = include.locate(component.working_dir, self.include_dirs)
 
-        if hfile in self.internal_components:
-            dep_component = self.internal_components[hfile]
-            include.hpath = dep_component.hpath
-            component.dep_internal_components.add(dep_component)
-            return True
-
-        if hfile in self.external_components:
-            dep_component = self.external_components[hfile]
-            include.hpath = dep_component.hpath
-            component.dep_external_components.add(dep_component)
-            return True
-
-        def _find_in(dir_path):
-            for root, _, files in os.walk(dir_path):
-                if hfile in files:
-                    include.hpath = os.path.join(root, hfile)
-                    return True
-            return False
-
-        def _find_external_component():
+        def _find_external_package():
             for group in self.external_groups.values():
-                for package in group.packages.values():
-                    for dir_path in package.paths:
-                        if _find_in(dir_path):
-                            return ExternalComponent(hfile, package)
-            return None
+                package = group.get_package(include_dir)
+                if package:
+                    return package
+            assert False, 'Missing a directory from external groups.'
 
-        dep_component = _find_external_component()
-        if dep_component:
-            self.external_components[hfile] = dep_component
-            component.dep_external_components.add(dep_component)
-            return True
-        return False
+        if include_dir is None:
+            return False
+        if include.hpath in self.internal_components:
+            dep_component = self.internal_components[include.hpath]
+            if dep_component != component:
+                component.dep_internal_components.add(dep_component)
+        else:
+            if include.hpath in self.external_components:
+                component.dep_external_components.add(
+                    self.external_components[include.hpath])
+            else:
+                package = _find_external_package()
+                dep_component = ExternalComponent(include.hpath, package)
+                component.dep_external_components.add(dep_component)
+                self.external_components[include.hpath] = dep_component
+        return True
 
     def make_components(self):
         """Pairs hfiles and cfiles."""
@@ -545,7 +563,7 @@ class DependencyAnalysis(object):
             for package in group.packages.values():
                 package.construct_components()
                 self.internal_components.update(
-                    (x.hfile or x.cpath, x) for x in package.components)
+                    (x.hpath or x.cpath, x) for x in package.components)
 
     def analyze(self):
         """Runs the analysis."""
