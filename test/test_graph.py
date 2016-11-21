@@ -30,7 +30,7 @@ _REPORT = "./test/graph_report.txt"
 def output_graph(digraph, destination):
     """Prints the graph nodes and edges."""
     print('nodes(%d): ' % digraph.number_of_nodes(),
-          ' '.join(map(str, sorted(digraph))), file=destination)
+          ' '.join(str(x) for x in sorted(digraph)), file=destination)
     print('edges(%d): ' % digraph.number_of_edges(),
           ' '.join(sorted(str(x[0]) + '->' + str(x[1])
                           for x in digraph.edges())),
