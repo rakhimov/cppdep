@@ -159,39 +159,39 @@ class Graph(object):
         for node in self.digraph:
             _get_level(node)
 
-    def print_cycles(self):
+    def print_cycles(self, printer):
         """Prints cycles only after reduction."""
         if not self.cycles:
             return
-        print('=' * 80)
-        print('%d cycles detected:\n' % len(self.cycles))
+        printer('=' * 80)
+        printer('%d cycles detected:\n' % len(self.cycles))
         for i, cycle in enumerate(self.cycles):
-            print('cycle #%d (%d nodes):' % (i, cycle.number_of_nodes()),
-                  ', '.join(sorted(str(x) for x in cycle.nodes())))
-            print('cycle #%d (%d edges):' % (i, cycle.number_of_edges()),
-                  ' '.join(sorted(str(edge[0]) + '->' + str(edge[1])
-                                  for edge in cycle.edges())))
-            print()
+            printer('cycle #%d (%d nodes):' % (i, cycle.number_of_nodes()),
+                    ', '.join(sorted(str(x) for x in cycle.nodes())))
+            printer('cycle #%d (%d edges):' % (i, cycle.number_of_edges()),
+                    ' '.join(sorted(str(edge[0]) + '->' + str(edge[1])
+                                    for edge in cycle.edges())))
+            printer()
 
-    def print_levels(self):
+    def print_levels(self, printer):
         """Prints levels of nodes."""
-        print('=' * 80)
+        printer('=' * 80)
         max_level = max(self.node2level.values())
-        print('%d level(s):\n' % max_level)
+        printer('%d level(s):\n' % max_level)
         level_num = 0
         cycle_num = 0
         for node, level in sorted(self.node2level.items(), key=lambda x: x[1]):
             while level > level_num:
                 level_num += 1
-                print('level %d:' % level_num)
+                printer('level %d:' % level_num)
             if node in self.cycles:
                 for v in node:
-                    print('\t%s <%d>' % (str(v), cycle_num))
+                    printer('\t%s <%d>' % (str(v), cycle_num))
                 cycle_num += 1
             else:
-                print('\t' + str(node))
+                printer('\t' + str(node))
 
-    def print_summary(self):
+    def print_summary(self, printer):
         """Calculates and prints overall CCD metrics."""
         ccd = 0
         for node, cd in self.node2cd.items():
@@ -204,12 +204,12 @@ class Graph(object):
         # CCD_Balanced_BTree = (N + 1) * log2(N + 1) - N
         ccd_btree = (num_nodes + 1) * math.log(num_nodes + 1, 2) - num_nodes
         normalized_ccd = ccd / ccd_btree
-        print('=' * 80)
-        print('SUMMARY:')
-        print('Nodes: %d\t Cycles: %d\t Levels: %d' %
-              (num_nodes, len(self.cycles), max(self.node2level.values())))
-        print('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
-              (ccd, average_cd, normalized_ccd))
+        printer('=' * 80)
+        printer('SUMMARY:')
+        printer('Nodes: %d\t Cycles: %d\t Levels: %d' %
+                (num_nodes, len(self.cycles), max(self.node2level.values())))
+        printer('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
+                (ccd, average_cd, normalized_ccd))
 
     def write_dot(self, file_basename):
         """Writes graph into a file in Graphviz DOT format.

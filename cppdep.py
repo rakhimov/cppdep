@@ -617,52 +617,52 @@ class DependencyAnalysis(object):
                     warn('warning: include issues: header not found: %s' %
                          str(include))
 
-    def print_ldep(self):
+    def print_ldep(self, printer):
         """Prints link time dependencies of components."""
         def _print_deps(deps):
             for name in sorted(deps):
-                print('\t%s' % name)
+                printer('\t%s' % name)
 
         for group_name in sorted(self.internal_groups.keys()):
             packages = self.internal_groups[group_name].packages
             for pkg_name in sorted(packages.keys()):
-                print('=' * 80)
-                print('package %s.%s dependency:' % (group_name, pkg_name))
+                printer('=' * 80)
+                printer('package %s.%s dependency:' % (group_name, pkg_name))
                 for component in packages[pkg_name].components:
-                    print('%s:' % component.name)
+                    printer('%s:' % component.name)
                     _print_deps(x.name for x
                                 in component.dep_internal_components)
-                    print('  (external)')
+                    printer('  (external)')
                     _print_deps(component.dep_external_packages)
 
-    def make_graph(self):
+    def make_graph(self, printer):
         """Reports analysis results and graphs."""
         def _analyze(suffix, arg_components):
             digraph = graph.Graph(arg_components)
             digraph.analyze()
-            digraph.print_cycles()
-            digraph.print_levels()
-            digraph.print_summary()
+            digraph.print_cycles(printer)
+            digraph.print_levels(printer)
+            digraph.print_summary(printer)
             digraph.write_dot(suffix)
 
         if len(self.internal_groups) > 1:
-            print('\n' + '#' * 80)
-            print('analyzing dependencies among all package groups ...')
+            printer('\n' + '#' * 80)
+            printer('analyzing dependencies among all package groups ...')
             _analyze('system', self.internal_groups.values())
 
         for group_name, package_group in self.internal_groups.items():
             if len(package_group.packages) > 1:
-                print('\n' + '#' * 80)
-                print('analyzing dependencies among packages in ' +
-                      'the specified package group %s ...' % group_name)
+                printer('\n' + '#' * 80)
+                printer('analyzing dependencies among packages in ' +
+                        'the specified package group %s ...' % group_name)
                 _analyze(group_name, package_group.packages.values())
 
         for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
-                print('\n' + '#' * 80)
-                print('analyzing dependencies among components in ' +
-                      'the specified package %s.%s ...' %
-                      (group_name, pkg_name))
+                printer('\n' + '#' * 80)
+                printer('analyzing dependencies among components in ' +
+                        'the specified package %s.%s ...' %
+                        (group_name, pkg_name))
                 _analyze('_'.join((group_name, pkg_name)), package.components)
 
 
@@ -677,10 +677,10 @@ def main():
     parser = ap.ArgumentParser(description=__doc__)
     parser.add_argument('--version', action='store_true', default=False,
                         help='show the version information and exit')
-
     parser.add_argument('-c', '--config', default='cppdep.xml',
                         help="""an XML file which describes
                         the source code structure of a C/C++ project""")
+    parser.add_argument('-o', '--output', metavar='path', help="output file")
     args = parser.parse_args()
     if args.version:
         print(VERSION)
@@ -688,8 +688,17 @@ def main():
     analysis = DependencyAnalysis(args.config)
     analysis.make_components()
     analysis.analyze()
-    analysis.print_ldep()
-    analysis.make_graph()
+    printer = get_printer(args.output)
+    analysis.print_ldep(printer)
+    analysis.make_graph(printer)
+
+
+def get_printer(file_path=None):
+    """Returns printer for the report."""
+    destination = sys.stdout if not file_path else open(file_path, 'w')
+    def _print(*args):
+        print(*args, file=destination)
+    return _print
 
 
 if __name__ == '__main__':
