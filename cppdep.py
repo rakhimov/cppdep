@@ -114,6 +114,14 @@ class Include(object):
             return '"%s"' % self.__include_path
         return '<%s>' % self.__include_path
 
+    def __hash__(self):
+        """To work with sets."""
+        return hash(self.hfile)
+
+    def __eq__(self, other):
+        """Assumes the same working directory and search paths."""
+        return self.hfile == other.hfile
+
     @staticmethod
     def grep(file_path):
         """Processes include directives in a source file.
@@ -203,8 +211,9 @@ class Component(object):
         self.working_dir = os.path.dirname(cpath or hpath)
         self.dep_internal_components = set()
         self.dep_external_components = set()
-        self.includes_in_h = [] if not hpath else list(Include.grep(hpath))
-        self.includes_in_c = [] if not cpath else list(Include.grep(cpath))
+        self.includes_in_h = set() if not hpath else list(Include.grep(hpath))
+        self.includes_in_c = set() if not cpath else list(Include.grep(cpath))
+        self.__sanitize_includes()
 
     def __str__(self):
         """For printing graph nodes."""
@@ -216,17 +225,45 @@ class Component(object):
             if dep_component.package == self.package:
                 yield dep_component
 
-    def check_include_issues(self):
-        """Checks for issues with header inclusion in implementation files."""
-        if not self.hpath or not self.cpath:
-            return  # Header-only or incomplete components.
-        hfile = os.path.basename(self.hpath)
-        if hfile not in (os.path.basename(x.hfile) for x in self.includes_in_c):
-            warn('warning: include issues: missing include: '
-                 '%s does not include %s.' % (self.cpath, hfile))
-        elif hfile != os.path.basename(self.includes_in_c[0].hfile):
-            warn('warning: include issues: include order: '
-                 '%s should be the first include in %s.' % (hfile, self.cpath))
+    def __sanitize_includes(self):
+        """Sanitizes and checkes includes."""
+        def _check_duplicates(path, includes):
+            unique_includes = set()
+            for include in includes:
+                if include in unique_includes:
+                    warn('warning: include issues: duplicate include:',
+                         '%s in %s' % (str(include), path))
+                else:
+                    unique_includes.add(include)
+            return unique_includes
+
+        def _remove_duplicates():
+            if self.hpath:
+                self.includes_in_h = _check_duplicates(self.hpath,
+                                                       self.includes_in_h)
+            if self.cpath:
+                self.includes_in_c = _check_duplicates(self.cpath,
+                                                       self.includes_in_c)
+
+        def _remove_redundant():
+            for include in self.includes_in_c:
+                if include in self.includes_in_h:
+                    warn('warning: include issues: redundant include:',
+                         '%s in %s' % (str(include), self.cpath))
+            self.includes_in_c.difference_update(self.includes_in_h)
+
+        if self.hpath and self.cpath:
+            hfile = os.path.basename(self.hpath)
+            if hfile not in (os.path.basename(x.hfile)
+                             for x in self.includes_in_c):
+                warn('warning: include issues: missing include:',
+                     '%s does not include %s.' % (self.cpath, hfile))
+            elif hfile != os.path.basename(self.includes_in_c[0].hfile):
+                warn('warning: include issues: include order:',
+                     '%s should be the first include in %s.' %
+                     (hfile, self.cpath))
+        _remove_duplicates()
+        _remove_redundant()
 
     @property
     def dep_external_packages(self):
@@ -579,7 +616,6 @@ class DependencyAnalysis(object):
                 if not self.locate(include, component):
                     warn('warning: include issues: header not found: %s' %
                          str(include))
-            component.check_include_issues()
 
     def print_ldep(self):
         """Prints link time dependencies of components."""
