@@ -266,8 +266,8 @@ class Package(object):
         components: The list of unique components in this package.
     """
 
-    _RE_HFILE = re.compile(r'(?i).*\.h(xx|\+\+|h|pp|)$')
-    _RE_CFILE = re.compile(r'(?i).*\.c(xx|\+\+|c|pp|)$')
+    _RE_SRC = re.compile(r'(?i).*\.((?P<h>h(h|xx|\+\+|pp)?)|'
+                         r'(?P<c>c(c|xx|\+\+|pp)?))$')
 
     def __init__(self, paths, group, name=None):
         """Constructs an empty package.
@@ -331,10 +331,10 @@ class Package(object):
         def _gather_files(path):
             for root, _, files in os.walk(path):
                 for filename in files:
-                    if Package._RE_HFILE.match(filename):
-                        hpaths.append(os.path.join(root, filename))
-                    elif Package._RE_CFILE.match(filename):
-                        cpaths.append(os.path.join(root, filename))
+                    src_match = Package._RE_SRC.match(filename)
+                    if src_match:
+                        (hpaths if src_match.group('h')
+                         else cpaths).append(os.path.join(root, filename))
 
         for src_path in self.paths:
             _gather_files(src_path)
