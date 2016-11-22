@@ -87,26 +87,32 @@ class Include(object):
     Attributes:
         with_quotes: True if the include is within quotes ("")
             instead of angle brackets (<>).
-        hfile: The header file in the directive.
+        hfile: The normalized path to the header file in the directive.
         hpath: The absolute path to the header file.
     """
 
     _RE_INCLUDE = re.compile(r'^\s*#include\s*'
                              '(<(?P<brackets>.+)>|"(?P<quotes>.+)")')
 
-    __slots__ = ['hfile', 'with_quotes', 'hpath']
+    __slots__ = ['__include_path', 'hfile', 'with_quotes', 'hpath']
 
-    def __init__(self, hfile, with_quotes):
-        """Initializes with attributes."""
-        self.hfile = hfile
+    def __init__(self, include_path, with_quotes):
+        """Initializes with attributes.
+
+        Args:
+            include_text: The original path in the include directive.
+            with_quotes: True if the path is within quotes instead of brackets.
+        """
+        self.__include_path = include_path
+        self.hfile = os.path.normpath(include_path)
         self.with_quotes = with_quotes
         self.hpath = None
 
     def __str__(self):
         """Produces the original include with quotes or brackets."""
         if self.with_quotes:
-            return '"%s"' % self.hfile
-        return '<%s>' % self.hfile
+            return '"%s"' % self.__include_path
+        return '<%s>' % self.__include_path
 
     @staticmethod
     def grep(file_path):
@@ -124,9 +130,9 @@ class Include(object):
                 if not include:
                     continue
                 if include.group("brackets"):
-                    yield Include(include.group("brackets"), False)
+                    yield Include(include.group("brackets"), with_quotes=False)
                 else:
-                    yield Include(include.group("quotes"), True)
+                    yield Include(include.group("quotes"), with_quotes=True)
 
     def locate(self, cwd, include_dirs):
         """Locates the included header file path.
