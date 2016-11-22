@@ -26,6 +26,7 @@ from __future__ import print_function, division, absolute_import
 
 import argparse as ap
 import itertools
+import logging
 import os.path
 import re
 import sys
@@ -59,9 +60,9 @@ class InvalidArgumentError(Exception):
     pass
 
 
-def warn(*args, **kwargs):
-    """Prints a warning message into the standard error."""
-    print(*args, file=sys.stderr, **kwargs)
+def warn(*args):
+    """Logs a warning message."""
+    logging.warn(*args)
 
 
 def strip_ext(filename):
@@ -203,7 +204,7 @@ class Component(object):
         assert hpath or cpath
         self.name = strip_ext((cpath or hpath)[(len(package.root) + 1):])
         if not hpath:
-            warn('warning: incomplete component: missing header: %s in %s.%s' %
+            warn('incomplete component: missing header: %s in %s.%s' %
                  (self.name, package.name, package.group.name))
         self.hpath = hpath
         self.cpath = cpath
@@ -231,7 +232,7 @@ class Component(object):
             unique_includes = set()
             for include in includes:
                 if include in unique_includes:
-                    warn('warning: include issues: duplicate include:',
+                    warn('include issues: duplicate include:',
                          '%s in %s' % (str(include), path))
                 else:
                     unique_includes.add(include)
@@ -248,7 +249,7 @@ class Component(object):
         def _remove_redundant():
             for include in self.includes_in_c:
                 if include in self.includes_in_h:
-                    warn('warning: include issues: redundant include:',
+                    warn('include issues: redundant include:',
                          '%s in %s' % (str(include), self.cpath))
             self.includes_in_c.difference_update(self.includes_in_h)
 
@@ -256,10 +257,10 @@ class Component(object):
             hfile = os.path.basename(self.hpath)
             if hfile not in (os.path.basename(x.hfile)
                              for x in self.includes_in_c):
-                warn('warning: include issues: missing include:',
+                warn('include issues: missing include:',
                      '%s does not include %s.' % (self.cpath, hfile))
             elif hfile != os.path.basename(self.includes_in_c[0].hfile):
-                warn('warning: include issues: include order:',
+                warn('include issues: include order:',
                      '%s should be the first include in %s.' %
                      (hfile, self.cpath))
         _remove_duplicates()
@@ -614,8 +615,7 @@ class DependencyAnalysis(object):
             for include in itertools.chain(component.includes_in_h,
                                            component.includes_in_c):
                 if not self.locate(include, component):
-                    warn('warning: include issues: header not found: %s' %
-                         str(include))
+                    warn('include issues: header not found: %s' % str(include))
 
     def print_ldep(self, printer):
         """Prints link time dependencies of components."""
@@ -705,11 +705,11 @@ if __name__ == '__main__':
     try:
         main()
     except IOError as err:
-        warn('IO Error:\n' + str(err))
+        logging.error('IO Error:\n' + str(err))
         sys.exit(1)
     except XmlError as err:
-        warn('Configuration XML Error:\n' + str(err))
+        logging.error('Configuration XML Error:\n' + str(err))
         sys.exit(1)
     except InvalidArgumentError as err:
-        warn('Invalid Argument Error:\n' + str(err))
+        logging.error('Invalid Argument Error:\n' + str(err))
         sys.exit(1)
