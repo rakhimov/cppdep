@@ -1,5 +1,5 @@
 ######
-cppdep
+|logo|
 ######
 
 .. image:: https://travis-ci.org/rakhimov/cppdep.svg?branch=master
@@ -22,6 +22,8 @@ among components/packages/package groups of a large C/C++ project.
 This is a rewrite of ``dep_utils(adep/cdep/ldep)``,
 which is provided by John Lakos' book
 "Large-Scale C++ Software Design", Addison Wesley (1996).
+
+.. |logo| image:: cppdep_small.png
 
 
 Differences from dep_utils
