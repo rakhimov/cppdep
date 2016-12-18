@@ -623,12 +623,11 @@ class DependencyAnalysis(object):
             for name in sorted(deps):
                 printer('\t%s' % name)
 
-        for group_name in sorted(self.internal_groups.keys()):
-            packages = self.internal_groups[group_name].packages
-            for pkg_name in sorted(packages.keys()):
+        for group_name, group in sorted(self.internal_groups.items()):
+            for pkg_name, package in sorted(group.packages.items()):
                 printer('=' * 80)
                 printer('package %s.%s dependency:' % (group_name, pkg_name))
-                for component in packages[pkg_name].components:
+                for component in package.components:
                     printer('%s:' % component.name)
                     _print_deps(x.name for x
                                 in component.dep_internal_components)
