@@ -617,23 +617,6 @@ class DependencyAnalysis(object):
                 if not self.locate(include, component):
                     warn('include issues: header not found: %s' % str(include))
 
-    def print_ldep(self, printer):
-        """Prints link time dependencies of components."""
-        def _print_deps(deps):
-            for name in sorted(deps):
-                printer('\t%s' % name)
-
-        for group_name, group in sorted(self.internal_groups.items()):
-            for pkg_name, package in sorted(group.packages.items()):
-                printer('=' * 80)
-                printer('package %s.%s dependency:' % (group_name, pkg_name))
-                for component in package.components:
-                    printer('%s:' % component.name)
-                    _print_deps(x.name for x
-                                in component.dep_internal_components)
-                    printer('  (external)')
-                    _print_deps(component.dep_external_packages)
-
     def make_graph(self, printer):
         """Reports analysis results and graphs."""
         def _analyze(suffix, arg_components):
@@ -688,7 +671,6 @@ def main():
     analysis.make_components()
     analysis.analyze()
     printer = get_printer(args.output)
-    analysis.print_ldep(printer)
     analysis.make_graph(printer)
 
 
