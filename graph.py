@@ -182,12 +182,20 @@ class Graph(object):
         printer('%d level(s):\n' % max_level)
         level_num = 0
         cycle_num = 0
-        for node, level in sorted(self.node2level.items(), key=lambda x: x[1]):
+
+        def _stabilize(node):
+            """Returns string for report stabilization sort."""
+            if node in self.cycles:
+                return min(str(x) for x in node)
+            return str(node)
+
+        for node, level in sorted(self.node2level.items(),
+                                  key=lambda x: (x[1], _stabilize(x[0]))):
             while level > level_num:
                 level_num += 1
                 printer('level %d:' % level_num)
             if node in self.cycles:
-                for v in node:
+                for v in sorted(node, key=str):
                     printer('\t%s <%d>' % (str(v), cycle_num))
                 cycle_num += 1
             else:
