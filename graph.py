@@ -49,10 +49,10 @@ class Graph(object):
         self.node2cd = {}  # {node: cd}
         self.node2level = {}  # {node: level}
         for node in nodes:
-            self.digraph.add_node(str(node))
+            self.digraph.add_node(node)
             for dependency in node.dependencies():
                 assert node != dependency
-                self.digraph.add_edge(str(node), str(dependency))
+                self.digraph.add_edge(node, dependency)
 
     # pylint: disable=invalid-name
     def __transitive_reduction(self):
@@ -67,7 +67,8 @@ class Graph(object):
 
     def __condensation(self):
         """Produces condensation of cyclic graphs."""
-        subgraphs = nx.strongly_connected_component_subgraphs(self.digraph)
+        subgraphs = nx.strongly_connected_component_subgraphs(self.digraph,
+                                                              copy=False)
         for subgraph in list(subgraphs):
             if subgraph.number_of_nodes() == 1:
                 continue  # not a cycle
@@ -75,6 +76,7 @@ class Graph(object):
             suc_edges = []
             for node in subgraph:
                 assert node not in self.node2cycle
+                assert node in self.digraph  # no accidental copying
                 self.node2cycle[node] = subgraph
                 for pre_node in self.digraph.predecessors(node):
                     if not subgraph.has_node(pre_node):
