@@ -617,13 +617,14 @@ class DependencyAnalysis(object):
                 if not self.locate(include, component):
                     warn('include issues: header not found: %s' % str(include))
 
-    def make_graph(self, printer):
+    def make_graph(self, printer, args):
         """Reports analysis results and graphs."""
         def _analyze(suffix, arg_components):
             digraph = graph.Graph(arg_components)
             digraph.analyze()
             digraph.print_cycles(printer)
-            digraph.print_levels(printer)
+            reduced_dependencies = args.l if args.l else None
+            digraph.print_levels(printer, reduced_dependencies)
             digraph.print_summary(printer)
             digraph.write_dot(suffix)
 
@@ -662,7 +663,9 @@ def main():
     parser.add_argument('-c', '--config', default='cppdep.xml',
                         help="""an XML file which describes
                         the source code structure of a C/C++ project""")
-    parser.add_argument('-o', '--output', metavar='path', help="output file")
+    parser.add_argument('-l', action='store_true', default=False,
+                        help='list reduced dependencies of nodes')
+    parser.add_argument('-o', '--output', metavar='path', help='output file')
     args = parser.parse_args()
     if args.version:
         print(VERSION)
@@ -671,7 +674,7 @@ def main():
     analysis.make_components()
     analysis.analyze()
     printer = get_printer(args.output)
-    analysis.make_graph(printer)
+    analysis.make_graph(printer, args)
 
 
 def get_printer(file_path=None):

@@ -166,6 +166,12 @@ class Graph(object):
         for node in self.digraph:
             _get_level(node)
 
+    def get_level(self, node):
+        """Returns the level of the component node."""
+        if node in self.node2cycle:
+            return self.node2level[self.node2cycle[node]]
+        return self.node2level[node]
+
     def print_cycles(self, printer):
         """Prints cycles only after reduction."""
         if not self.cycles:
@@ -180,8 +186,14 @@ class Graph(object):
                                     for edge in cycle.edges())))
             printer()
 
-    def print_levels(self, printer):
-        """Prints levels of nodes."""
+    def print_levels(self, printer, reduced_dependencies=None):
+        """Prints levels of nodes.
+
+        Args:
+            printer: The printer object.
+            reduced_dependencies: Print node dependencies in reduced form.
+                If None, no dependencies are printed at all.
+        """
         printer('=' * 80)
         max_level = max(self.node2level.values())
         printer('%d level(s):\n' % max_level)
@@ -193,6 +205,19 @@ class Graph(object):
                 return min(str(x) for x in node)
             return str(node)
 
+        def _print_dependencies(node):
+            """Prints dependencies of the levelized components."""
+            if reduced_dependencies is None:
+                return
+            for v in sorted(self.digraph[node],
+                            key=lambda x: (self.get_level(x), str(x))):
+                if v in self.node2cycle:
+                    cycle = self.node2cycle[v]
+                    printer('\t\t%d. %s <%d>' % (self.node2level[cycle], str(v),
+                                                 self.cycle2index[cycle]))
+                else:
+                    printer('\t\t%d. %s' % (self.node2level[v], str(v)))
+
         for node, level in sorted(self.node2level.items(),
                                   key=lambda x: (x[1], _stabilize(x[0]))):
             while level > level_num:
@@ -202,8 +227,10 @@ class Graph(object):
                 cycle_index = self.cycle2index[node]
                 for v in sorted(node, key=str):
                     printer('\t%s <%d>' % (str(v), cycle_index))
+                    _print_dependencies(v)
             else:
                 printer('\t' + str(node))
+                _print_dependencies(node)
 
     def print_summary(self, printer):
         """Calculates and prints overall CCD metrics."""
