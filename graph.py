@@ -45,6 +45,7 @@ class Graph(object):
         """
         self.digraph = nx.DiGraph()
         self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
+        self.cycle2index = {}  # {cyclic_graph: cycle_index}
         self.node2cycle = {}  # {node: cyclic_graph}
         self.node2cd = {}  # {node: cd}
         self.node2level = {}  # {node: level}
@@ -89,6 +90,10 @@ class Graph(object):
                 self.digraph.remove_node(node)
             assert subgraph not in self.cycles
             self.cycles[subgraph] = (pre_edges, suc_edges)
+
+        cycle_order = lambda x: min(str(u) for u in x)
+        for index, cycle in enumerate(sorted(self.cycles, key=cycle_order)):
+            self.cycle2index[cycle] = index
 
     # pylint: disable=invalid-name
     def __decondensation(self):
@@ -167,7 +172,7 @@ class Graph(object):
             return
         printer('=' * 80)
         printer('%d cycles detected:\n' % len(self.cycles))
-        for i, cycle in enumerate(self.cycles):
+        for cycle, i in sorted(self.cycle2index.items(), key=lambda x: x[1]):
             printer('cycle #%d (%d nodes):' % (i, cycle.number_of_nodes()),
                     ', '.join(sorted(str(x) for x in cycle.nodes())))
             printer('cycle #%d (%d edges):' % (i, cycle.number_of_edges()),
@@ -181,7 +186,6 @@ class Graph(object):
         max_level = max(self.node2level.values())
         printer('%d level(s):\n' % max_level)
         level_num = 0
-        cycle_num = 0
 
         def _stabilize(node):
             """Returns string for report stabilization sort."""
@@ -195,9 +199,9 @@ class Graph(object):
                 level_num += 1
                 printer('level %d:' % level_num)
             if node in self.cycles:
+                cycle_index = self.cycle2index[node]
                 for v in sorted(node, key=str):
-                    printer('\t%s <%d>' % (str(v), cycle_num))
-                cycle_num += 1
+                    printer('\t%s <%d>' % (str(v), cycle_index))
             else:
                 printer('\t' + str(node))
 
