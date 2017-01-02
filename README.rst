@@ -46,6 +46,8 @@ Limitations
   such as dynamic loading and configurable internal services.
 - Preprocessing or macro expansion is not performed.
   Dependency inclusion via preprocessor *meta-programming* is not handled.
+- Dependency exclusion with C style multi-line comments or macros
+  is not respected.
 
 
 Requirements
