@@ -209,7 +209,8 @@ class Graph(object):
             """Prints dependencies of the levelized components."""
             if reduced_dependencies is None:
                 return
-            for v in sorted(self.digraph[node],
+            for v in sorted(self.digraph[node] if reduced_dependencies
+                            else node.dependencies(),
                             key=lambda x: (self.get_level(x), str(x))):
                 if v in self.node2cycle:
                     cycle = self.node2cycle[v]

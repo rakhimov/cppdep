@@ -623,8 +623,10 @@ class DependencyAnalysis(object):
             digraph = graph.Graph(arg_components)
             digraph.analyze()
             digraph.print_cycles(printer)
-            reduced_dependencies = args.l if args.l else None
-            digraph.print_levels(printer, reduced_dependencies)
+            if not args.l and not args.L:
+                digraph.print_levels(printer)
+            else:
+                digraph.print_levels(printer, args.l)
             digraph.print_summary(printer)
             digraph.write_dot(suffix)
 
@@ -665,6 +667,8 @@ def main():
                         the source code structure of a C/C++ project""")
     parser.add_argument('-l', action='store_true', default=False,
                         help='list reduced dependencies of nodes')
+    parser.add_argument('-L', action='store_true', default=False,
+                        help='list unreduced dependencies of nodes')
     parser.add_argument('-o', '--output', metavar='path', help='output file')
     args = parser.parse_args()
     if args.version:
