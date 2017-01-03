@@ -37,11 +37,12 @@ class Graph(object):
         digraph: The underlying directed graph without self-loops.
     """
 
-    def __init__(self, nodes):
+    def __init__(self, nodes, dep_filter=lambda x: x):
         """Constructs a digraph for dependency analysis.
 
         Args:
             nodes: Graph nodes with dependencies.
+            dep_filter: A filter for node dependencies.
         """
         self.digraph = nx.DiGraph()
         self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
@@ -49,9 +50,10 @@ class Graph(object):
         self.node2cycle = {}  # {node: cyclic_graph}
         self.node2cd = {}  # {node: cd}
         self.node2level = {}  # {node: level}
+        self.__dep_filter = dep_filter
         for node in nodes:
             self.digraph.add_node(node)
-            for dependency in node.dependencies():
+            for dependency in self.__dep_filter(node.dependencies()):
                 assert node != dependency
                 self.digraph.add_edge(node, dependency)
 
@@ -210,7 +212,7 @@ class Graph(object):
             if reduced_dependencies is None:
                 return
             for v in sorted(self.digraph[node] if reduced_dependencies
-                            else node.dependencies(),
+                            else self.__dep_filter(node.dependencies()),
                             key=lambda x: (self.get_level(x), str(x))):
                 if v in self.node2cycle:
                     cycle = self.node2cycle[v]

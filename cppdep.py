@@ -221,10 +221,8 @@ class Component(object):
         return self.name
 
     def dependencies(self):
-        """Yeilds dependency components within the same package."""
-        for dep_component in self.dep_internal_components:
-            if dep_component.package == self.package:
-                yield dep_component
+        """Returns dependency components."""
+        return self.dep_internal_components
 
     def __sanitize_includes(self):
         """Sanitizes and checkes includes."""
@@ -335,6 +333,7 @@ class Package(object):
         self.group = group
         self.root = common_path(self.paths)
         self.components = []
+        self.__dep_packages = None  # set of dependency packages
         group.add_package(self)
 
     def __str__(self):
@@ -386,12 +385,14 @@ class Package(object):
             self.components.append(Component(None, cpath, self))
 
     def dependencies(self):
-        """Yields dependency packages within the same package group."""
-        for component in self.components:
-            for dep_component in component.dep_internal_components:
-                if (dep_component.package.group == self.group and
-                        dep_component.package != self):
-                    yield dep_component.package
+        """Returns dependency packages."""
+        if self.__dep_packages is None:
+            self.__dep_packages = set()
+            for component in self.components:
+                self.__dep_packages.update(x.package
+                                           for x in component.dependencies()
+                                           if x.package != self)
+        return self.__dep_packages
 
 
 class PackageGroup(object):
@@ -418,18 +419,20 @@ class PackageGroup(object):
         self.name = name
         self.path = os.path.abspath(os.path.normpath(path))
         self.packages = {}
+        self.__dep_groups = None  # set of dependency groups
 
     def __str__(self):
         """For printing graph nodes."""
         return self.name
 
     def dependencies(self):
-        """Yields dependency package groups."""
-        for package in self.packages.values():
-            for component in package.components:
-                for dep_component in component.dep_internal_components:
-                    if dep_component.package.group != self:
-                        yield dep_component.package.group
+        """Returns dependency package groups."""
+        if self.__dep_groups is None:
+            self.__dep_groups = set()
+            for package in self.packages.values():
+                self.__dep_groups.update(x.group for x in package.dependencies()
+                                         if x.group != self)
+        return self.__dep_groups
 
     def add_package(self, package):
         """Adds a package into the group.
@@ -612,8 +615,8 @@ class DependencyAnalysis(object):
 
     def make_graph(self, printer, args):
         """Reports analysis results and graphs."""
-        def _analyze(suffix, arg_components):
-            digraph = graph.Graph(arg_components)
+        def _analyze(suffix, arg_components, dep_filter=lambda x: x):
+            digraph = graph.Graph(arg_components, dep_filter)
             digraph.analyze()
             digraph.print_cycles(printer)
             if not args.l and not args.L:
@@ -633,7 +636,9 @@ class DependencyAnalysis(object):
                 printer('\n' + '#' * 80)
                 printer('analyzing dependencies among packages in ' +
                         'the specified package group %s ...' % group_name)
-                _analyze(group_name, package_group.packages.values())
+                _analyze(group_name, package_group.packages.values(),
+                         (lambda x: (i if i.group == package_group else i.group
+                                     for i in x)))
 
         for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
@@ -641,7 +646,9 @@ class DependencyAnalysis(object):
                 printer('analyzing dependencies among components in ' +
                         'the specified package %s.%s ...' %
                         (group_name, pkg_name))
-                _analyze('_'.join((group_name, pkg_name)), package.components)
+                _analyze('_'.join((group_name, pkg_name)), package.components,
+                         (lambda x: (i if i.package == package else i.package
+                                     for i in x)))
 
 
 def main():
