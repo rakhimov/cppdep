@@ -183,10 +183,10 @@ class Component(object):
         name: A unique name within the package.
         hpath: The absolute path to the header file.
         cpath: The absolute path to the implementation file.
-        package: The package this components belongs to.
+        package: The package this component belongs to.
         working_dir: The parent directory.
         dep_internal_components: Internal dependency components.
-        dep_external_components: External dependency components.
+        dep_components: Dependency components.
         includes_in_h: Include directives in the header file.
         includes_in_c: Include directives in the implementation file.
     """
@@ -211,7 +211,7 @@ class Component(object):
         self.package = package
         self.working_dir = os.path.dirname(cpath or hpath)
         self.dep_internal_components = set()
-        self.dep_external_components = set()
+        self.dep_components = set()
         self.includes_in_h = set() if not hpath else list(Include.grep(hpath))
         self.includes_in_c = set() if not cpath else list(Include.grep(cpath))
         self.__sanitize_includes()
@@ -265,13 +265,6 @@ class Component(object):
                      (hfile, self.cpath))
         _remove_duplicates()
         _remove_redundant()
-
-    @property
-    def dep_external_packages(self):
-        """Yields external dependency group.packages."""
-        for group, package in set((x.package.group.name, x.package.name)
-                                  for x in self.dep_external_components):
-            yield '.'.join((group, package))
 
 
 class ExternalComponent(object):
@@ -592,12 +585,12 @@ class DependencyAnalysis(object):
                 component.dep_internal_components.add(dep_component)
         else:
             if include.hpath in self.external_components:
-                component.dep_external_components.add(
+                component.dep_components.add(
                     self.external_components[include.hpath])
             else:
                 package = _find_external_package()
                 dep_component = ExternalComponent(include.hpath, package)
-                component.dep_external_components.add(dep_component)
+                component.dep_components.add(dep_component)
                 self.external_components[include.hpath] = dep_component
         return True
 
