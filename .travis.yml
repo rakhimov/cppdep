@@ -35,9 +35,10 @@ script:
     - if [[ $RUN_COVERAGE == true ]]; then
         cd scram &&
         nosetests -w ../ --with-coverage --cover-package=graph test/ &&
-        coverage run --append --source=../ ../cppdep.py -l && codecov;
+        coverage run --append --source=../ ../cppdep.py -c cppdep-ci.xml -l &&
+        codecov;
       else
-        nosetests test/ && cd scram && ../cppdep.py;
+        nosetests test/ && cd scram && ../cppdep.py -c cppdep-ci.xml;
       fi &&
       if [[ ! "${TRAVIS_OS_NAME}" == "osx" ]]; then
         echo "Generating graph images from DOT.";

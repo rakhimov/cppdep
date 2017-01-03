@@ -12,4 +12,4 @@ test_script:
     - C:\%PYTHON%\Scripts\nosetests test\
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
     - cd scram
-    - C:\%PYTHON%\python ..\cppdep.py -c cppdep-win.xml -l
+    - C:\%PYTHON%\python ..\cppdep.py -c cppdep-ci.xml -l
