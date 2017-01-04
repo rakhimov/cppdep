@@ -46,7 +46,20 @@
   </define>
 
   <define name="path">
-    <element name="path"> <data type="anyURI"/> </element>
+    <choice>
+      <element name="alias-path">  <!--An alias path to map to a name -->
+        <data type="anyURI"/>
+      </element>
+      <element name="include-path">  <!-- The header search path, i.e., '-i' -->
+        <data type="anyURI"/>  <!-- This is also an alias path. -->
+      </element>
+      <element name="src-path">  <!-- The path to source files to analyze -->
+        <data type="anyURI"/>  <!-- This is also an alias path. -->
+      </element>
+      <element name="ignore-path">  <!-- Exclude from the source path -->
+        <data type="anyURI"/>
+      </element>
+    </choice>
   </define>
 
 </grammar>
