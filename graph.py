@@ -37,8 +37,7 @@ class Graph(object):
         digraph: The underlying directed graph without self-loops.
     """
 
-    def __init__(self, nodes, dep_filter=lambda x: x,
-                 is_external=lambda _: False):
+    def __init__(self, nodes, dep_filter=iter, is_external=lambda _: False):
         """Constructs a digraph for dependency analysis.
 
         Precondition:

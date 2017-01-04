@@ -627,7 +627,7 @@ class DependencyAnalysis(object):
             printer('\n' + '#' * 80)
             printer('analyzing dependencies among all package groups ...')
             _analyze('system',
-                     Graph(self.internal_groups.values(), lambda x: x,
+                     Graph(self.internal_groups.values(), iter,
                            lambda x: x.name in self.external_groups))
 
         for group_name, package_group in self.internal_groups.items():
