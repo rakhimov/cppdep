@@ -32,7 +32,7 @@ import re
 import sys
 from xml.etree import ElementTree
 
-import graph
+from graph import Graph
 
 
 VERSION = '0.0.7'  # The latest release version.
@@ -185,7 +185,6 @@ class Component(object):
         cpath: The absolute path to the implementation file.
         package: The package this component belongs to.
         working_dir: The parent directory.
-        dep_internal_components: Internal dependency components.
         dep_components: Dependency components.
         includes_in_h: Include directives in the header file.
         includes_in_c: Include directives in the implementation file.
@@ -210,7 +209,6 @@ class Component(object):
         self.cpath = cpath
         self.package = package
         self.working_dir = os.path.dirname(cpath or hpath)
-        self.dep_internal_components = set()
         self.dep_components = set()
         self.includes_in_h = set() if not hpath else list(Include.grep(hpath))
         self.includes_in_c = set() if not cpath else list(Include.grep(cpath))
@@ -222,7 +220,7 @@ class Component(object):
 
     def dependencies(self):
         """Returns dependency components."""
-        return self.dep_internal_components
+        return self.dep_components
 
     def __sanitize_includes(self):
         """Sanitizes and checkes includes."""
@@ -585,7 +583,7 @@ class DependencyAnalysis(object):
         if include.hpath in self.internal_components:
             dep_component = self.internal_components[include.hpath]
             if dep_component != component:
-                component.dep_internal_components.add(dep_component)
+                component.dep_components.add(dep_component)
         else:
             if include.hpath in self.external_components:
                 component.dep_components.add(
@@ -615,8 +613,7 @@ class DependencyAnalysis(object):
 
     def make_graph(self, printer, args):
         """Reports analysis results and graphs."""
-        def _analyze(suffix, arg_components, dep_filter=lambda x: x):
-            digraph = graph.Graph(arg_components, dep_filter)
+        def _analyze(suffix, digraph):
             digraph.analyze()
             digraph.print_cycles(printer)
             if not args.l and not args.L:
@@ -629,16 +626,20 @@ class DependencyAnalysis(object):
         if len(self.internal_groups) > 1:
             printer('\n' + '#' * 80)
             printer('analyzing dependencies among all package groups ...')
-            _analyze('system', self.internal_groups.values())
+            _analyze('system',
+                     Graph(self.internal_groups.values(), lambda x: x,
+                           lambda x: x.name in self.external_groups))
 
         for group_name, package_group in self.internal_groups.items():
             if len(package_group.packages) > 1:
                 printer('\n' + '#' * 80)
                 printer('analyzing dependencies among packages in ' +
                         'the specified package group %s ...' % group_name)
-                _analyze(group_name, package_group.packages.values(),
-                         (lambda x: (i if i.group == package_group else i.group
-                                     for i in x)))
+                _analyze(group_name,
+                         Graph(package_group.packages.values(),
+                               lambda x: (i if i.group == package_group
+                                          else i.group for i in x),
+                               lambda x: isinstance(x, PackageGroup)))
 
         for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
@@ -646,9 +647,11 @@ class DependencyAnalysis(object):
                 printer('analyzing dependencies among components in ' +
                         'the specified package %s.%s ...' %
                         (group_name, pkg_name))
-                _analyze('_'.join((group_name, pkg_name)), package.components,
-                         (lambda x: (i if i.package == package else i.package
-                                     for i in x)))
+                _analyze('_'.join((group_name, pkg_name)),
+                         Graph(package.components,
+                               lambda x: (i if i.package == package
+                                          else i.package for i in x),
+                               lambda x: isinstance(x, Package)))
 
 
 def main():

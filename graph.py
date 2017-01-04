@@ -37,12 +37,19 @@ class Graph(object):
         digraph: The underlying directed graph without self-loops.
     """
 
-    def __init__(self, nodes, dep_filter=lambda x: x):
+    def __init__(self, nodes, dep_filter=lambda x: x,
+                 is_external=lambda _: False):
         """Constructs a digraph for dependency analysis.
 
+        Precondition:
+            External nodes do not have successors in the graph.
+            As a result, no cycles contain external nodes.
+            All external nodes are at level 0.
+
         Args:
-            nodes: Graph nodes with dependencies.
+            nodes: Graph internal nodes with dependencies.
             dep_filter: A filter for node dependencies.
+            is_external: Predicate to determine if a Graph node is external.
         """
         self.digraph = nx.DiGraph()
         self.cycles = {}  # {cyclic_graph: ([pre_edge], [suc_edge])}
@@ -51,7 +58,9 @@ class Graph(object):
         self.node2cd = {}  # {node: cd}
         self.node2level = {}  # {node: level}
         self.__dep_filter = dep_filter
+        self.__is_external = is_external
         for node in nodes:
+            assert not self.__is_external(node)
             self.digraph.add_node(node)
             for dependency in self.__dep_filter(node.dependencies()):
                 assert node != dependency
@@ -148,6 +157,8 @@ class Graph(object):
 
         def _get_cd(node):
             """Retruns CD contribution of a node."""
+            if self.__is_external(node):
+                return 0
             return 1 if node not in self.cycles else node.number_of_nodes()
 
         for node in self.digraph:
@@ -160,7 +171,8 @@ class Graph(object):
         """Calculates levels for nodes."""
         def _get_level(node):
             if node not in self.node2level:
-                level = 1 if node not in self.cycles else node.number_of_nodes()
+                level = (not self.__is_external(node) if node not in self.cycles
+                         else node.number_of_nodes())
                 if self.digraph[node]:
                     level += max(_get_level(x) for x in self.digraph[node])
                 self.node2level[node] = level
@@ -199,7 +211,6 @@ class Graph(object):
         printer('=' * 80)
         max_level = max(self.node2level.values())
         printer('%d level(s):\n' % max_level)
-        level_num = 0
 
         def _stabilize(node):
             """Returns string for report stabilization sort."""
@@ -221,6 +232,7 @@ class Graph(object):
                 else:
                     printer('\t\t%d. %s' % (self.node2level[v], str(v)))
 
+        level_num = -1
         for node, level in sorted(self.node2level.items(),
                                   key=lambda x: (x[1], _stabilize(x[0]))):
             while level > level_num:
@@ -243,14 +255,14 @@ class Graph(object):
                 ccd += node.number_of_nodes() * cd
             else:
                 ccd += cd
-        num_nodes = self.digraph.number_of_nodes()
+        num_nodes = len([x for x in self.digraph if not self.__is_external(x)])
         average_cd = ccd / num_nodes
         # CCD_Balanced_BTree = (N + 1) * log2(N + 1) - N
         ccd_btree = (num_nodes + 1) * math.log(num_nodes + 1, 2) - num_nodes
         normalized_ccd = ccd / ccd_btree
         printer('=' * 80)
         printer('SUMMARY:')
-        printer('Nodes: %d\t Cycles: %d\t Levels: %d' %
+        printer('Components: %d\t Cycles: %d\t Levels: %d' %
                 (num_nodes, len(self.cycles), max(self.node2level.values())))
         printer('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
                 (ccd, average_cd, normalized_ccd))
