@@ -292,7 +292,9 @@ class Package(object):
 
     Attributes:
         name: The unique identifier name of the package within its group.
-        paths: The absolute directory paths in the package.
+        src_paths: The absolute directory paths the package source components.
+        include_paths: The export paths of the package headers.
+        alias_paths: The absolute directory paths aliasing to this package.
         group: The package group this package belongs to.
         root: The common root path for all the paths in the package.
         components: The list of unique components in this package.
@@ -301,13 +303,16 @@ class Package(object):
     _RE_SRC = re.compile(r'(?i).*\.((?P<h>h(h|xx|\+\+|pp)?)|'
                          r'(?P<c>c(c|xx|\+\+|pp)?))$')
 
-    def __init__(self, paths, group, name=None):
+    def __init__(self, src_paths, include_paths, alias_paths, group, name=None):
         """Constructs an empty package.
 
         Registers the package in the package group.
+        The argument paths are relative to the package group directory.
 
         Args:
-            paths: The directory paths relative to the package group directory.
+            src_paths: The source directory paths (considered alias paths).
+            include_paths: The export header paths (also alias paths).
+            alias_paths: Additional directory paths aliasing to the package.
             group: The package group.
             name: A unique identifier within the package group.
                 If not provided, only one path is accepted
@@ -316,25 +321,14 @@ class Package(object):
         Raises:
             InvalidArgumentError: Issues with the argument directory paths.
         """
-        self.paths = set()
-        path = None  # Relative and normalized path to the group root path.
-        for path in paths:
-            path = os.path.normpath(path)
-            abs_path = path_normjoin(group.path, path)
-            if not os.path.isdir(abs_path):
-                raise InvalidArgumentError(
-                    '%s is not a directory in %s (group %s).' %
-                    (path, group.path, group.name))
-            if abs_path in self.paths:
-                assert name
-                raise InvalidArgumentError('%s is duplicated in %s.%s' %
-                                           (abs_path, name, group.name))
-            self.paths.add(abs_path)
-        assert self.paths, 'No package directory paths are provided.'
-        assert name or len(self.paths) == 1, 'The package name is undefined.'
-        self.name = name or '_'.join(x for x in path.split(os.path.sep) if x)
         self.group = group
-        self.root = path_common(self.paths)
+        self.src_paths = set()
+        self.include_paths = set()
+        self.alias_paths = set()
+        self.__init_paths(src_paths, include_paths, alias_paths)
+        assert self.alias_paths, 'No package directory paths are provided.'
+        self.__init_name(name)
+        self.root = path_common(self.alias_paths)
         self.components = []
         self.__dep_packages = None  # set of dependency packages
         group.add_package(self)
@@ -342,6 +336,38 @@ class Package(object):
     def __str__(self):
         """For printing graph nodes."""
         return self.name
+
+    def __init_paths(self, src_paths, include_paths, alias_paths):
+        """Initializes package src, include, and alias paths."""
+        def _update(path_container, arg_paths):
+            for path in arg_paths:
+                path = os.path.normpath(path)
+                abs_path = path_normjoin(self.group.path, path)
+                if not (os.path.isdir(abs_path) and
+                        abs_path.startswith(self.group.path)):
+                    raise InvalidArgumentError(
+                        '%s is not a directory in %s (group %s).' %
+                        (path, self.group.path, self.group.name))
+                if abs_path in path_container:
+                    # TODO: Report error with the package name.
+                    raise InvalidArgumentError('%s is duplicated in %s' %
+                                               (abs_path, self.group.name))
+                path_container.add(abs_path)
+
+        _update(self.src_paths, src_paths)
+        _update(self.include_paths, include_paths)
+        _update(self.alias_paths, alias_paths)
+        self.alias_paths.update(self.src_paths, self.include_paths)
+
+    def __init_name(self, name=None):
+        """Initializes the package name."""
+        assert name or len(self.alias_paths) == 1, 'Undefined package name.'
+        if name:
+            self.name = name
+        else:
+            for path in self.alias_paths:  # Single item in a generic container.
+                path = os.path.relpath(path, self.group.path)
+                self.name = '_'.join(x for x in path.split(os.path.sep) if x)
 
     def construct_components(self):
         """Traverses the package paths and constructs package components.
@@ -369,7 +395,7 @@ class Package(object):
                         (hpaths if src_match.group('h')
                          else cpaths).append(os.path.join(root, filename))
 
-        for src_path in self.paths:
+        for src_path in self.src_paths:
             _gather_files(src_path)
 
         # This approach assumes
@@ -464,7 +490,7 @@ class PackageGroup(object):
             None if not found.
         """
         for package in self.packages.values():
-            if dir_path in package.paths:
+            if dir_path in package.include_paths:
                 return package
         return None
 
@@ -541,13 +567,23 @@ class DependencyAnalysis(object):
 
         package_group = PackageGroup(group_name, group_path)
 
+        def _findall_text(element, query):
+            return ('' if x.text is None else x.text.strip()
+                    for x in element.findall(query))
+
         for pkg_element in pkg_group_element.findall('package'):
-            Package((x.text.strip() for x in pkg_element.findall('path')),
+            Package(_findall_text(pkg_element, 'src-path'),
+                    _findall_text(pkg_element, 'include-path'),
+                    _findall_text(pkg_element, 'alias-path'),
                     package_group,
                     pkg_element.get('name'))
-
-        for pkg_element in pkg_group_element.findall('path'):
-            Package([pkg_element.text.strip()], package_group)
+        # TODO: The following code is ugly. Find a better (Pythonic) way.
+        for src_path in _findall_text(pkg_group_element, 'src-path'):
+            Package((src_path,), (), (), package_group)
+        for include_path in _findall_text(pkg_group_element, 'include-path'):
+            Package((), (include_path,), (), package_group)
+        for alias_path in _findall_text(pkg_group_element, 'alias-path'):
+            Package((), (), (alias_path,), package_group)
 
         pkg_groups[group_name] = package_group
 
@@ -556,7 +592,7 @@ class DependencyAnalysis(object):
         def _add_from(groups):
             for group in groups.values():
                 for package in group.packages.values():
-                    self.include_dirs.extend(package.paths)
+                    self.include_dirs.extend(package.include_paths)
         _add_from(self.internal_groups)
         _add_from(self.external_groups)
 
@@ -648,6 +684,9 @@ class DependencyAnalysis(object):
 
         for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
+                if not package.components:
+                    assert not package.src_paths
+                    continue
                 printer('\n' + '#' * 80)
                 printer('analyzing dependencies among components in ' +
                         'the specified package %s.%s ...' %
