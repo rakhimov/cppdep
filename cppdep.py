@@ -70,7 +70,12 @@ def strip_ext(filename):
     return os.path.splitext(filename)[0]
 
 
-def common_path(paths):
+def path_normjoin(path, *paths):
+    """Returns normalized result of joining of paths."""
+    return os.path.normpath(os.path.join(path, *paths))
+
+
+def path_common(paths):
     """Returns common prefix path for the argument absolute normalized paths."""
     path = os.path.commonprefix(paths)
     assert os.path.isabs(path)
@@ -161,7 +166,7 @@ class Include(object):
 
         def _find_in(include_dir):
             """Returns True if the path is found."""
-            file_hpath = os.path.join(include_dir, self.hfile)
+            file_hpath = path_normjoin(include_dir, self.hfile)
             if os.path.isfile(file_hpath):
                 self.hpath = file_hpath
                 return True
@@ -315,7 +320,7 @@ class Package(object):
         path = None  # Relative and normalized path to the group root path.
         for path in paths:
             path = os.path.normpath(path)
-            abs_path = os.path.join(group.path, path)
+            abs_path = path_normjoin(group.path, path)
             if not os.path.isdir(abs_path):
                 raise InvalidArgumentError(
                     '%s is not a directory in %s (group %s).' %
@@ -329,7 +334,7 @@ class Package(object):
         assert name or len(self.paths) == 1, 'The package name is undefined.'
         self.name = name or '_'.join(x for x in path.split(os.path.sep) if x)
         self.group = group
-        self.root = common_path(self.paths)
+        self.root = path_common(self.paths)
         self.components = []
         self.__dep_packages = None  # set of dependency packages
         group.add_package(self)
