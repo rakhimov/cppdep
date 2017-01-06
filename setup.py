@@ -2,8 +2,7 @@
 """The setup script to generate dist files for PyPi.
 
 To upload the release to PyPi:
-    $ ./setup.py sdist
-    $ ./setup.py bdist_wheel --universal
+    $ ./setup.py sdist bdist_wheel --universal
     $ twine upload dist/*
 """
 
@@ -14,7 +13,7 @@ import cppdep
 setup(
     name="cppdep",
     version=cppdep.VERSION,
-    maintainer='Olzhas Rakhimov',
+    maintainer="Olzhas Rakhimov",
     maintainer_email="ol.rakhimov@gmail.com",
     description="Dependency analyzer for C/C++ projects",
     download_url="https://github.com/rakhimov/cppdep",
@@ -27,7 +26,7 @@ setup(
     entry_points={"console_scripts": ["cppdep = cppdep:main"]},
     long_description=open("README.rst").read(),
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Quality Assurance",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",

@@ -29,12 +29,12 @@ which is provided by John Lakos' book
 Differences from dep_utils
 ==========================
 
-- Rewrite in Python, unifying ``adep/cdep/ldep`` into one tool.
-- Project analysis configuration with an XML file.
-- Remove file alias support
-  since the file name length limitation is much more relaxed than it was 20 years ago.
-- Support for multiple package groups and packages
-- Support for exporting final dependency graph to Graphviz dot format.
+- Rewrite in Python, unifying ``adep/cdep/ldep`` into one tool
+- Project analysis configuration with an XML file
+- No file alias support for the archaic file-name length limitations.
+- An extended notion of Component (header- or source-only)
+- Support for multiple packages and package groups
+- Support for exporting final dependency graph to Graphviz dot format
 
 
 Limitations
@@ -133,8 +133,6 @@ External links
 
 #. Experimental packaging of ``dep_utils`` source code:
    https://sourceforge.net/projects/introspector/files/lsc-large-scale-c/first-release/
-
-#. `The discussion on C++ project dependency analysis <http://stackoverflow.com/questions/1137480/visual-c-project-dependency-analysis>`_
 
 #. `Nmdepend <http://sourceforge.net/projects/nmdepend/>`_,
    a lightweight 'link-time' dependency analyzer for C++

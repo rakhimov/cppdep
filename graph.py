@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2016 Olzhas Rakhimov
+# Copyright (C) 2016-2017 Olzhas Rakhimov
 # Copyright (C) 2010, 2014 Zhichang Yu
 #
 # This program is free software; you can redistribute it and/or modify

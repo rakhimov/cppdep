@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2016 Olzhas Rakhimov
+# Copyright (C) 2016-2017 Olzhas Rakhimov
 # Copyright (C) 2010, 2014 Zhichang Yu
 #
 # This program is free software; you can redistribute it and/or modify
@@ -35,7 +35,7 @@ from xml.etree import ElementTree
 from graph import Graph
 
 
-VERSION = '0.0.7'  # The latest release version.
+VERSION = '0.1.0'  # The latest release version.
 
 # Allowed common abbreviations in the code:
 # ccd   - Cumulative Component Dependency (CCD)
