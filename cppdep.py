@@ -87,6 +87,14 @@ def path_common(paths):
     return os.path.dirname(path)
 
 
+def path_isancestor(parent, child):
+    """Returns true if the child abspath is a subpath of the parent abspath."""
+    if len(parent) > len(child) or not child.startswith(parent):
+        return False
+    return (len(parent) == len(child) or parent[-1] == os.path.sep or
+            child[len(parent)] == os.path.sep)
+
+
 class Include(object):
     """Representation of an include directive.
 
@@ -480,20 +488,6 @@ class PackageGroup(object):
                 (package.name, self.name))
         self.packages[package.name] = package
 
-    def get_package(self, dir_path):
-        """Finds the package by the directory.
-
-        Args:
-            dir_path: An normalized absolute directory path.
-
-        Returns:
-            None if not found.
-        """
-        for package in self.packages.values():
-            if dir_path in package.include_paths:
-                return package
-        return None
-
 
 class DependencyAnalysis(object):
     """Analysis of dependencies with package groups/packages/components.
@@ -527,8 +521,10 @@ class DependencyAnalysis(object):
         self.external_groups = {}
         self.internal_groups = {}
         self.include_dirs = []
+        self.__package_aliases = []  # Sorted [(alias_path, external_package)]
         self.__parse_xml_config(config_file)
         self.__gather_include_dirs()
+        self.__gather_aliases()
 
     def __parse_xml_config(self, config_file):
         """Parses the XML configuration file.
@@ -596,6 +592,16 @@ class DependencyAnalysis(object):
         _add_from(self.internal_groups)
         _add_from(self.external_groups)
 
+    def __gather_aliases(self):
+        """Gathers aliases for *external* packages lazy include search."""
+        for group in self.external_groups.values():
+            for package in group.packages.values():
+                self.__package_aliases.extend((x, package)
+                                              for x in package.alias_paths)
+        self.__package_aliases.sort()
+        assert (len(set(x for x, _ in self.__package_aliases)) ==
+                len(self.__package_aliases)), "Ambiguous aliases to packages"
+
     def locate(self, include, component):
         """Locates the dependency component.
 
@@ -613,9 +619,10 @@ class DependencyAnalysis(object):
         include_dir = include.locate(component.working_dir, self.include_dirs)
 
         def _find_external_package():
-            for group in self.external_groups.values():
-                package = group.get_package(include_dir)
-                if package:
+            # TODO: Use include_dir as a hint if performance matters.
+            # TODO: Use logN bisect with dir sort logic or graph.
+            for path, package in reversed(self.__package_aliases):
+                if path_isancestor(path, include.hpath):
                     return package
             assert False, 'Missing a directory from external groups.'
 
