@@ -217,7 +217,7 @@ class Component(object):
         self.name = strip_ext((cpath or hpath)[(len(package.root) + 1):])
         if not hpath:
             warn('incomplete component: missing header: %s in %s.%s' %
-                 (self.name, package.name, package.group.name))
+                 (self.name, package.group.name, package.name))
         self.hpath = hpath
         self.cpath = cpath
         self.package = package
@@ -681,7 +681,7 @@ class DependencyAnalysis(object):
         for group_name, package_group in self.internal_groups.items():
             if len(package_group.packages) > 1:
                 printer('\n' + '#' * 80)
-                printer('analyzing dependencies among packages in ' +
+                printer('analyzing dependencies among packages in '
                         'the specified package group %s ...' % group_name)
                 _analyze(group_name,
                          Graph(package_group.packages.values(),
@@ -695,7 +695,7 @@ class DependencyAnalysis(object):
                     assert not package.src_paths
                     continue
                 printer('\n' + '#' * 80)
-                printer('analyzing dependencies among components in ' +
+                printer('analyzing dependencies among components in '
                         'the specified package %s.%s ...' %
                         (group_name, pkg_name))
                 _analyze('_'.join((group_name, pkg_name)),
