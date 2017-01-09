@@ -60,9 +60,9 @@ class InvalidArgumentError(Exception):
     pass
 
 
-def warn(*args):
+def warn(message):
     """Logs a warning message."""
-    logging.warn(*args)
+    logging.warn(message)
 
 
 def strip_ext(filename):
@@ -241,7 +241,7 @@ class Component(object):
             unique_includes = set()
             for include in includes:
                 if include in unique_includes:
-                    warn('include issues: duplicate include:',
+                    warn('include issues: duplicate include: '
                          '%s in %s' % (str(include), path))
                 else:
                     unique_includes.add(include)
@@ -258,7 +258,7 @@ class Component(object):
         def _remove_redundant():
             for include in self.includes_in_c:
                 if include in self.includes_in_h:
-                    warn('include issues: redundant include:',
+                    warn('include issues: redundant include: '
                          '%s in %s' % (str(include), self.cpath))
             self.includes_in_c.difference_update(self.includes_in_h)
 
@@ -266,10 +266,10 @@ class Component(object):
             hfile = os.path.basename(self.hpath)
             if hfile not in (os.path.basename(x.hfile)
                              for x in self.includes_in_c):
-                warn('include issues: missing include:',
+                warn('include issues: missing include: '
                      '%s does not include %s.' % (self.cpath, hfile))
             elif hfile != os.path.basename(self.includes_in_c[0].hfile):
-                warn('include issues: include order:',
+                warn('include issues: include order: '
                      '%s should be the first include in %s.' %
                      (hfile, self.cpath))
         _remove_duplicates()
