@@ -37,6 +37,9 @@ from graph import Graph
 
 VERSION = '0.1.0'  # The latest release version.
 
+_FILE_OPEN_FLAGS = {} if sys.version[0] == '2' else {'errors': 'replace'}
+
+
 # Allowed common abbreviations in the code:
 # ccd   - Cumulative Component Dependency (CCD)
 # nccd  - Normalized CCD
@@ -146,7 +149,7 @@ class Include(object):
         Yields:
             Include objects constructed with the directives.
         """
-        with open(file_path) as src_file:
+        with open(file_path, **_FILE_OPEN_FLAGS) as src_file:
             for line in src_file:
                 include = Include._RE_INCLUDE.search(line)
                 if not include:
