@@ -353,7 +353,7 @@ class Package(object):
     """
 
     _RE_SRC = re.compile(r'(?i)\w+((?P<h>(\.h(h|xx|\+\+|pp)?)?)|'
-                         r'(?P<c>\.c(c|xx|\+\+|pp)?))$')
+                         r'(?P<c>\.((c(c|xx|\+\+|pp)?)|ipp)))$')
 
     def __init__(self, name, group, src_paths, include_paths, alias_paths,
                  include_patterns, ignore_paths):
@@ -542,8 +542,6 @@ class DependencyAnalysis(object):
 
     Attributes:
         config: The configuration dictionary.
-        external_components: {hpath: ExternalComponent}
-        internal_components: {hpath: Component}
         external_groups: External dependency packages and package groups.
               {group_name: PackageGroup}
         internal_groups: The package groups of the project under analysis.
@@ -565,11 +563,11 @@ class DependencyAnalysis(object):
             InvalidArgumentError: The configuration has is invalid values.
         """
         self.config = None
-        self.external_components = {}
-        self.internal_components = {}
         self.external_groups = {}
         self.internal_groups = {}
         self.include_dirs = []
+        self._external_components = {}  # {hpath: ExternalComponent}
+        self._internal_components = {}  # {hpath: Component}
         self.__package_aliases = []  # Sorted [(alias_path, external_package)]
         self.__include_patterns = []  # [(package, [regex])]
         self.__parse_config(config_file)
@@ -683,20 +681,28 @@ class DependencyAnalysis(object):
 
         if hpath is None:
             return False
-        if package is None and hpath in self.internal_components:
-            dep_component = self.internal_components[hpath]
+        if package is None and hpath in self._internal_components:
+            dep_component = self._internal_components[hpath]
             if dep_component != component:
                 component.dep_components.add(dep_component)
         else:
-            if hpath in self.external_components:
+            if hpath in self._external_components:
                 component.dep_components.add(
-                    self.external_components[hpath])
+                    self._external_components[hpath])
             else:
                 dep_component = ExternalComponent(
                     hpath, package or _find_external_package(hpath))
                 component.dep_components.add(dep_component)
-                self.external_components[hpath] = dep_component
+                self._external_components[hpath] = dep_component
         return True
+
+    @property
+    def internal_components(self):
+        """Yields components in internal groups."""
+        for group in self.internal_groups.values():
+            for package in group.packages.values():
+                for component in package.components:
+                    yield component
 
     def make_components(self):
         """Pairs hfiles and cfiles.
@@ -707,10 +713,14 @@ class DependencyAnalysis(object):
         for group in self.internal_groups.values():
             for package in group.packages.values():
                 package.construct_components()
-                self.internal_components.update(
-                    (x.hpath or x.cpath, x) for x in package.components)
 
-        for component in self.internal_components.values():
+        for component in self.internal_components:
+            id_path = component.hpath or component.cpath
+            self._internal_components[id_path] = component
+            if component.cpath and component.cpath.endswith('.ipp'):
+                self._internal_components[component.cpath] = component
+
+        for component in self.internal_components:
             for include in itertools.chain(component.includes_in_h,
                                            component.includes_in_c):
                 if not self.locate(include, component):
