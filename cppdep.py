@@ -316,31 +316,29 @@ class Package(object):
     _RE_SRC = re.compile(r'(?i).*\.((?P<h>h(h|xx|\+\+|pp)?)|'
                          r'(?P<c>c(c|xx|\+\+|pp)?))$')
 
-    def __init__(self, src_paths, include_paths, alias_paths, group, name=None):
+    def __init__(self, name, group, src_paths, include_paths, alias_paths):
         """Constructs an empty package.
 
         Registers the package in the package group.
         The argument paths are relative to the package group directory.
 
         Args:
+            name: A unique identifier within the package group.
+            group: The package group.
             src_paths: The source directory paths (considered alias paths).
             include_paths: The export header paths (also alias paths).
             alias_paths: Additional directory paths aliasing to the package.
-            group: The package group.
-            name: A unique identifier within the package group.
-                If not provided, only one path is accepted
-                for the identifier deduction.
 
         Raises:
             InvalidArgumentError: Issues with the argument directory paths.
         """
+        self.name = name
         self.group = group
         self.src_paths = set()
         self.include_paths = set()
         self.alias_paths = set()
         self.__init_paths(src_paths, include_paths, alias_paths)
         assert self.alias_paths, 'No package directory paths are provided.'
-        self.__init_name(name)
         self.root = path_common(self.alias_paths)
         self.components = []
         self.__dep_packages = None  # set of dependency packages
@@ -362,25 +360,15 @@ class Package(object):
                         '%s is not a directory in %s (group %s).' %
                         (path, self.group.path, self.group.name))
                 if abs_path in path_container:
-                    # TODO: Report error with the package name.
-                    raise InvalidArgumentError('%s is duplicated in %s' %
-                                               (abs_path, self.group.name))
+                    raise InvalidArgumentError('%s is duplicated in %s.%s' %
+                                               (abs_path, self.group.name,
+                                                self.name))
                 path_container.add(abs_path)
 
         _update(self.src_paths, src_paths)
         _update(self.include_paths, include_paths)
         _update(self.alias_paths, alias_paths)
         self.alias_paths.update(self.src_paths, self.include_paths)
-
-    def __init_name(self, name=None):
-        """Initializes the package name."""
-        assert name or len(self.alias_paths) == 1, 'Undefined package name.'
-        if name:
-            self.name = name
-        else:
-            for path in self.alias_paths:  # Single item in a generic container.
-                path = os.path.relpath(path, self.group.path)
-                self.name = '_'.join(x for x in path.split(os.path.sep) if x)
 
     def construct_components(self):
         """Traverses the package paths and constructs package components.
@@ -581,11 +569,11 @@ class DependencyAnalysis(object):
             return [] if query not in config else _yaml_list(config[query])
 
         for pkg_config in _yaml_list(pkg_group_config['packages']):
-            Package(_optional_list(pkg_config, 'src'),
-                    _optional_list(pkg_config, 'include'),
-                    _optional_list(pkg_config, 'alias'),
+            Package(pkg_config['name'],
                     package_group,
-                    pkg_config['name'])
+                    _optional_list(pkg_config, 'src'),
+                    _optional_list(pkg_config, 'include'),
+                    _optional_list(pkg_config, 'alias'))
 
         pkg_groups[group_name] = package_group
 
