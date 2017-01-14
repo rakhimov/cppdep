@@ -100,6 +100,21 @@ def path_isancestor(parent, child):
             child[len(parent)] == os.path.sep)
 
 
+def yaml_list(entry):
+    """Properly interprets a single entry as a list."""
+    return entry if isinstance(entry, list) else [entry]
+
+
+def yaml_optional(dictionary, element, default_value):
+    """Retrieves optional element values with defaults."""
+    return default_value if element not in dictionary else dictionary[element]
+
+
+def yaml_optional_list(dictionary, element, default_list=None):
+    """Retrieves optional list values with an empty list as default."""
+    return yaml_list(yaml_optional(dictionary, element, default_list or []))
+
+
 class Include(object):
     """Representation of an include directive.
 
@@ -536,10 +551,10 @@ class DependencyAnalysis(object):
             self.config = safe_load(config_file)
         Validator(config_file_path, [_SCHEMA_FILE]).validate()
 
-        for pkg_group_config in self.config['internal']:
+        for pkg_group_config in yaml_list(self.config['internal']):
             DependencyAnalysis.__add_package_group(pkg_group_config,
                                                    self.internal_groups)
-        for pkg_group_config in self.config['external']:
+        for pkg_group_config in yaml_optional_list(self.config, 'external'):
             DependencyAnalysis.__add_package_group(pkg_group_config,
                                                    self.external_groups)
 
@@ -561,19 +576,12 @@ class DependencyAnalysis(object):
 
         package_group = PackageGroup(group_name, group_path)
 
-        def _yaml_list(entry):
-            """Properly interprets a single entry as a list."""
-            return entry if isinstance(entry, list) else [entry]
-
-        def _optional_list(config, query):
-            return [] if query not in config else _yaml_list(config[query])
-
-        for pkg_config in _yaml_list(pkg_group_config['packages']):
+        for pkg_config in yaml_list(pkg_group_config['packages']):
             Package(pkg_config['name'],
                     package_group,
-                    _optional_list(pkg_config, 'src'),
-                    _optional_list(pkg_config, 'include'),
-                    _optional_list(pkg_config, 'alias'))
+                    yaml_optional_list(pkg_config, 'src'),
+                    yaml_optional_list(pkg_config, 'include'),
+                    yaml_optional_list(pkg_config, 'alias'))
 
         pkg_groups[group_name] = package_group
 
