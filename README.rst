@@ -53,7 +53,7 @@ Limitations
 Requirements
 ============
 
-#. Python 2.7 / 3.3+
+#. Python 2.7 or 3.4+
 #. `NetworkX <http://networkx.lanl.gov/>`_
 #. pydotplus
 #. PyYAML

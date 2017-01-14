@@ -18,7 +18,7 @@ setup(
     description="Dependency analyzer for C/C++ projects",
     download_url="https://github.com/rakhimov/cppdep",
     license="GPLv3+",
-    install_requires=["networkx", "pydotplus"],
+    install_requires=["networkx", "pydotplus", "PyYAML", "PyKwalify"],
     keywords=["c++", "c", "static analysis", "dependency analysis"],
     url="http://github.com/rakhimov/cppdep",
     packages=[],
@@ -37,7 +37,6 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Environment :: Console",
         "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5"
     ]
