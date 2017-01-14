@@ -1,4 +1,5 @@
 # TODO: Reuse patterns (remove repetition)
+# Note that 'map' and 'seq' are implicit types.
 map:
     internal:  # A list of package groups for analysis.
         required: True
@@ -11,19 +12,22 @@ map:
                     required: True
                     type: str
                 packages:  # A list of member packages.
-                    sequence:
+                    seq:
                         - map:
                             name:  # Unique package name within the group.
                                 required: True
                                 type: str
-                            src:  # The path to source files to analyze.
-                                type: str
-                            include:  # The header search path, i.e., '-i'.
-                                type: str
-                            alias:  # An alias path to map to a name.
-                                type: str
+                            src:  # Paths to source files to analyze.
+                                seq:
+                                    - type: str
+                            include:  # Header search paths, i.e., '-i'.
+                                seq:
+                                    - type: str
+                            alias:  # Alias paths to map to a name.
+                                seq:
+                                    - type: str
     external:
-        sequence:
+        seq:
             - map:
                 name:
                     required: True
@@ -38,6 +42,8 @@ map:
                                 required: True
                                 type: str
                             include:
-                                type: str
+                                seq:
+                                    - type: str
                             alias:
-                                type: str
+                                seq:
+                                    - type: str
