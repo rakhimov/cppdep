@@ -1,10 +1,11 @@
 environment:
     matrix:
         - PYTHON: Python27
+        - PYTHON: Python34
         - PYTHON: Python35
 
 install:
-    - C:\%PYTHON%\Scripts\pip install networkx pydotplus nose
+    - C:\%PYTHON%\Scripts\pip install networkx pydotplus PyYAML PyKwalify nose
 
 build: off
 
@@ -12,4 +13,4 @@ test_script:
     - C:\%PYTHON%\Scripts\nosetests test\
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
     - cd scram
-    - C:\%PYTHON%\python ..\cppdep.py -c cppdep-ci.xml -l
+    - C:\%PYTHON%\python ..\cppdep.py -c cppdep-ci.yml -l

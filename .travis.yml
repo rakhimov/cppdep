@@ -1,7 +1,6 @@
 language: python
 python:
     - 2.7
-    - 3.3
     - 3.4
     - 3.5
     - pypy
@@ -26,7 +25,7 @@ install:
         export RUN_COVERAGE=true;
         pip install coverage codecov;
       fi &&
-      pip install networkx pydotplus
+      pip install networkx pydotplus PyYAML PyKwalify
 
 before_script:
     - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
@@ -35,10 +34,10 @@ script:
     - if [[ $RUN_COVERAGE == true ]]; then
         cd scram &&
         nosetests -w ../ --with-coverage --cover-package=graph test/ &&
-        coverage run --append --source=../ ../cppdep.py -c cppdep-ci.xml -l &&
+        coverage run --append --source=../ ../cppdep.py -c cppdep-ci.yml -l &&
         codecov;
       else
-        nosetests test/ && cd scram && ../cppdep.py -c cppdep-ci.xml;
+        nosetests test/ && cd scram && ../cppdep.py -c cppdep-ci.yml;
       fi &&
       if [[ ! "${TRAVIS_OS_NAME}" == "osx" ]]; then
         echo "Generating graph images from DOT.";
