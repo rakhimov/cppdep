@@ -39,5 +39,6 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5"
-    ]
+    ],
+    data_files=[('', ['config_schema.yml'])]
 )

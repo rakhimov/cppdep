@@ -39,7 +39,6 @@ from graph import Graph
 
 VERSION = '0.1.0'  # The latest release version.
 
-# TODO: Install the schema with setup.
 _SCHEMA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'config_schema.yml')
 assert os.path.isfile(_SCHEMA_FILE), 'The cppdep schema file is missing.'
