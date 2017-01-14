@@ -100,6 +100,11 @@ def path_isancestor(parent, child):
             child[len(parent)] == os.path.sep)
 
 
+def path_to_posix_sep(path):
+    """Normalize the path separator to Posix (mostly for Windows)."""
+    return path if os.name != 'nt' else path.replace('\\', '/')
+
+
 def yaml_list(entry):
     """Properly interprets a single entry as a list."""
     return entry if isinstance(entry, list) else [entry]
@@ -234,7 +239,8 @@ class Component(object):
             package: The package this components belongs to.
         """
         assert hpath or cpath
-        self.name = strip_ext((cpath or hpath)[(len(package.root) + 1):])
+        self.name = path_to_posix_sep(
+            strip_ext((cpath or hpath)[(len(package.root) + 1):]))
         if not hpath:
             warn('incomplete component: missing header: %s in %s.%s' %
                  (self.name, package.group.name, package.name))
