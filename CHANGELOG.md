@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 
 ## [Unreleased]
+### Added
+- Use POSIX path separator in component names (for cross-platform report stability)
+
+### Changed
+- YAML configuration files instead of XML (#24)
+
+### Removed
+- Implicit single-path alias Package construction
+
+### Fixed
+- Unicode Escape Error on graph dot on Windows with Python 2.7 (#35)
+- Python3 UnicodeDecodeError for 'utf-8' in source files (#30)
+- Logging: Type Error: not all arguments converted during string formatting (#28)
 
 ## [0.1.0] - 2017-01-05
 ### Added
