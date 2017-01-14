@@ -1,0 +1,19 @@
+internal:  # A list of package groups for analysis.
+    - name: Awesome  # The name of a package-group.
+      path: /path/to/awesome/project  # The root path for the packages in the group.
+      packages:  # A list of member packages.
+        - name: Core
+          src: src
+        - name: GUI
+          src: gui
+
+external:  # External package groups (not analyzed but searched for headers/components).
+    - name: System
+      path: /usr/include
+      packages:
+          - name: SystemInclude
+            include: .  # The relative-to-group-root path to search for headers.
+          - name: STL
+            include: c++/5
+          - name: Boost
+            alias: boost  # An alias path to map header files to the package.

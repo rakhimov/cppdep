@@ -1,0 +1,43 @@
+# TODO: Reuse patterns (remove repetition)
+map:
+    internal:  # A list of package groups for analysis.
+        required: True
+        sequence:
+            - map:
+                name:  # The unique name of a package group.
+                    required: True
+                    type: str
+                path:  # The root path for the packages in the group.
+                    required: True
+                    type: str
+                packages:  # A list of member packages.
+                    sequence:
+                        - map:
+                            name:  # Unique package name within the group.
+                                required: True
+                                type: str
+                            src:  # The path to source files to analyze.
+                                type: str
+                            include:  # The header search path, i.e., '-i'.
+                                type: str
+                            alias:  # An alias path to map to a name.
+                                type: str
+    external:
+        sequence:
+            - map:
+                name:
+                    required: True
+                    type: str
+                path:
+                    required: True
+                    type: str
+                packages:
+                    sequence:
+                        - map:
+                            name:
+                                required: True
+                                type: str
+                            include:
+                                type: str
+                            alias:
+                                type: str
