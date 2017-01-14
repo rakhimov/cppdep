@@ -12,6 +12,7 @@ map:
                     required: True
                     type: str
                 packages:  # A list of member packages.
+                    required: True
                     seq:
                         - map:
                             name:  # Unique package name within the group.
@@ -36,6 +37,7 @@ map:
                     required: True
                     type: str
                 packages:
+                    required: True
                     sequence:
                         - map:
                             name:

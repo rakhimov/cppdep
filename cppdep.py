@@ -30,12 +30,20 @@ import logging
 import os.path
 import re
 import sys
-from xml.etree import ElementTree
+
+from yaml import safe_load, YAMLError
+from pykwalify.core import Core as Validator, SchemaError
 
 from graph import Graph
 
 
 VERSION = '0.1.0'  # The latest release version.
+
+# TODO: Install the schema with setup.
+_SCHEMA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'config_schema.yml')
+assert os.path.isfile(_SCHEMA_FILE), 'The cppdep schema file is missing.'
+assert safe_load(open(_SCHEMA_FILE))  # Will throw if invalid.
 
 _FILE_OPEN_FLAGS = {} if sys.version[0] == '2' else {'errors': 'replace'}
 
@@ -49,12 +57,6 @@ _FILE_OPEN_FLAGS = {} if sys.version[0] == '2' else {'errors': 'replace'}
 # hfile - header file
 # cfile - implementation file
 # dep   - dependency (discouraged abbreviation!)
-
-
-class XmlError(Exception):
-    """Parsing errors in XML configuration file."""
-
-    pass
 
 
 class InvalidArgumentError(Exception):
@@ -496,7 +498,7 @@ class DependencyAnalysis(object):
     """Analysis of dependencies with package groups/packages/components.
 
     Attributes:
-        config_file: The path to the configuration file.
+        config: The configuration dictionary.
         external_components: {hpath: ExternalComponent}
         internal_components: {hpath: Component}
         external_groups: External dependency packages and package groups.
@@ -515,74 +517,75 @@ class DependencyAnalysis(object):
             config_file: The path to the configuration file.
 
         Raises:
-            XmlError: The XML is malformed or invalid.
+            YAMLError: Errors loading yaml files.
+            SchemaError: The config file is malformed or invalid.
             InvalidArgumentError: The configuration has is invalid values.
         """
-        self.config_file = config_file
+        self.config = None
         self.external_components = {}
         self.internal_components = {}
         self.external_groups = {}
         self.internal_groups = {}
         self.include_dirs = []
         self.__package_aliases = []  # Sorted [(alias_path, external_package)]
-        self.__parse_xml_config(config_file)
+        self.__parse_config(config_file)
         self.__gather_include_dirs()
         self.__gather_aliases()
 
-    def __parse_xml_config(self, config_file):
-        """Parses the XML configuration file.
+    def __parse_config(self, config_file_path):
+        """Parses the configuration file.
 
         Args:
-            config_file: The path to the configuration file.
+            config_file_path: The path to the configuration file.
 
         Raises:
-            XmlError: The XML is malformed or invalid.
-            InvalidArgumentError: The configuration has is invalid values.
+            YAMLError: Errors loading yaml files.
+            SchemaError: The configuration file is malformed or invalid.
+            InvalidArgumentError: The configuration has invalid values.
         """
-        root = ElementTree.parse(config_file).getroot()
-        for pkg_group_element in root.findall('package-group'):
-            pkg_role = pkg_group_element.get('role')
-            assert pkg_role is None or pkg_role in ('external', 'internal')
-            pkg_groups = self.external_groups if pkg_role == 'external' \
-                else self.internal_groups
-            DependencyAnalysis.__add_package_group(pkg_group_element,
-                                                   pkg_groups)
+        # Load before validation to check for well-formed YAML.
+        with open(config_file_path) as config_file:
+            self.config = safe_load(config_file)
+        Validator(config_file_path, [_SCHEMA_FILE]).validate()
+
+        for pkg_group_config in self.config['internal']:
+            DependencyAnalysis.__add_package_group(pkg_group_config,
+                                                   self.internal_groups)
+        for pkg_group_config in self.config['external']:
+            DependencyAnalysis.__add_package_group(pkg_group_config,
+                                                   self.external_groups)
 
     @staticmethod
-    def __add_package_group(pkg_group_element, pkg_groups):
-        """Parses the body of <package-group/> in XML config file.
+    def __add_package_group(pkg_group_config, pkg_groups):
+        """Initializes and adds a package group from configuration.
 
         Args:
-            pkg_group_element: The <package-group> XML element.
+            pkg_group_config: The package-group configuration dictionary.
             pkg_groups: The destination dictionary for member packages.
 
         Raises:
             InvalidArgumentError: Invalid configuration.
         """
-        group_name = pkg_group_element.get('name')
-        group_path = pkg_group_element.get('path')
+        group_name = pkg_group_config['name']
+        group_path = pkg_group_config['path']
         if group_name in pkg_groups:
             raise InvalidArgumentError('Redefinition of %s group' % group_name)
 
         package_group = PackageGroup(group_name, group_path)
 
-        def _findall_text(element, query):
-            return ('' if x.text is None else x.text.strip()
-                    for x in element.findall(query))
+        def _yaml_list(entry):
+            """Properly interprets a single entry as a list."""
+            return entry if isinstance(entry, list) else [entry]
 
-        for pkg_element in pkg_group_element.findall('package'):
-            Package(_findall_text(pkg_element, 'src-path'),
-                    _findall_text(pkg_element, 'include-path'),
-                    _findall_text(pkg_element, 'alias-path'),
+        def _optional_list(config, query):
+            return [] if query not in config else _yaml_list(config[query])
+
+        for pkg_config in _yaml_list(pkg_group_config['packages']):
+            Package(_optional_list(pkg_config, 'src'),
+                    _optional_list(pkg_config, 'include'),
+                    _optional_list(pkg_config, 'alias'),
                     package_group,
-                    pkg_element.get('name'))
-        # TODO: The following code is ugly. Find a better (Pythonic) way.
-        for src_path in _findall_text(pkg_group_element, 'src-path'):
-            Package((src_path,), (), (), package_group)
-        for include_path in _findall_text(pkg_group_element, 'include-path'):
-            Package((), (include_path,), (), package_group)
-        for alias_path in _findall_text(pkg_group_element, 'alias-path'):
-            Package((), (), (alias_path,), package_group)
+                    pkg_config['name'])
 
         pkg_groups[group_name] = package_group
 
@@ -713,14 +716,14 @@ def main():
 
     Raises:
         IOError: filesystem operations failed.
-        XmlError: XML configuration validity issues.
+        SchemaError: YAML configuration validity issues.
         InvalidArgumentError: The configuration has is invalid values.
     """
     parser = ap.ArgumentParser(description=__doc__)
     parser.add_argument('--version', action='store_true', default=False,
                         help='show the version information and exit')
-    parser.add_argument('-c', '--config', default='cppdep.xml',
-                        help="""an XML file which describes
+    parser.add_argument('-c', '--config', default='cppdep.yml',
+                        help="""a YAML file which describes
                         the source code structure of a C/C++ project""")
     parser.add_argument('-l', action='store_true', default=False,
                         help='list reduced dependencies of nodes')
@@ -752,8 +755,11 @@ if __name__ == '__main__':
     except IOError as err:
         logging.error('IO Error:\n' + str(err))
         sys.exit(1)
-    except XmlError as err:
-        logging.error('Configuration XML Error:\n' + str(err))
+    except YAMLError as err:
+        logging.error('Malformed Configuration File:\n' + str(err))
+        sys.exit(1)
+    except SchemaError as err:
+        logging.error('Configuration File Validity Error:\n' + str(err))
         sys.exit(1)
     except InvalidArgumentError as err:
         logging.error('Invalid Argument Error:\n' + str(err))
