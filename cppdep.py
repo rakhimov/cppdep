@@ -101,17 +101,17 @@ def path_isancestor(parent, child):
 
 def path_to_posix_sep(path):
     """Normalize the path separator to Posix (mostly for Windows)."""
-    return path if os.name != 'nt' else path.replace('\\', '/')
+    return  path.replace('\\', '/') if os.name == 'nt' else path
 
 
 def yaml_list(entry):
-    """Properly interprets a single entry as a list."""
+    """Properly interprets a single non-list entry as a list."""
     return entry if isinstance(entry, list) else [entry]
 
 
 def yaml_optional(dictionary, element, default_value):
     """Retrieves optional element values with defaults."""
-    return default_value if element not in dictionary else dictionary[element]
+    return dictionary[element] if element in dictionary else default_value
 
 
 def yaml_optional_list(dictionary, element, default_list=None):
@@ -612,10 +612,6 @@ class DependencyAnalysis(object):
     def locate(self, include, component):
         """Locates the dependency component.
 
-        The current approach is naive.
-        It searches for a file by its basename
-        as if every subdirectory were an include path.
-
         Args:
             include: The include object representing the directive.
             component: The dependent component.
@@ -744,7 +740,7 @@ def main():
 
 def get_printer(file_path=None):
     """Returns printer for the report."""
-    destination = sys.stdout if not file_path else open(file_path, 'w')
+    destination = open(file_path, 'w') if file_path else sys.stdout
     def _print(*args):
         print(*args, file=destination)
     return _print
