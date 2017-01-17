@@ -13,33 +13,18 @@ matrix:
         - os: osx
           language: generic
 
-addons:
-    apt:
-        packages:
-            - graphviz  # OS X takes forever via brew.
-
 install:
     - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-        pip install nose;
+        pip install pytest;
       elif [[ "${TRAVIS_PYTHON_VERSION}" == "2.7" ]]; then
         export RUN_COVERAGE=true;
-        pip install coverage codecov;
+        pip install coverage codecov pytest-cov;
       fi &&
       pip install networkx pydotplus PyYAML PyKwalify
 
-before_script:
-    - git clone --depth 1 --branch cppdep https://github.com/rakhimov/scram.git
-
 script:
     - if [[ $RUN_COVERAGE == true ]]; then
-        cd scram &&
-        nosetests -w ../ --with-coverage --cover-package=graph test/ &&
-        coverage run --append --source=../ ../cppdep.py -c cppdep-ci.yml -l &&
-        codecov;
+        py.test --cov=cppdep --cov=graph --cov-config .coveragerc && codecov;
       else
-        nosetests test/ && cd scram && ../cppdep.py -c cppdep-ci.yml;
-      fi &&
-      if [[ ! "${TRAVIS_OS_NAME}" == "osx" ]]; then
-        echo "Generating graph images from DOT.";
-        dot -T pdf -O ./*.dot;
+        py.test;
       fi

@@ -22,6 +22,7 @@ import pytest
 
 import graph
 
+#pylint: disable=redefined-outer-name
 
 @pytest.fixture()
 def dep_graph():
