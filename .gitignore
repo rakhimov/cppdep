@@ -1,3 +1,4 @@
 *.pyc
 .cache
 .coverage
+htmlcov

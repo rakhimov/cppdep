@@ -92,3 +92,31 @@ def test_path_isancestor(parent, child, expected):
 def test_path_to_posix_sep(path, expected):
     """Test POSIX separator normalization for DOS paths."""
     assert cppdep.path_to_posix_sep(path) == expected
+
+
+@pytest.mark.parametrize('entry,expected',
+                         [('file', ['file']), (['file'], ['file'])])
+def test_yaml_list(entry, expected):
+    """Test list extraction from yaml configuration."""
+    assert cppdep.yaml_list(entry) == expected
+
+
+@pytest.mark.parametrize('dictionary,element,default_value,expected',
+                         [({'tag': 'value'}, 'tag', 'default', 'value'),
+                          ({}, 'tag', 'default', 'default'),
+                          ({'label': 'value'}, 'tag', 'default', 'default')])
+def test_yaml_optional(dictionary, element, default_value, expected):
+    """Test retrieval of an optional value from yaml configuration."""
+    assert cppdep.yaml_optional(dictionary, element, default_value) == expected
+
+
+@pytest.mark.parametrize('dictionary,element,default_list,expected',
+                         [({'tag': 'value'}, 'tag', None, ['value']),
+                          ({'tag': ['value']}, 'tag', None, ['value']),
+                          ({}, 'tag', None, []),
+                          ({}, 'tag', ['default'], ['default']),
+                          ({'label': 'value'}, 'tag', None, [])])
+def test_yaml_optional_list(dictionary, element, default_list, expected):
+    """Test special handling of optional lists in yaml configurations."""
+    assert (cppdep.yaml_optional_list(dictionary, element, default_list) ==
+            expected)
