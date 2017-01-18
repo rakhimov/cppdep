@@ -81,10 +81,11 @@ def path_normjoin(path, *paths):
 
 def path_common(paths):
     """Returns common prefix path for the argument absolute normalized paths."""
+    assert paths
     path = os.path.commonprefix(paths)
     assert os.path.isabs(path)
     if path[-1] == os.path.sep:
-        return path[:-1]
+        return os.path.dirname(path)
     sep_pos = len(path)
     if all(len(x) == sep_pos or x[sep_pos] == os.path.sep for x in paths):
         return path
