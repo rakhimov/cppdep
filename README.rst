@@ -23,7 +23,7 @@ This is a rewrite of ``dep_utils(adep/cdep/ldep)``,
 which is provided by John Lakos' book
 "Large-Scale C++ Software Design", Addison Wesley (1996).
 
-.. |logo| image:: cppdep_small.png
+.. |logo| image:: logo.png
 
 
 Differences from dep_utils
