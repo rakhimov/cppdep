@@ -709,14 +709,8 @@ class DependencyAnalysis(object):
                                lambda x: isinstance(x, Package)))
 
 
-def main():
-    """Runs the dependency analysis and prints results and graphs.
-
-    Raises:
-        IOError: filesystem operations failed.
-        SchemaError: YAML configuration validity issues.
-        InvalidArgumentError: The configuration has is invalid values.
-    """
+def main(argv=None):
+    """Runs the dependency analysis and prints results and graphs."""
     parser = ap.ArgumentParser(description=__doc__)
     parser.add_argument('--version', action='store_true', default=False,
                         help='show the version information and exit')
@@ -728,15 +722,29 @@ def main():
     parser.add_argument('-L', action='store_true', default=False,
                         help='list unreduced dependencies of nodes')
     parser.add_argument('-o', '--output', metavar='path', help='output file')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.version:
         print(VERSION)
         return
-    analysis = DependencyAnalysis(args.config)
-    analysis.make_components()
-    analysis.analyze()
-    printer = get_printer(args.output)
-    analysis.make_graph(printer, args)
+
+    def _die(head, body):
+        logging.error('%s:\n%s' % (head, str(body)))
+        sys.exit(1)
+
+    try:
+        analysis = DependencyAnalysis(args.config)
+        analysis.make_components()
+        analysis.analyze()
+        printer = get_printer(args.output)
+        analysis.make_graph(printer, args)
+    except IOError as err:
+        _die('IO Error', err)
+    except YAMLError as err:
+        _die('Malformed Configuration File', err)
+    except SchemaError as err:
+        _die('Configuration File Validity Error', err)
+    except InvalidArgumentError as err:
+        _die('Invalid Argument Error', err)
 
 
 def get_printer(file_path=None):
@@ -748,17 +756,4 @@ def get_printer(file_path=None):
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except IOError as err:
-        logging.error('IO Error:\n' + str(err))
-        sys.exit(1)
-    except YAMLError as err:
-        logging.error('Malformed Configuration File:\n' + str(err))
-        sys.exit(1)
-    except SchemaError as err:
-        logging.error('Configuration File Validity Error:\n' + str(err))
-        sys.exit(1)
-    except InvalidArgumentError as err:
-        logging.error('Invalid Argument Error:\n' + str(err))
-        sys.exit(1)
+    main()
