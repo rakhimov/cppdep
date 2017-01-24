@@ -176,14 +176,19 @@ class Include(object):
             Include objects constructed with the directives.
         """
         with open(file_path, **_FILE_OPEN_FLAGS) as src_file:
-            for line in src_file:
-                include = Include._RE_INCLUDE.search(line)
-                if not include:
-                    continue
-                if include.group("brackets"):
-                    yield Include(include.group("brackets"), with_quotes=False)
-                else:
-                    yield Include(include.group("quotes"), with_quotes=True)
+            return Include._grep(src_file)
+
+    @staticmethod
+    def _grep(lines):
+        """Creates Include objects from include directives in a text."""
+        for line in lines:
+            include = Include._RE_INCLUDE.search(line)
+            if not include:
+                continue
+            if include.group("brackets"):
+                yield Include(include.group("brackets"), with_quotes=False)
+            else:
+                yield Include(include.group("quotes"), with_quotes=True)
 
     def locate(self, cwd, include_dirs):
         """Locates the included header file path.

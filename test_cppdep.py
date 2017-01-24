@@ -165,53 +165,39 @@ def test_include_neq(include_one, include_two):
     assert include_one != include_two
 
 
-def mock_open(*args, **kwargs):
-    """Patch the mock_open to be iterable."""
-    m_file = mock.mock_open(*args, **kwargs)
-    m_file.return_value.__iter__ = lambda self: iter(self.readline, '')
-    return m_file
-
-
-@pytest.mark.parametrize('text,expected',
-                         [('#include <vector>', ['<vector>']),
-                          ('#include "vector"', ['"vector"']),
-                          ('#  include <vector>', ['<vector>']),
-                          ('#\tinclude <vector>', ['<vector>']),
-                          ('#include "vector.h"', ['"vector.h"']),
-                          ('#include "vector.h++"', ['"vector.h++"']),
-                          ('#include "vector.any"', ['"vector.any"']),
-                          ('#include "vector.hpp"', ['"vector.hpp"']),
-                          ('#include "vector.cpp"', ['"vector.cpp"']),
-                          ('#include "dir/vector.hpp"', ['"dir/vector.hpp"']),
-                          (r'#include "dir\vector.hpp"', [r'"dir\vector.hpp"']),
-                          ('#include "./vector"', ['"./vector"']),
-                          ('#include <./vector>', ['<./vector>']),
-                          ('#include <a>\n#include <b>', ['<a>', '<b>']),
-                          ('#include <b>\n#include <a>', ['<b>', '<a>']),
-                          ('#include <b> // a>', ['<b>']),
-                          ('#include "b" // a"', ['"b"']),
-                          ('#include <b> /* a> */', ['<b>']),
-                          ('#include "b" /* a" */', ['"b"']),
-                          ('#include ""', []),
-                          ('#include <>', []),
-                          ('//#include <vector>', []),
-                          ('/*#include <vector>*/', []),
-                          ('#import <vector>', []),
-                          ('#nclude <vector>', []),
-                          ('<vector>', []),
-                          ('"vector"', []),
-                          ('#<vector>', [])])
+@pytest.mark.parametrize(
+    'text,expected',
+    [('#include <vector>', ['<vector>']),
+     ('#include "vector"', ['"vector"']),
+     ('#  include <vector>', ['<vector>']),
+     ('#\tinclude <vector>', ['<vector>']),
+     ('#include "vector.h"', ['"vector.h"']),
+     ('#include "vector.h++"', ['"vector.h++"']),
+     ('#include "vector.any"', ['"vector.any"']),
+     ('#include "vector.hpp"', ['"vector.hpp"']),
+     ('#include "vector.cpp"', ['"vector.cpp"']),
+     ('#include "dir/vector.hpp"', ['"dir/vector.hpp"']),
+     (r'#include "dir\vector.hpp"', [r'"dir\vector.hpp"']),
+     ('#include "./vector"', ['"./vector"']),
+     ('#include <./vector>', ['<./vector>']),
+     ('#include <a>\n#include <b>', ['<a>', '<b>']),
+     ('#include <b>\n#include <a>', ['<b>', '<a>']),
+     ('#include <b> // a>', ['<b>']),
+     ('#include "b" // a"', ['"b"']),
+     ('#include <b> /* a> */', ['<b>']),
+     ('#include "b" /* a" */', ['"b"']),
+     ('#include ""', []),
+     ('#include <>', []),
+     ('//#include <vector>', []),
+     ('/*#include <vector>*/', []),
+     ('#import <vector>', []),
+     ('#nclude <vector>', []),
+     ('<vector>', []),
+     ('"vector"', []),
+     ('#<vector>', []),
+     pytest.mark.xfail(('#if 0\n#include <vector>\n#endif', [])),
+     pytest.mark.xfail(('/*\n#include <vector>\n*/', [])),
+     pytest.mark.xfail(('#define V  <vector>\n#include V\n', ['<vector>']))])
 def test_include_grep(text, expected):
     """Tests the include directive search from a text."""
-    with mock.patch('cppdep.open', mock_open(read_data=text)):
-        assert [str(x) for x in Include.grep('foo')] == expected
-
-
-@pytest.mark.xfail
-@pytest.mark.parametrize('text,expected',
-                         [('#if 0\n#include <vector>\n#endif', []),
-                          ('/*\n#include <vector>\n*/', []),
-                          ('#define V  <vector>\n#include V\n', ['<vector>'])])
-def test_include_grep_fail(text, expected):
-    """Test limitations due to the C style comments or preprocessor."""
-    test_include_grep(text, expected)
+    assert [str(x) for x in Include._grep(text.split('\n'))] == expected

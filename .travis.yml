@@ -15,7 +15,7 @@ matrix:
 
 install:
     - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-        pip install pytest;
+        pip install pytest mock;
       elif [[ "${TRAVIS_PYTHON_VERSION}" == "2.7" ]]; then
         export RUN_COVERAGE=true;
         pip install coverage codecov pytest-cov;
@@ -24,7 +24,7 @@ install:
 
 script:
     - if [[ $RUN_COVERAGE == true ]]; then
-        py.test --cov=cppdep --cov=graph --cov-config .coveragerc && codecov;
+        python -m pytest --cov=cppdep --cov=graph --cov-config .coveragerc && codecov;
       else
-        py.test;
+        python -m pytest;
       fi

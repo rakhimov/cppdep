@@ -5,7 +5,7 @@ environment:
         - PYTHON: Python35
 
 install:
-    - C:\%PYTHON%\Scripts\pip install networkx pydotplus PyYAML PyKwalify pytest
+    - C:\%PYTHON%\Scripts\pip install networkx pydotplus PyYAML PyKwalify pytest mock
 
 build: off
 
