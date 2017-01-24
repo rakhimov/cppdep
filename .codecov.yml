@@ -2,3 +2,4 @@ coverage:
     ignore:
         - test/*
         - setup.py
+        - conftest.py

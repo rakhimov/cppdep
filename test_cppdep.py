@@ -19,9 +19,11 @@ from __future__ import absolute_import
 
 import platform
 
+import mock
 import pytest
 
 import cppdep
+from cppdep import Include
 
 
 @pytest.mark.parametrize('filename,expected',
@@ -120,3 +122,96 @@ def test_yaml_optional_list(dictionary, element, default_list, expected):
     """Test special handling of optional lists in yaml configurations."""
     assert (cppdep.yaml_optional_list(dictionary, element, default_list) ==
             expected)
+
+
+@pytest.mark.parametrize(
+    'include,expected',
+    [(Include('vector', with_quotes=True), '"vector"'),
+     (Include('vector', with_quotes=False), '<vector>'),
+     (Include('dir/vector.h', with_quotes=False), '<dir/vector.h>'),
+     (Include(r'dir\vector.h', with_quotes=False), r'<dir\vector.h>')])
+def test_include_str(include, expected):
+    """Tests proper string representation of include upon string conversion."""
+    assert str(include) == expected
+
+
+@pytest.mark.parametrize(
+    'include_one,include_two',
+    [(Include('vector', True), Include('vector', True)),
+     (Include('vector', True), Include('vector', False)),
+     (Include('./vector', True), Include('vector', True)),
+     (Include('include/./vector', True), Include('include/vector', True))])
+def test_include_eq(include_one, include_two):
+    """Include equality and hash tests for storage in containers."""
+    assert include_one == include_two
+    assert hash(include_one) == hash(include_two)
+
+
+def test_include_ne_impl():
+    """Makes sure that __ne__ is implemented."""
+    with mock.patch('cppdep.Include.__eq__') as mock_eq:
+        include_one = Include('vector', True)
+        check = include_one != include_one
+        assert mock_eq.called
+        assert not check
+
+
+@pytest.mark.parametrize(
+    'include_one,include_two',
+    [(Include('vector.hpp', True), Include('vector', True)),
+     (Include('dir/vector', True), Include('include/vector', True))])
+def test_include_neq(include_one, include_two):
+    """__ne__ doesn't imply (not __eq__) in Python."""
+    assert include_one != include_two
+
+
+def mock_open(*args, **kwargs):
+    """Patch the mock_open to be iterable."""
+    m_file = mock.mock_open(*args, **kwargs)
+    m_file.return_value.__iter__ = lambda self: iter(self.readline, '')
+    return m_file
+
+
+@pytest.mark.parametrize('text,expected',
+                         [('#include <vector>', ['<vector>']),
+                          ('#include "vector"', ['"vector"']),
+                          ('#  include <vector>', ['<vector>']),
+                          ('#\tinclude <vector>', ['<vector>']),
+                          ('#include "vector.h"', ['"vector.h"']),
+                          ('#include "vector.h++"', ['"vector.h++"']),
+                          ('#include "vector.any"', ['"vector.any"']),
+                          ('#include "vector.hpp"', ['"vector.hpp"']),
+                          ('#include "vector.cpp"', ['"vector.cpp"']),
+                          ('#include "dir/vector.hpp"', ['"dir/vector.hpp"']),
+                          (r'#include "dir\vector.hpp"', [r'"dir\vector.hpp"']),
+                          ('#include "./vector"', ['"./vector"']),
+                          ('#include <./vector>', ['<./vector>']),
+                          ('#include <a>\n#include <b>', ['<a>', '<b>']),
+                          ('#include <b>\n#include <a>', ['<b>', '<a>']),
+                          ('#include <b> // a>', ['<b>']),
+                          ('#include "b" // a"', ['"b"']),
+                          ('#include <b> /* a> */', ['<b>']),
+                          ('#include "b" /* a" */', ['"b"']),
+                          ('#include ""', []),
+                          ('#include <>', []),
+                          ('//#include <vector>', []),
+                          ('/*#include <vector>*/', []),
+                          ('#import <vector>', []),
+                          ('#nclude <vector>', []),
+                          ('<vector>', []),
+                          ('"vector"', []),
+                          ('#<vector>', [])])
+def test_include_grep(text, expected):
+    """Tests the include directive search from a text."""
+    with mock.patch('cppdep.open', mock_open(read_data=text)):
+        assert [str(x) for x in Include.grep('foo')] == expected
+
+
+@pytest.mark.xfail
+@pytest.mark.parametrize('text,expected',
+                         [('#if 0\n#include <vector>\n#endif', []),
+                          ('/*\n#include <vector>\n*/', []),
+                          ('#define V  <vector>\n#include V\n', ['<vector>'])])
+def test_include_grep_fail(text, expected):
+    """Test limitations due to the C style comments or preprocessor."""
+    test_include_grep(text, expected)

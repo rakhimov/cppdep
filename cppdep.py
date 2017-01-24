@@ -130,8 +130,8 @@ class Include(object):
         hpath: The absolute path to the header file.
     """
 
-    _RE_INCLUDE = re.compile(r'^\s*#include\s*'
-                             '(<(?P<brackets>.+)>|"(?P<quotes>.+)")')
+    _RE_INCLUDE = re.compile(r'^\s*#\s*include\s*'
+                             r'(<(?P<brackets>\S+?)>|"(?P<quotes>\S+?)")')
 
     __slots__ = ['__include_path', 'hfile', 'with_quotes', 'hpath']
 
@@ -139,7 +139,7 @@ class Include(object):
         """Initializes with attributes.
 
         Args:
-            include_text: The original path in the include directive.
+            include_path: The original path in the include directive.
             with_quotes: True if the path is within quotes instead of brackets.
         """
         self.__include_path = include_path
@@ -160,6 +160,10 @@ class Include(object):
     def __eq__(self, other):
         """Assumes the same working directory and search paths."""
         return self.hfile == other.hfile
+
+    def __ne__(self, other):
+        """Assumes the same working directory and search paths."""
+        return not self == other
 
     @staticmethod
     def grep(file_path):
@@ -728,7 +732,7 @@ def main(argv=None):
         return
 
     def _die(head, body):
-        logging.error('%s:\n%s' % (head, str(body)))
+        logging.error(str('%s:\n%s' % (head, str(body))))
         sys.exit(1)
 
     try:
