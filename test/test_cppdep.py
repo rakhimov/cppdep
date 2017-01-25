@@ -208,6 +208,8 @@ def test_include_neq(include_one, include_two):
      pytest.mark.xfail(('#if 0\n#include <vector>\n#endif', [])),
      pytest.mark.xfail(('/*\n#include <vector>\n*/', [])),
      pytest.mark.xfail(('#define V  <vector>\n#include V\n', ['<vector>']))])
-def test_include_grep(text, expected):
+def test_include_grep(text, expected, tmpdir):
     """Tests the include directive search from a text."""
-    assert [str(x) for x in Include._grep(text.split('\n'))] == expected
+    src = tmpdir.join('include_grep')
+    src.write(text)
+    assert [str(x) for x in Include.grep(str(src))] == expected

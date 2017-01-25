@@ -21,7 +21,6 @@ install:
         pip install coverage codecov pytest-cov;
       fi
     - pip install -r requirements.txt
-    - pip install pyfakefs
 
 script:
     - if [[ $RUN_COVERAGE == true ]]; then
