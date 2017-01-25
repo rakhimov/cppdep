@@ -544,6 +544,7 @@ class DependencyAnalysis(object):
         self.__parse_config(config_file)
         self.__gather_include_dirs()
         self.__gather_aliases()
+        self.make_components()
 
     def __parse_config(self, config_file_path):
         """Parses the configuration file.
@@ -659,17 +660,15 @@ class DependencyAnalysis(object):
                 self.internal_components.update(
                     (x.hpath or x.cpath, x) for x in package.components)
 
-    def analyze(self):
-        """Runs the analysis."""
         for component in self.internal_components.values():
             for include in itertools.chain(component.includes_in_h,
                                            component.includes_in_c):
                 if not self.locate(include, component):
                     warn('include issues: header not found: %s' % str(include))
 
-    def make_graph(self, printer, args):
-        """Reports analysis results and graphs."""
-        def _analyze(suffix, digraph):
+    def analyze(self, printer, args):
+        """Runs the analysis."""
+        def _analyze(graph_name, digraph):
             digraph.analyze()
             digraph.print_cycles(printer)
             if not args.l and not args.L:
@@ -677,7 +676,7 @@ class DependencyAnalysis(object):
             else:
                 digraph.print_levels(printer, args.l)
             digraph.print_summary(printer)
-            digraph.write_dot(suffix)
+            digraph.write_dot(graph_name)
 
         if len(self.internal_groups) > 1:
             printer('\n' + '#' * 80)
@@ -737,10 +736,8 @@ def main(argv=None):
 
     try:
         analysis = DependencyAnalysis(args.config)
-        analysis.make_components()
-        analysis.analyze()
         printer = get_printer(args.output)
-        analysis.make_graph(printer, args)
+        analysis.analyze(printer, args)
     except IOError as err:
         _die('IO Error', err)
     except YAMLError as err:
