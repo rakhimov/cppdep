@@ -17,7 +17,7 @@
 
 |
 
-``cppdep`` performs dependency analyses
+``cppdep`` performs dependency analysis
 among components/packages/package groups of a large C/C++ project.
 This is a rewrite of ``dep_utils(adep/cdep/ldep)``,
 which is provided by John Lakos' book
@@ -93,7 +93,7 @@ run the following command to generate dependency analysis reports and graphs.
 
     $ cppdep -c /path/to/config/file
 
-More documentation can be found in `wiki <https://github.com/rakhimov/cppdep/wiki>`.
+More documentation can be found in `wiki <https://github.com/rakhimov/cppdep/wiki>`_.
 
 
 Acknowledgments
