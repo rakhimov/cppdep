@@ -63,7 +63,7 @@ The dependencies can be installed with ``pip``.
 
 .. code-block:: bash
 
-    $ sudo pip install networkx pydotplus PyYAML PyKwalify
+    $ sudo pip install -r requirements.txt
 
 
 Installation
@@ -73,7 +73,10 @@ The latest stable release from PyPi:
 
 .. code-block:: bash
 
-    $ sudo pip install cppdep
+    $ pip install cppdep
+
+The current development version of ``cppdep.py`` script
+can be run directly without installation.
 
 
 Usage
