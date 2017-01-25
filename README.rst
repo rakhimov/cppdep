@@ -58,8 +58,6 @@ Requirements
 #. pydotplus
 #. PyYAML
 #. PyKwalify
-#. (Optional) `Graphviz <http://www.graphviz.org/>`_
-#. (Optional) `xdot <https://github.com/jrfonseca/xdot.py>`_
 
 The dependencies can be installed with ``pip``.
 
@@ -92,53 +90,7 @@ run the following command to generate dependency analysis reports and graphs.
 
     $ cppdep -c /path/to/config/file
 
-
-Graph to Image Conversion
-=========================
-
-To view the generated graph dot files without converting to other formats.
-
-.. code-block:: bash
-
-    $ xdot graph.dot
-
-Here's how to convert a Graphviz dot file to PDF format.
-
-.. code-block:: bash
-
-    $ dot -Tpdf graph1.dot -o graph1.pdf
-
-Apply ``-O`` flag to automatically generate output file names from the input file names.
-
-.. code-block:: bash
-
-    $ dot -T pdf graph1.dot -O  # The output file is graph1.dot.pdf
-
-To run ``dot`` on files in directories and sub-directories recursively.
-
-.. code-block:: bash
-
-    $ find -type f -name "*.dot" directory_path | xargs dot -Tpdf -O
-
-To create output file names without ``.dot`` in the name.
-
-.. code-block:: bash
-
-    $ find -type f -name "*.dot" directory_path -exec sh -c 'dot -Tpdf "${0}" -o "${0%.*}.pdf"' {} \;
-
-
-External links
-==============
-
-#. The last known location of John Lakos' ``dep_utils`` source code:
-   http://www-numi.fnal.gov/computing/d120/releases/R2.2/Dependency/
-
-#. Experimental packaging of ``dep_utils`` source code:
-   https://sourceforge.net/projects/introspector/files/lsc-large-scale-c/first-release/
-
-#. `Nmdepend <http://sourceforge.net/projects/nmdepend/>`_,
-   a lightweight 'link-time' dependency analyzer for C++
-   using object files and libraries instead of source-code as input.
+More documentation can be found in `wiki <https://github.com/rakhimov/cppdep/wiki>`.
 
 
 Acknowledgments
