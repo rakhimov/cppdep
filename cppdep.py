@@ -266,7 +266,7 @@ class Component(object):
         return self.dep_components
 
     def __sanitize_includes(self):
-        """Sanitizes and checkes includes."""
+        """Sanitizes and checks includes."""
         def _check_duplicates(path, includes):
             unique_includes = set()
             for include in includes:
@@ -403,7 +403,7 @@ class Package(object):
         residing only in header files (e.g., STL/Boost/etc.).
         Moreover, some header-only components
         may contain only inline functions or macros
-        without any need for an implmentation file
+        without any need for an implementation file
         (e.g., inline math, Boost PPL).
         For these reasons, unpaired header files
         are counted as components by default.

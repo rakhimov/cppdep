@@ -155,7 +155,7 @@ class Graph(object):
             return descendants[node]
 
         def _get_cd(node):
-            """Retruns CD contribution of a node."""
+            """Returns CD contribution of a node."""
             if self.__is_external(node):
                 return 0
             return 1 if node not in self.cycles else node.number_of_nodes()
