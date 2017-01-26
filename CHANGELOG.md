@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [Unreleased]
 ### Added
+- Handle header files w/o extensions (Boost/STL/Qt/etc.) (#32)
 - Use POSIX path separator in component names (for cross-platform report stability)
 
 ### Changed

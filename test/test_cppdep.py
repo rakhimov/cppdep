@@ -283,3 +283,24 @@ def test_component_init(hpath, cpath, tmpdir, monkeypatch):
     assert component.hpath == hpath
     assert component.cpath == cpath
     assert hpath or mock_warn.called
+
+
+@pytest.mark.parametrize('filename,is_header',
+                         [('', None), ('.file', None), ('header', True),
+                          ('head.er', None), ('header.h', True),
+                          ('head.er.h', None), ('dir/header.h', None),
+                          ('header.hpp', True), ('header.h++', True),
+                          ('header.hh', True), ('header.hxx', True),
+                          ('src.c', False), ('src.cc', False),
+                          ('src.c++', False), ('src.cxx', False),
+                          ('src.cpp', False), ('src.java', None),
+                          ('unconvetional header.hpp', None)])
+def test_package_src_regex(filename, is_header):
+    """Test the regex for matching and gathering C/C++ header/source files."""
+    src_match = cppdep.Package._RE_SRC.match(filename)
+    if is_header is None:
+        assert not src_match
+    elif is_header:
+        assert src_match.group('h') is not None
+    else:
+        assert src_match.group('c') is not None
