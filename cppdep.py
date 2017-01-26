@@ -244,7 +244,7 @@ class Component(object):
         """
         assert hpath or cpath
         self.name = path_to_posix_sep(
-            strip_ext((cpath or hpath)[(len(package.root) + 1):]))
+            strip_ext(os.path.relpath(cpath or hpath, package.root)))
         if not hpath:
             warn('incomplete component: missing header: %s in %s.%s' %
                  (self.name, package.group.name, package.name))
