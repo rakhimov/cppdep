@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 
+import os
 import platform
 
 import mock
@@ -24,6 +25,11 @@ import pytest
 
 import cppdep
 from cppdep import Include
+
+
+def path_relpath_posix(path, root):
+    """Returns relative path with posix separators."""
+    return cppdep.path_to_posix_sep(os.path.relpath(path, root))
 
 
 @pytest.mark.parametrize('filename,expected',
@@ -213,3 +219,39 @@ def test_include_grep(text, expected, tmpdir):
     src = tmpdir.join('include_grep')
     src.write(text)
     assert [str(x) for x in Include.grep(str(src))] == expected
+
+
+@pytest.fixture()
+def include_setup(tmpdir):
+    """Sets up the system for include header search."""
+    dirs = ['project1', 'external1', 'external2']
+    dirs = [tmpdir.mkdir(x).join('header').write('') for x in dirs]
+    return tmpdir
+
+
+#pylint: disable=redefined-outer-name
+@pytest.mark.parametrize(
+    'include,cwd,include_dirs,expected',
+    [(Include('header', True), '.', [], (None,)),
+     (Include('header', True), 'project1', [], ('project1', 'project1/header')),
+     (Include('header', False), 'project1', [], (None,)),
+     (Include('header', True), 'project1', ['external2', 'external1'],
+      ('project1', 'project1/header')),
+     (Include('header', False), 'project1', ['external2', 'external1'],
+      ('external1', 'external1/header')),
+     (Include('header', False), 'project1', ['external1', 'external2'],
+      ('external2', 'external2/header'))])
+def test_include_locate(include, cwd, include_dirs, expected, include_setup):
+    """The search for header locations from include paths."""
+    tmpdir = include_setup
+    abs_cwd = cppdep.path_normjoin(str(tmpdir), cwd)
+    include_dirs = [cppdep.path_normjoin(str(tmpdir), x) for x in include_dirs]
+    include_dir = include.locate(abs_cwd, include_dirs)
+    if expected[0] is None:
+        assert include_dir is None
+        assert include.hpath is None
+    else:
+        assert include_dir is not None
+        assert include.hpath is not None
+        assert path_relpath_posix(include_dir, str(tmpdir)) == expected[0]
+        assert path_relpath_posix(include.hpath, str(tmpdir)) == expected[1]
