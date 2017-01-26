@@ -255,3 +255,31 @@ def test_include_locate(include, cwd, include_dirs, expected, include_setup):
         assert include.hpath is not None
         assert path_relpath_posix(include_dir, str(tmpdir)) == expected[0]
         assert path_relpath_posix(include.hpath, str(tmpdir)) == expected[1]
+
+
+@pytest.mark.parametrize('hpath,cpath',
+                         [('header', None), (None, 'source'),
+                          ('header', 'source')])
+def test_component_init(hpath, cpath, tmpdir, monkeypatch):
+    """Component construction from header and implementation files."""
+    mock_warn = mock.MagicMock(spec=cppdep.warn)
+    monkeypatch.setattr(cppdep, 'warn', mock_warn)
+    package = mock.MagicMock(spec=cppdep.Package)
+    package.name = 'mock_package'
+    package.group = mock.MagicMock(spec=cppdep.PackageGroup)
+    package.group.name = 'mock_group'
+    package.root = str(tmpdir)
+    if hpath:
+        tmpdir.join(hpath).write('')
+        hpath = cppdep.path_normjoin(str(tmpdir), hpath)
+    if cpath:
+        tmpdir.join(cpath).write('')
+        cpath = cppdep.path_normjoin(str(tmpdir), cpath)
+    component = cppdep.Component(hpath, cpath, package)
+    assert (component.name ==
+            path_relpath_posix(cppdep.strip_ext(cpath or hpath), str(tmpdir)))
+    assert str(component) == component.name
+    assert component.package == package
+    assert component.hpath == hpath
+    assert component.cpath == cpath
+    assert hpath or mock_warn.called
