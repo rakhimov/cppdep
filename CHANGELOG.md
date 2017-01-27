@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [Unreleased]
 ### Added
+- Regex pattern based include directive classification (#22)
+- Deduce external packages from the include directive w/o filesystem search (#18)
 - Handle header files w/o extensions (Boost/STL/Qt/etc.) (#32)
 - Use POSIX path separator in component names (for cross-platform report stability)
 

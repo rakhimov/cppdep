@@ -81,7 +81,8 @@ def path_normjoin(path, *paths):
 
 def path_common(paths):
     """Returns common prefix path for the argument absolute normalized paths."""
-    assert paths
+    if not paths:
+        return ''
     path = os.path.commonprefix(paths)
     assert os.path.isabs(path)
     if path[-1] == os.path.sep:
@@ -346,7 +347,8 @@ class Package(object):
     _RE_SRC = re.compile(r'(?i)\w+((?P<h>(\.h(h|xx|\+\+|pp)?)?)|'
                          r'(?P<c>\.c(c|xx|\+\+|pp)?))$')
 
-    def __init__(self, name, group, src_paths, include_paths, alias_paths):
+    def __init__(self, name, group, src_paths, include_paths, alias_paths,
+                 include_patterns):
         """Constructs an empty package.
 
         Registers the package in the package group.
@@ -368,9 +370,9 @@ class Package(object):
         self.src_paths = set()
         self.include_paths = set()
         self.alias_paths = set()
-        self.include_patterns = set()
+        self.include_patterns = include_patterns
         self.__init_paths(src_paths, include_paths, alias_paths)
-        assert self.alias_paths, 'No package directory paths are provided.'
+        assert self.alias_paths or self.include_patterns
         self.root = path_common(self.alias_paths)
         self.components = []
         self.__dep_packages = None  # set of dependency packages
@@ -548,9 +550,11 @@ class DependencyAnalysis(object):
         self.internal_groups = {}
         self.include_dirs = []
         self.__package_aliases = []  # Sorted [(alias_path, external_package)]
+        self.__include_patterns = []  # [(package, [regex])]
         self.__parse_config(config_file)
         self.__gather_include_dirs()
         self.__gather_aliases()
+        self.__gather_include_patterns()
         self.make_components()
 
     def __parse_config(self, config_file_path):
@@ -599,7 +603,8 @@ class DependencyAnalysis(object):
                     package_group,
                     yaml_optional_list(pkg_config, 'src'),
                     yaml_optional_list(pkg_config, 'include'),
-                    yaml_optional_list(pkg_config, 'alias'))
+                    yaml_optional_list(pkg_config, 'alias'),
+                    yaml_optional_list(pkg_config, 'pattern'))
 
         pkg_groups[group_name] = package_group
 
@@ -622,6 +627,14 @@ class DependencyAnalysis(object):
         assert (len(set(x for x, _ in self.__package_aliases)) ==
                 len(self.__package_aliases)), "Ambiguous aliases to packages"
 
+    def __gather_include_patterns(self):
+        """Gathers and compiles include patterns into regex objects."""
+        for group in self.external_groups.values():
+            for package in group.packages.values():
+                self.__include_patterns.append(
+                    (package,
+                     [re.compile(x) for x in package.include_patterns]))
+
     def locate(self, include, component):
         """Locates the dependency component.
 
@@ -639,11 +652,12 @@ class DependencyAnalysis(object):
             assert False, 'Missing a directory from external groups.'
 
         hpath, package = include.locate(component.working_dir,
-                                        self.include_dirs, [])
+                                        self.include_dirs,
+                                        self.__include_patterns)
 
         if hpath is None:
             return False
-        if hpath in self.internal_components:
+        if package is None and hpath in self.internal_components:
             dep_component = self.internal_components[hpath]
             if dep_component != component:
                 component.dep_components.add(dep_component)
@@ -652,8 +666,8 @@ class DependencyAnalysis(object):
                 component.dep_components.add(
                     self.external_components[hpath])
             else:
-                package = _find_external_package()
-                dep_component = ExternalComponent(hpath, package)
+                dep_component = ExternalComponent(
+                    hpath, package or _find_external_package(hpath))
                 component.dep_components.add(dep_component)
                 self.external_components[hpath] = dep_component
         return True
