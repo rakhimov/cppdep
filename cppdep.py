@@ -734,10 +734,11 @@ class DependencyAnalysis(object):
 
 def main(argv=None):
     """Runs the dependency analysis and prints results and graphs."""
-    parser = ap.ArgumentParser(description=__doc__)
+    parser = ap.ArgumentParser(description=__doc__,
+                               formatter_class=ap.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--version', action='store_true', default=False,
                         help='show the version information and exit')
-    parser.add_argument('-c', '--config', default='cppdep.yml',
+    parser.add_argument('-c', '--config', default='.cppdep.yml',
                         help="""a YAML file which describes
                         the source code structure of a C/C++ project""")
     parser.add_argument('-l', action='store_true', default=False,
