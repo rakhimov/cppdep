@@ -23,8 +23,11 @@ map:
                             include:  # Header search paths, i.e., '-i'.
                                 seq:
                                     - type: str
-                            alias:  # Alias paths to map to a name.
+                            alias:  # Alias paths to map to a name upon include.
                                 seq:
                                     - type: str
+                            pattern:  # Include processing w/o header search.
+                                seq:  # Meaningful only for external packages.
+                                    - type: str  # Regex pattern for include.
     external:
         seq: *Groups

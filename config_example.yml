@@ -17,3 +17,4 @@ external:  # External package groups (not analyzed but searched for headers/comp
             include: c++/5
           - name: Boost
             alias: boost  # An alias path to map header files to the package.
+            pattern: boost/.*\.hpp  # The regex pattern in include directives.
