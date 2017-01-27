@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 import os
 import platform
+import re
 
 import mock
 import pytest
@@ -225,36 +226,60 @@ def test_include_grep(text, expected, tmpdir):
 def include_setup(tmpdir):
     """Sets up the system for include header search."""
     dirs = ['project1', 'external1', 'external2']
-    dirs = [tmpdir.mkdir(x).join('header').write('') for x in dirs]
-    return tmpdir
+    files = [tmpdir.mkdir(x).join('header').write('') for x in dirs]
+    return tmpdir, [os.path.join(str(tmpdir), x) for x in dirs]
 
 
 #pylint: disable=redefined-outer-name
 @pytest.mark.parametrize(
     'include,cwd,include_dirs,expected',
-    [(Include('header', True), '.', [], (None,)),
-     (Include('header', True), 'project1', [], ('project1', 'project1/header')),
-     (Include('header', False), 'project1', [], (None,)),
+    [(Include('header', True), '.', [], None),
+     (Include('header', True), 'project1', [], 'project1/header'),
+     (Include('header', False), 'project1', [], None),
      (Include('header', True), 'project1', ['external2', 'external1'],
-      ('project1', 'project1/header')),
+      'project1/header'),
      (Include('header', False), 'project1', ['external2', 'external1'],
-      ('external1', 'external1/header')),
+      'external1/header'),
      (Include('header', False), 'project1', ['external1', 'external2'],
-      ('external2', 'external2/header'))])
+      'external2/header')])
 def test_include_locate(include, cwd, include_dirs, expected, include_setup):
     """The search for header locations from include paths."""
-    tmpdir = include_setup
+    tmpdir, _ = include_setup
     abs_cwd = cppdep.path_normjoin(str(tmpdir), cwd)
     include_dirs = [cppdep.path_normjoin(str(tmpdir), x) for x in include_dirs]
-    include_dir = include.locate(abs_cwd, include_dirs)
-    if expected[0] is None:
-        assert include_dir is None
+    hpath, package = include.locate(abs_cwd, include_dirs, [])
+    assert package is None
+    assert include.hpath == hpath
+    if expected is None:
         assert include.hpath is None
     else:
-        assert include_dir is not None
         assert include.hpath is not None
-        assert path_relpath_posix(include_dir, str(tmpdir)) == expected[0]
-        assert path_relpath_posix(include.hpath, str(tmpdir)) == expected[1]
+        assert path_relpath_posix(include.hpath, str(tmpdir)) == expected
+
+
+@pytest.mark.parametrize(
+    'include,cwd,include_patterns,expected',
+    [(Include('header_foo', True), '.', [], (None, None)),
+     (Include('header', True), '.', [('foo', 'header')], ('header', 'foo')),
+     (Include('header', False), '.', [('foo', 'header')], ('header', 'foo')),
+     (Include('header', False), 'project1', [('foo', 'header')],
+      ('header', 'foo')),
+     (Include('header', False), '.', [('foo', 'header'), ('bar', 'header')],
+      ('header', 'foo')),
+     (Include('header', False), '.', [('bar', 'header'), ('foo', 'header')],
+      ('header', 'bar')),
+     (Include('header_foo', False), '.', [('foo', 'header$')], (None, None)),
+     (Include('header_foo', False), '.', [('foo', 'header')],
+      ('header_foo', 'foo')),
+     (Include('header_foo', False), '.', [('foo', 'header_foo')],
+      ('header_foo', 'foo'))])
+def test_include_locate_pattern(include, cwd, include_patterns, expected,
+                                include_setup):
+    """Pattern based include header location."""
+    tmpdir, include_dirs = include_setup
+    abs_cwd = cppdep.path_normjoin(str(tmpdir), cwd)
+    include_patterns = [(x, [re.compile(y)]) for x, y in include_patterns]
+    assert include.locate(abs_cwd, include_dirs, include_patterns) == expected
 
 
 @pytest.mark.parametrize('hpath,cpath',

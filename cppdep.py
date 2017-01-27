@@ -185,7 +185,7 @@ class Include(object):
                 else:
                     yield Include(include.group("quotes"), with_quotes=True)
 
-    def locate(self, cwd, include_dirs):
+    def locate(self, cwd, include_dirs, include_patterns):
         """Locates the included header file path.
 
         All input directory paths must be absolute.
@@ -194,10 +194,10 @@ class Include(object):
             cwd: The working directory for source file processing.
             include_dirs: The directories to search for the file,
                 ordered from internal to external/system directories.
+            include_patterns: (package, [regex]) to search with patterns.
 
         Returns:
-            The include directory if found;
-            None, otherwise.
+            (hpath, package) with None indicating failure to find the file.
         """
         assert self.hpath is None
 
@@ -210,12 +210,17 @@ class Include(object):
             return False
 
         if self.with_quotes and _find_in(cwd):
-            return cwd
-        iter_order = iter if self.with_quotes else reversed
-        for include_dir in iter_order(include_dirs):
-            if _find_in(include_dir):
-                return include_dir
-        return None
+            return self.hpath, None
+
+        for package, patterns in include_patterns:
+            if any(x.match(self.hfile) for x in patterns):
+                return self.hfile, package
+
+        if any(_find_in(x) for x in
+               (iter if self.with_quotes else reversed)(include_dirs)):
+            return self.hpath, None
+
+        return None, None
 
 
 class Component(object):
@@ -313,7 +318,7 @@ class ExternalComponent(object):
     There's no need to acquire full information about their dependencies.
 
     Attributes:
-        hpath: Full path to the component header as an identifier.
+        hpath: A path to the component header as an identifier.
         package: The package.
     """
 
@@ -353,6 +358,7 @@ class Package(object):
             src_paths: The source directory paths (considered alias paths).
             include_paths: The export header paths (also alias paths).
             alias_paths: Additional directory paths aliasing to the package.
+            include_patterns: Regex pattern strings for include directives.
 
         Raises:
             InvalidArgumentError: Issues with the argument directory paths.
@@ -362,6 +368,7 @@ class Package(object):
         self.src_paths = set()
         self.include_paths = set()
         self.alias_paths = set()
+        self.include_patterns = set()
         self.__init_paths(src_paths, include_paths, alias_paths)
         assert self.alias_paths, 'No package directory paths are provided.'
         self.root = path_common(self.alias_paths)
@@ -625,31 +632,30 @@ class DependencyAnalysis(object):
         Returns:
             True if the include is found.
         """
-        include_dir = include.locate(component.working_dir, self.include_dirs)
-
-        def _find_external_package():
-            # TODO: Use include_dir as a hint if performance matters.
-            # TODO: Use logN bisect with dir sort logic or graph.
+        def _find_external_package(hpath):
             for path, package in reversed(self.__package_aliases):
-                if path_isancestor(path, include.hpath):
+                if path_isancestor(path, hpath):
                     return package
             assert False, 'Missing a directory from external groups.'
 
-        if include_dir is None:
+        hpath, package = include.locate(component.working_dir,
+                                        self.include_dirs, [])
+
+        if hpath is None:
             return False
-        if include.hpath in self.internal_components:
-            dep_component = self.internal_components[include.hpath]
+        if hpath in self.internal_components:
+            dep_component = self.internal_components[hpath]
             if dep_component != component:
                 component.dep_components.add(dep_component)
         else:
-            if include.hpath in self.external_components:
+            if hpath in self.external_components:
                 component.dep_components.add(
-                    self.external_components[include.hpath])
+                    self.external_components[hpath])
             else:
                 package = _find_external_package()
-                dep_component = ExternalComponent(include.hpath, package)
+                dep_component = ExternalComponent(hpath, package)
                 component.dep_components.add(dep_component)
-                self.external_components[include.hpath] = dep_component
+                self.external_components[hpath] = dep_component
         return True
 
     def make_components(self):
