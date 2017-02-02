@@ -4,8 +4,13 @@ internal:  # A list of package groups for analysis.
       packages:  # A list of member packages.
         - name: Core
           src: src
+          ignore:
+              - src/main.cc
+              - src/utility
         - name: GUI
           src: gui
+        - name: Trash
+          src: src/utility/*.h  # The source paths are glob patterns.
 
 external:  # External package groups (not analyzed but searched for headers/components).
     - name: System

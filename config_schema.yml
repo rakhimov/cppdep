@@ -20,6 +20,9 @@ map:
                             src:  # Paths to source files to analyze.
                                 seq:
                                     - type: str  # glob pattern
+                            ignore:  # Paths to exclude from the source.
+                                seq:
+                                    - type: str  # glob pattern
                             include:  # Header search paths, i.e., '-i'.
                                 seq:
                                     - type: str

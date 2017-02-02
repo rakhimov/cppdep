@@ -25,6 +25,7 @@ for components/packages/package groups of a large C/C++ project.
 from __future__ import print_function, division, absolute_import
 
 import argparse as ap
+import fnmatch
 import glob
 import itertools
 import logging
@@ -355,7 +356,7 @@ class Package(object):
                          r'(?P<c>\.c(c|xx|\+\+|pp)?))$')
 
     def __init__(self, name, group, src_paths, include_paths, alias_paths,
-                 include_patterns):
+                 include_patterns, ignore_paths):
         """Constructs an empty package.
 
         Registers the package in the package group.
@@ -364,10 +365,11 @@ class Package(object):
         Args:
             name: A unique identifier within the package group.
             group: The package group.
-            src_paths: The source directory paths.
+            src_paths: The source directory paths (glob patterns).
             include_paths: The export header paths (also alias paths).
             alias_paths: Additional directory paths aliasing to the package.
             include_patterns: Regex pattern strings for include directives.
+            ignore_paths: Exlusion paths from the source (glob patterns).
 
         Raises:
             InvalidArgumentError: Issues with the argument directory paths.
@@ -376,9 +378,10 @@ class Package(object):
         self.group = group
         self.src_paths = set()
         self.include_paths = set()
+        self.ignore_paths = set()
         self.alias_paths = set()
         self.include_patterns = include_patterns
-        self.__init_paths(src_paths, include_paths, alias_paths)
+        self.__init_paths(src_paths, include_paths, alias_paths, ignore_paths)
         self.root = path_common(self.src_paths)
         self.components = []
         self.__dep_packages = None  # set of dependency packages
@@ -388,8 +391,8 @@ class Package(object):
         """For printing graph nodes."""
         return self.name
 
-    def __init_paths(self, src_paths, include_paths, alias_paths):
-        """Initializes package src, include, and alias paths."""
+    def __init_paths(self, src_paths, include_paths, alias_paths, ignore_paths):
+        """Initializes package paths."""
         def _update(path_container, arg_paths, check_dir=True):
             for path in arg_paths:
                 path = os.path.normpath(path)
@@ -406,6 +409,7 @@ class Package(object):
                 path_container.add(abs_path)
 
         _update(self.src_paths, src_paths, check_dir=False)
+        _update(self.ignore_paths, ignore_paths, check_dir=False)
         _update(self.include_paths, include_paths)
         _update(self.alias_paths, alias_paths)
         self.alias_paths.update(self.include_paths)
@@ -429,13 +433,17 @@ class Package(object):
         cpaths = []
 
         def _select_src_file(root, filename):
+            full_path = os.path.join(root, filename)
+            if any(fnmatch.fnmatch(full_path, x) for x in self.ignore_paths):
+                return
             src_match = Package._RE_SRC.match(filename)
             if src_match:
-                (hpaths if src_match.group('h')
-                 else cpaths).append(os.path.join(root, filename))
+                (hpaths if src_match.group('h') else cpaths).append(full_path)
 
         def _gather_files(dir_path):
             for root, _, files in os.walk(dir_path):
+                if any(fnmatch.fnmatch(root, x) for x in self.ignore_paths):
+                    continue
                 for filename in files:
                     _select_src_file(root, filename)
 
@@ -617,7 +625,8 @@ class DependencyAnalysis(object):
                     yaml_optional_list(pkg_config, 'src'),
                     yaml_optional_list(pkg_config, 'include'),
                     yaml_optional_list(pkg_config, 'alias'),
-                    yaml_optional_list(pkg_config, 'pattern'))
+                    yaml_optional_list(pkg_config, 'pattern'),
+                    yaml_optional_list(pkg_config, 'ignore'))
 
         pkg_groups[group_name] = package_group
 
