@@ -72,7 +72,8 @@ def test_path_normjoin_dos(path, paths, expected):
                           (['/path/file', '/pa'], '/'),
                           (['/path/dir/file', '/path/dir1/file'], '/path'),
                           (['/path/dir/', '/path/dir/file'], '/path/dir'),
-                          ([], '')])
+                          ([], ''), (['/dir'], '/dir'),
+                          pytest.mark.xfail((['/dir/*'], '/dir'))])
 def test_path_common_posix(paths, expected):
     """Test common directory for paths."""
     assert cppdep.path_common(paths) == expected

@@ -12,14 +12,14 @@ map:
                     type: str
                 packages:  # A list of member packages.
                     required: True
-                    seq:
+                    seq:  # Note: all paths are relative to the group path.
                         - map:
                             name:  # Unique package name within the group.
                                 required: True
                                 type: str
                             src:  # Paths to source files to analyze.
                                 seq:
-                                    - type: str
+                                    - type: str  # glob pattern
                             include:  # Header search paths, i.e., '-i'.
                                 seq:
                                     - type: str

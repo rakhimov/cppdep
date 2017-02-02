@@ -25,6 +25,7 @@ for components/packages/package groups of a large C/C++ project.
 from __future__ import print_function, division, absolute_import
 
 import argparse as ap
+import glob
 import itertools
 import logging
 import os.path
@@ -60,6 +61,12 @@ _FILE_OPEN_FLAGS = {} if sys.version[0] == '2' else {'errors': 'replace'}
 
 class InvalidArgumentError(Exception):
     """General errors with invalid arguments."""
+
+    pass
+
+
+class AnalysisError(Exception):
+    """The analysis cannot complete due to misconfiguration."""
 
     pass
 
@@ -357,7 +364,7 @@ class Package(object):
         Args:
             name: A unique identifier within the package group.
             group: The package group.
-            src_paths: The source directory paths (considered alias paths).
+            src_paths: The source directory paths.
             include_paths: The export header paths (also alias paths).
             alias_paths: Additional directory paths aliasing to the package.
             include_patterns: Regex pattern strings for include directives.
@@ -372,8 +379,7 @@ class Package(object):
         self.alias_paths = set()
         self.include_patterns = include_patterns
         self.__init_paths(src_paths, include_paths, alias_paths)
-        assert self.alias_paths or self.include_patterns
-        self.root = path_common(self.alias_paths)
+        self.root = path_common(self.src_paths)
         self.components = []
         self.__dep_packages = None  # set of dependency packages
         group.add_package(self)
@@ -384,12 +390,12 @@ class Package(object):
 
     def __init_paths(self, src_paths, include_paths, alias_paths):
         """Initializes package src, include, and alias paths."""
-        def _update(path_container, arg_paths):
+        def _update(path_container, arg_paths, check_dir=True):
             for path in arg_paths:
                 path = os.path.normpath(path)
                 abs_path = path_normjoin(self.group.path, path)
-                if not (os.path.isdir(abs_path) and
-                        abs_path.startswith(self.group.path)):
+                if (check_dir and not os.path.isdir(abs_path) or
+                        not abs_path.startswith(self.group.path)):
                     raise InvalidArgumentError(
                         '%s is not a directory in %s (group %s).' %
                         (path, self.group.path, self.group.name))
@@ -399,10 +405,10 @@ class Package(object):
                                                 self.name))
                 path_container.add(abs_path)
 
-        _update(self.src_paths, src_paths)
+        _update(self.src_paths, src_paths, check_dir=False)
         _update(self.include_paths, include_paths)
         _update(self.alias_paths, alias_paths)
-        self.alias_paths.update(self.src_paths, self.include_paths)
+        self.alias_paths.update(self.include_paths)
 
     def construct_components(self):
         """Traverses the package paths and constructs package components.
@@ -422,16 +428,23 @@ class Package(object):
         hpaths = []
         cpaths = []
 
-        def _gather_files(path):
-            for root, _, files in os.walk(path):
-                for filename in files:
-                    src_match = Package._RE_SRC.match(filename)
-                    if src_match:
-                        (hpaths if src_match.group('h')
-                         else cpaths).append(os.path.join(root, filename))
+        def _select_src_file(root, filename):
+            src_match = Package._RE_SRC.match(filename)
+            if src_match:
+                (hpaths if src_match.group('h')
+                 else cpaths).append(os.path.join(root, filename))
 
-        for src_path in self.src_paths:
-            _gather_files(src_path)
+        def _gather_files(dir_path):
+            for root, _, files in os.walk(dir_path):
+                for filename in files:
+                    _select_src_file(root, filename)
+
+        for glob_path in self.src_paths:
+            for src_path in glob.iglob(glob_path):
+                if os.path.isdir(src_path):
+                    _gather_files(src_path)
+                else:
+                    _select_src_file(*os.path.split(src_path))
 
         # This approach assumes
         # that the header and implementation are in the same directory.
@@ -644,12 +657,16 @@ class DependencyAnalysis(object):
 
         Returns:
             True if the include is found.
+
+        Raises:
+            AnalysisError: Failure to associate a header to a component.
         """
         def _find_external_package(hpath):
             for path, package in reversed(self.__package_aliases):
                 if path_isancestor(path, hpath):
                     return package
-            assert False, 'Missing a directory from external groups.'
+            raise AnalysisError('include error: Cannot associate '
+                                '%s file with any component.' % hpath)
 
         hpath, package = include.locate(component.working_dir,
                                         self.include_dirs,
@@ -673,7 +690,11 @@ class DependencyAnalysis(object):
         return True
 
     def make_components(self):
-        """Pairs hfiles and cfiles."""
+        """Pairs hfiles and cfiles.
+
+        Raises:
+            AnalysisError: Misconfiguration or failure of the analysis.
+        """
         for group in self.internal_groups.values():
             for package in group.packages.values():
                 package.construct_components()
@@ -767,6 +788,8 @@ def main(argv=None):
         _die('Configuration File Validity Error', err)
     except InvalidArgumentError as err:
         _die('Invalid Argument Error', err)
+    except AnalysisError as err:
+        _die('Analysis (Configuration) Error', err)
 
 
 def get_printer(file_path=None):
