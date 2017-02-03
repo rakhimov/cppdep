@@ -25,6 +25,7 @@ for components/packages/package groups of a large C/C++ project.
 from __future__ import print_function, division, absolute_import
 
 import argparse as ap
+import collections
 import fnmatch
 import glob
 import itertools
@@ -429,8 +430,17 @@ class Package(object):
 
         Unpaired c files are counted as incomplete components with warnings.
         """
-        hpaths = []
-        cpaths = []
+        file_type = collections.namedtuple('File', ['rev_path', 'path'])
+        hpaths = collections.defaultdict(list)
+        cpaths = collections.defaultdict(list)
+
+        # This approach is pessimistic with O(N*logN) instead of O(N)
+        # because it assumes the header and implementation files
+        # are likely to be in different directories.
+        def _reverse(path):
+            path = strip_ext(path).split(os.path.sep)
+            path.reverse()
+            return path
 
         def _select_src_file(root, filename):
             full_path = os.path.join(root, filename)
@@ -438,7 +448,9 @@ class Package(object):
                 return
             src_match = Package._RE_SRC.match(filename)
             if src_match:
-                (hpaths if src_match.group('h') else cpaths).append(full_path)
+                (hpaths if src_match.group('h')
+                 else cpaths)[strip_ext(filename)].append(
+                     file_type(_reverse(full_path), full_path))
 
         def _gather_files(dir_path):
             for root, _, files in os.walk(dir_path):
@@ -454,20 +466,56 @@ class Package(object):
                 else:
                     _select_src_file(*os.path.split(src_path))
 
-        # This approach assumes
-        # that the header and implementation are in the same directory.
-        # TODO: Implement less-restricted, general pairing.
-        cbases = dict((strip_ext(x), x) for x in cpaths)
-        for hpath in hpaths:
-            cpath = None
-            key = strip_ext(hpath)
-            if key in cbases:
-                cpath = cbases[key]
-                del cbases[key]
-            self.components.append(Component(hpath, cpath, self))
+        self.__pair_files(hpaths, cpaths)
 
-        for cpath in cbases.values():
-            self.components.append(Component(None, cpath, self))
+    def __pair_files(self, hpaths, cpaths):
+        """Pairs header and implementation files into components."""
+        # This should probably be solved with a graph algorithm.
+        # Find the nodes with the longest matching consecutive ancestors
+        # starting from the node (not the root!).
+        # The nodes represent the file and directory names.
+        #
+        # The association is indeterminate or ambiguous
+        # if multiple nodes share the same common ancestors of the same number.
+        # Therefore, the algorithm to find
+        # the lowest common ancestor seems to lead to false answers.
+        def _num_consecutive_ancestors(file_one, file_two):
+            return sum(1 for _ in itertools.takewhile(lambda x: x[0] == x[1],
+                                                      zip(file_one.rev_path,
+                                                          file_two.rev_path)))
+
+        def _pair(hfiles, cfiles):
+            assert hfiles and cfiles  # Expected to have few elements.
+            candidates = [(x, sorted(((_num_consecutive_ancestors(x, y), y)
+                                      for y in hfiles), reverse=True))
+                          for x in cfiles]
+            candidates.sort(reverse=True,
+                            key=lambda x: tuple(y for y, _ in x[1]))
+            for cfile, hfile_candidates in candidates:
+                for _, hfile in hfile_candidates:
+                    if hfile in hfiles:
+                        yield hfile.path, cfile.path
+                        hfiles.remove(hfile)
+                        break
+                else:
+                    yield None, cfile.path
+
+            for hfile in hfiles:
+                yield hfile.path, None
+
+        for filename, hfiles in hpaths.items():
+            if filename not in cpaths:
+                self.components.extend(
+                    Component(x.path, None, self) for x in hfiles)
+            else:
+                cfiles = cpaths[filename]
+                del cpaths[filename]
+                self.components.extend(
+                    Component(x, y, self) for x, y in _pair(hfiles, cfiles))
+
+        for cfiles in cpaths.values():
+            self.components.extend(
+                Component(None, x.path, self) for x in cfiles)
 
     def dependencies(self):
         """Returns dependency packages."""
