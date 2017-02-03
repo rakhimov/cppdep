@@ -24,8 +24,8 @@ import re
 import mock
 import pytest
 
-import cppdep
-from cppdep import Include
+from cppdep import cppdep
+from cppdep.cppdep import Include
 
 
 def path_relpath_posix(path, root):
@@ -150,7 +150,7 @@ def test_include_eq(include_one, include_two):
 
 def test_include_ne_impl():
     """Makes sure that __ne__ is implemented."""
-    with mock.patch('cppdep.Include.__eq__') as mock_eq:
+    with mock.patch('cppdep.cppdep.Include.__eq__') as mock_eq:
         include_one = Include('vector', True)
         check = include_one != include_one
         assert mock_eq.called

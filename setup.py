@@ -8,7 +8,7 @@ To upload the release to PyPi:
 
 from setuptools import setup
 
-import cppdep
+from cppdep import cppdep
 
 setup(
     name="cppdep",
@@ -21,9 +21,9 @@ setup(
     install_requires=["networkx", "pydotplus", "PyYAML", "PyKwalify>=1.6.0"],
     keywords=["c++", "c", "static analysis", "dependency analysis"],
     url="http://github.com/rakhimov/cppdep",
-    packages=[],
-    py_modules=["cppdep", "graph"],
-    entry_points={"console_scripts": ["cppdep = cppdep:main"]},
+    packages=["cppdep"],
+    package_data={"cppdep": ["config_schema.yml"]},
+    entry_points={"console_scripts": ["cppdep = cppdep.__main__:main"]},
     long_description=open("README.rst").read(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -40,5 +40,4 @@ setup(
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5"
     ],
-    data_files=[('', ['config_schema.yml'])]
 )

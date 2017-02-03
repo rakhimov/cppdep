@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright (C) 2016-2017 Olzhas Rakhimov
 # Copyright (C) 2010, 2014 Zhichang Yu
 #
@@ -22,9 +20,8 @@ Physical dependency analyzer
 for components/packages/package groups of a large C/C++ project.
 """
 
-from __future__ import print_function, division, absolute_import
+from __future__ import absolute_import
 
-import argparse as ap
 import collections
 import fnmatch
 import glob
@@ -34,10 +31,10 @@ import os.path
 import re
 import sys
 
-from yaml import safe_load, YAMLError
-from pykwalify.core import Core as Validator, SchemaError
+from yaml import safe_load
+from pykwalify.core import Core as Validator
 
-from graph import Graph
+from .graph import Graph
 
 
 VERSION = '0.2.0'  # The latest release version.
@@ -112,7 +109,7 @@ def path_isancestor(parent, child):
 
 def path_to_posix_sep(path):
     """Normalize the path separator to Posix (mostly for Windows)."""
-    return  path.replace('\\', '/') if os.name == 'nt' else path
+    return path.replace('\\', '/') if os.name == 'nt' else path
 
 
 def yaml_optional(dictionary, element, default_value):
@@ -813,54 +810,3 @@ class DependencyAnalysis(object):
                                lambda x: (i if i.package == package
                                           else i.package for i in x),
                                lambda x: isinstance(x, Package)))
-
-
-def main(argv=None):
-    """Runs the dependency analysis and prints results and graphs."""
-    parser = ap.ArgumentParser(description=__doc__,
-                               formatter_class=ap.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--version', action='store_true', default=False,
-                        help='show the version information and exit')
-    parser.add_argument('-c', '--config', default='.cppdep.yml',
-                        help="""a YAML file which describes
-                        the source code structure of a C/C++ project""")
-    parser.add_argument('-l', action='store_true', default=False,
-                        help='list reduced dependencies of nodes')
-    parser.add_argument('-L', action='store_true', default=False,
-                        help='list unreduced dependencies of nodes')
-    parser.add_argument('-o', '--output', metavar='path', help='output file')
-    args = parser.parse_args(argv)
-    if args.version:
-        print(VERSION)
-        return
-
-    def _die(head, body):
-        logging.error(str('%s:\n%s' % (head, str(body))))
-        sys.exit(1)
-
-    try:
-        analysis = DependencyAnalysis(args.config)
-        printer = get_printer(args.output)
-        analysis.analyze(printer, args)
-    except IOError as err:
-        _die('IO Error', err)
-    except YAMLError as err:
-        _die('Malformed Configuration File', err)
-    except SchemaError as err:
-        _die('Configuration File Validity Error', err)
-    except InvalidArgumentError as err:
-        _die('Invalid Argument Error', err)
-    except AnalysisError as err:
-        _die('Analysis (Configuration) Error', err)
-
-
-def get_printer(file_path=None):
-    """Returns printer for the report."""
-    destination = open(file_path, 'w') if file_path else sys.stdout
-    def _print(*args):
-        print(*args, file=destination)
-    return _print
-
-
-if __name__ == '__main__':
-    main()

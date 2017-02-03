@@ -20,7 +20,7 @@ from __future__ import print_function, absolute_import
 
 import pytest
 
-import graph
+from cppdep import graph
 
 #pylint: disable=redefined-outer-name
 

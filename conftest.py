@@ -15,7 +15,7 @@
 
 """Configuration facilities for cppdep tests with pytest."""
 
-from cppdep import Include
+from cppdep.cppdep import Include
 
 #pylint: disable=invalid-name
 def pytest_assertrepr_compare(op, left, right):

@@ -69,14 +69,17 @@ The dependencies can be installed with ``pip``.
 Installation
 ============
 
+From the source:
+
+.. code-block:: bash
+
+    $ ./setup.py install
+
 The latest stable release from PyPi:
 
 .. code-block:: bash
 
     $ pip install cppdep
-
-The current development version of ``cppdep.py`` script
-can be run directly without installation.
 
 
 Usage

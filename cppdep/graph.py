@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright (C) 2016-2017 Olzhas Rakhimov
 # Copyright (C) 2010, 2014 Zhichang Yu
 #
@@ -22,7 +20,7 @@ A Python Graph API? http://wiki.python.org/moin/PythonGraphApi
 It seems that the best one is NetworkX(http://networkx.lanl.gov/).
 """
 
-from __future__ import print_function, absolute_import, division
+from __future__ import absolute_import, division
 
 import math
 
