@@ -6,19 +6,30 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 
 ## [Unreleased]
+
+## [0.2.0] - 2017-02-02
 ### Added
+- Pairing header and implementation files in different locations (#19)
+- Handle 'ipp' template implementation source files (#31)
+- Behavior specification for anomalous conflicting component files (#27)
+- Implement ignore/exclude paths (#23)
+- Accept glob pattern for source paths (#36)
+- Project wiki pages
 - Regex pattern based include directive classification (#22)
 - Deduce external packages from the include directive w/o filesystem search (#18)
 - Handle header files w/o extensions (Boost/STL/Qt/etc.) (#32)
 - Use POSIX path separator in component names (for cross-platform report stability)
+- Configuration file validation against the schema (with PyKwalify)
 
 ### Changed
+- pytest instead of nose
 - YAML configuration files instead of XML (#24)
 
 ### Removed
 - Implicit single-path alias Package construction
 
 ### Fixed
+- Exception leaks out of main()
 - Unicode Escape Error on graph dot on Windows with Python 2.7 (#35)
 - Python3 UnicodeDecodeError for 'utf-8' in source files (#30)
 - Logging: Type Error: not all arguments converted during string formatting (#28)
