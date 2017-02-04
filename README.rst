@@ -57,7 +57,7 @@ Requirements
 #. `NetworkX <http://networkx.lanl.gov/>`_
 #. pydotplus
 #. PyYAML
-#. PyKwalify
+#. PyKwalify 1.6.0+
 
 The dependencies can be installed with ``pip``.
 

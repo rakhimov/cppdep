@@ -115,19 +115,14 @@ def path_to_posix_sep(path):
     return  path.replace('\\', '/') if os.name == 'nt' else path
 
 
-def yaml_list(entry):
-    """Properly interprets a single non-list entry as a list."""
-    return entry if isinstance(entry, list) else [entry]
-
-
 def yaml_optional(dictionary, element, default_value):
     """Retrieves optional element values with defaults."""
     return dictionary[element] if element in dictionary else default_value
 
 
-def yaml_optional_list(dictionary, element, default_list=None):
+def yaml_optional_list(dictionary, element):
     """Retrieves optional list values with an empty list as default."""
-    return yaml_list(yaml_optional(dictionary, element, default_list or []))
+    return yaml_optional(dictionary, element, [])
 
 
 class Include(object):
@@ -640,7 +635,7 @@ class DependencyAnalysis(object):
             self.config = safe_load(config_file)
         Validator(config_file_path, [_SCHEMA_FILE]).validate()
 
-        for pkg_group_config in yaml_list(self.config['internal']):
+        for pkg_group_config in self.config['internal']:
             DependencyAnalysis.__add_package_group(pkg_group_config,
                                                    self.internal_groups)
         for pkg_group_config in yaml_optional_list(self.config, 'external'):
@@ -665,7 +660,7 @@ class DependencyAnalysis(object):
 
         package_group = PackageGroup(group_name, group_path)
 
-        for pkg_config in yaml_list(pkg_group_config['packages']):
+        for pkg_config in pkg_group_config['packages']:
             Package(pkg_config['name'],
                     package_group,
                     yaml_optional_list(pkg_config, 'src'),

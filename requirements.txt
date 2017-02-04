@@ -1,4 +1,4 @@
 networkx
 pydotplus
 PyYAML
-PyKwalify
+PyKwalify>=1.6.0
