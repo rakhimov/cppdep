@@ -130,5 +130,5 @@ def test_print_summary(dep_graph, capsys):
     out, _ = capsys.readouterr()
     assert out.split('\n') == ['=' * 80, 'SUMMARY:',
                                'Components: 12\t Cycles: 3\t Levels: 5',
-                               'CCD: 45\t ACCD: 3.750000\t NCCD: 1.246340'
+                               'CCD: 45\t ACCD: 3.75\t NCCD: 1.25 '
                                '(typical range is [0.85, 1.10])', '']

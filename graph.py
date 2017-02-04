@@ -263,8 +263,9 @@ class Graph(object):
         printer('SUMMARY:')
         printer('Components: %d\t Cycles: %d\t Levels: %d' %
                 (num_nodes, len(self.cycles), max(self.node2level.values())))
-        printer('CCD: %d\t ACCD: %f\t NCCD: %f(typical range is [0.85, 1.10])' %
-                (ccd, average_cd, normalized_ccd))
+        typical_range = '[0.85, 1.10]'
+        printer('CCD: %d\t ACCD: %.2f\t NCCD: %.2f (typical range is %s)' %
+                (ccd, average_cd, normalized_ccd, typical_range))
 
     def write_dot(self, file_basename):
         """Writes graph into a file in Graphviz DOT format.
