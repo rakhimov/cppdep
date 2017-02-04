@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [Unreleased]
 
+## [0.2.1] - 2017-02-04
+### Changed
+- Allow '-' in source file names
+- Move the example configuration to project wiki
+
+## Fixed
+- PyPI installation failure due to project structure (#38)
+
 ## [0.2.0] - 2017-02-02
 ### Added
 - Pairing header and implementation files in different locations (#19)
