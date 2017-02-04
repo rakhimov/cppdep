@@ -84,7 +84,7 @@ Usage
 
 Create a configuration file
 that describes the project for analysis.
-``config_example.yml`` and ``config_schema.yml`` are given for guidance.
+``config_schema.yml`` is given for guidance.
 
 In the root directory of the project with the configuration file,
 run the following command to generate dependency analysis reports and graphs.
@@ -93,7 +93,8 @@ run the following command to generate dependency analysis reports and graphs.
 
     $ cppdep -c /path/to/config/file
 
-More documentation can be found in `wiki <https://github.com/rakhimov/cppdep/wiki>`_.
+More documentation and example configurations
+can be found in project `wiki <https://github.com/rakhimov/cppdep/wiki>`_.
 
 
 Acknowledgments
