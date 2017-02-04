@@ -353,7 +353,7 @@ class Package(object):
         components: The list of unique components in this package.
     """
 
-    _RE_SRC = re.compile(r'(?i)\w+((?P<h>(\.h(h|xx|\+\+|pp)?)?)|'
+    _RE_SRC = re.compile(r'(?i)[\w\-]+((?P<h>(\.h(h|xx|\+\+|pp)?)?)|'
                          r'(?P<c>\.((c(c|xx|\+\+|pp)?)|ipp)))$')
 
     def __init__(self, name, group, src_paths, include_paths, alias_paths,
