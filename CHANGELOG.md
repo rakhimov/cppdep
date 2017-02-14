@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [Unreleased]
 
+## [0.2.2] - 2017-02-14
+### Fixed
+- cppdep running twice per call after installation with setup.py (#39)
+
 ## [0.2.1] - 2017-02-04
 ### Changed
 - Allow '-' in source file names

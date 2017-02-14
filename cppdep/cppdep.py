@@ -37,7 +37,7 @@ from pykwalify.core import Core as Validator
 from .graph import Graph
 
 
-VERSION = '0.2.1'  # The latest release version.
+VERSION = '0.2.2'  # The latest release version.
 
 _SCHEMA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'config_schema.yml')
