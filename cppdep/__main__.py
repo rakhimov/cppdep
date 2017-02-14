@@ -78,4 +78,6 @@ def get_printer(file_path=None):
 
     return _print
 
-main()
+
+if __name__ == "__main__":
+    main()
