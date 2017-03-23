@@ -26,17 +26,6 @@ which is provided by John Lakos' book
 .. |logo| image:: logo.png
 
 
-Differences from dep_utils
-==========================
-
-- Rewrite in Python, unifying ``adep/cdep/ldep`` into one tool
-- Single configuration file (``yaml`` file)
-- No file alias support for the archaic file-name length limitations
-- An extended notion of Component (header- or source-only)
-- Support for multiple packages and package groups
-- Support for exporting final dependency graph to Graphviz dot format
-
-
 Limitations
 ===========
 
