@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [Unreleased]
 
+## [0.2.3] - 2017-09-26
+### Fixed
+- Adjust for NetworkX 2.0
+
 ## [0.2.2] - 2017-02-14
 ### Fixed
 - cppdep running twice per call after installation with setup.py (#39)
