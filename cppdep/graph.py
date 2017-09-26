@@ -76,8 +76,7 @@ class Graph(object):
 
     def __condensation(self):
         """Produces condensation of cyclic graphs."""
-        subgraphs = nx.strongly_connected_component_subgraphs(self.digraph,
-                                                              copy=False)
+        subgraphs = nx.strongly_connected_component_subgraphs(self.digraph)
         for subgraph in list(subgraphs):
             if subgraph.number_of_nodes() == 1:
                 continue  # not a cycle
