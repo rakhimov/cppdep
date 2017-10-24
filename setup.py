@@ -18,7 +18,13 @@ setup(
     description="Dependency analyzer for C/C++ projects",
     download_url="https://github.com/rakhimov/cppdep",
     license="GPLv3+",
-    install_requires=["networkx", "pydotplus", "PyYAML", "PyKwalify>=1.6.0"],
+    install_requires=[
+        "networkx",
+        "pydot",
+        "pydotplus",
+        "PyYAML",
+        "PyKwalify>=1.6.0"
+    ],
     keywords=["c++", "c", "static analysis", "dependency analysis"],
     url="http://github.com/rakhimov/cppdep",
     packages=["cppdep"],

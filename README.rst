@@ -44,6 +44,7 @@ Requirements
 
 #. Python 2.7 or 3.4+
 #. `NetworkX <http://networkx.lanl.gov/>`_
+#. pydot
 #. pydotplus
 #. PyYAML
 #. PyKwalify 1.6.0+
