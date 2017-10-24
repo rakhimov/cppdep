@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [Unreleased]
 
+## [0.2.4] - 2017-10-24
+### Fixed
+- Add pydot as dependency (#41)
+
 ## [0.2.3] - 2017-09-26
 ### Fixed
 - Adjust for NetworkX 2.0
