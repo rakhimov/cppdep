@@ -13,7 +13,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """Graph algorithms used in Large-Scale C++ Software Design (ch. 4, appendix C).
 
 A Python Graph API? http://wiki.python.org/moin/PythonGraphApi
@@ -70,8 +69,8 @@ class Graph(object):
         for u in self.digraph:
             transitive_vertex = []
             for v in self.digraph[u]:
-                transitive_vertex.extend(x for _, x in
-                                         nx.dfs_edges(self.digraph, v))
+                transitive_vertex.extend(
+                    x for _, x in nx.dfs_edges(self.digraph, v))
             self.digraph.remove_edges_from((u, x) for x in transitive_vertex)
 
     def __condensation(self):
@@ -109,13 +108,13 @@ class Graph(object):
             assert self.digraph.has_node(subgraph)
             for u, v in pre_edges:
                 if (self.digraph.has_edge(u, subgraph) or
-                        (u in self.node2cycle and
-                         self.digraph.has_edge(self.node2cycle[u], subgraph))):
+                    (u in self.node2cycle and
+                     self.digraph.has_edge(self.node2cycle[u], subgraph))):
                     self.digraph.add_edge(u, v)
             for u, v in suc_edges:
                 if (self.digraph.has_edge(subgraph, v) or
-                        (v in self.node2cycle and
-                         self.digraph.has_edge(subgraph, self.node2cycle[v]))):
+                    (v in self.node2cycle and
+                     self.digraph.has_edge(subgraph, self.node2cycle[v]))):
                     self.digraph.add_edge(u, v)
             self.digraph.add_nodes_from(subgraph)
             self.digraph.add_edges_from(subgraph.edges())
@@ -165,14 +164,16 @@ class Graph(object):
 
     def __calculate_levels(self):
         """Calculates levels for nodes."""
+
         def _get_level(node):
             if node not in self.node2level:
-                level = (not self.__is_external(node) if node not in self.cycles
-                         else node.number_of_nodes())
+                level = (not self.__is_external(node)
+                         if node not in self.cycles else node.number_of_nodes())
                 if self.digraph[node]:
                     level += max(_get_level(x) for x in self.digraph[node])
                 self.node2level[node] = level
             return self.node2level[node]
+
         for node in self.digraph:
             _get_level(node)
 
@@ -192,8 +193,10 @@ class Graph(object):
             printer('cycle #%d (%d nodes):' % (i, cycle.number_of_nodes()),
                     ', '.join(sorted(str(x) for x in cycle.nodes())))
             printer('cycle #%d (%d edges):' % (i, cycle.number_of_edges()),
-                    ' '.join(sorted(str(edge[0]) + '->' + str(edge[1])
-                                    for edge in cycle.edges())))
+                    ' '.join(
+                        sorted(
+                            str(edge[0]) + '->' + str(edge[1])
+                            for edge in cycle.edges())))
             printer()
 
     def print_levels(self, printer, reduced_dependencies=None):
@@ -218,9 +221,10 @@ class Graph(object):
             """Prints dependencies of the levelized components."""
             if reduced_dependencies is None or self.__is_external(node):
                 return
-            for v in sorted(self.digraph[node] if reduced_dependencies
-                            else set(self.__dep_filter(node.dependencies())),
-                            key=lambda x: (self.get_level(x), str(x))):
+            for v in sorted(
+                    self.digraph[node] if reduced_dependencies else set(
+                        self.__dep_filter(node.dependencies())),
+                    key=lambda x: (self.get_level(x), str(x))):
                 if v in self.node2cycle:
                     cycle = self.node2cycle[v]
                     printer('\t\t%d. %s <%d>' % (self.node2level[cycle], str(v),
@@ -229,8 +233,9 @@ class Graph(object):
                     printer('\t\t%d. %s' % (self.node2level[v], str(v)))
 
         level_num = -1
-        for node, level in sorted(self.node2level.items(),
-                                  key=lambda x: (x[1], _stabilize(x[0]))):
+        for node, level in sorted(
+                self.node2level.items(),
+                key=lambda x: (x[1], _stabilize(x[0]))):
             while level > level_num:
                 level_num += 1
                 printer('level %d:' % level_num)

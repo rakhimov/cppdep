@@ -13,7 +13,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """C/C++ dependency analyzer.
 
 Physical dependency analyzer
@@ -36,16 +35,14 @@ from pykwalify.core import Core as Validator
 
 from .graph import Graph
 
-
 VERSION = '0.2.4'  # The latest release version.
 
-_SCHEMA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            'config_schema.yml')
+_SCHEMA_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'config_schema.yml')
 assert os.path.isfile(_SCHEMA_FILE), 'The cppdep schema file is missing.'
 assert safe_load(open(_SCHEMA_FILE))  # Will throw if invalid.
 
 _FILE_OPEN_FLAGS = {} if sys.version[0] == '2' else {'errors': 'replace'}
-
 
 # Allowed common abbreviations in the code:
 # ccd   - Cumulative Component Dependency (CCD)
@@ -218,8 +215,8 @@ class Include(object):
             if any(x.match(self.hfile) for x in patterns):
                 return self.hfile, package
 
-        if any(_find_in(x) for x in
-               (iter if self.with_quotes else reversed)(include_dirs)):
+        direction = iter if self.with_quotes else reversed
+        if any(_find_in(x) for x in direction(include_dirs)):
             return self.hpath, None
 
         return None, None
@@ -274,6 +271,7 @@ class Component(object):
 
     def __sanitize_includes(self):
         """Sanitizes and checks includes."""
+
         def _check_duplicates(path, includes):
             unique_includes = set()
             for include in includes:
@@ -301,14 +299,14 @@ class Component(object):
 
         if self.hpath and self.cpath:
             hfile = os.path.basename(self.hpath)
-            if hfile not in (os.path.basename(x.hfile)
-                             for x in self.includes_in_c):
+            if hfile not in (
+                    os.path.basename(x.hfile) for x in self.includes_in_c):
                 warn('include issues: missing include: '
                      '%s does not include %s.' % (self.cpath, hfile))
             elif hfile != os.path.basename(self.includes_in_c[0].hfile):
                 warn('include issues: include order: '
-                     '%s should be the first include in %s.' %
-                     (hfile, self.cpath))
+                     '%s should be the first include in %s.' % (hfile,
+                                                                self.cpath))
         _remove_duplicates()
         _remove_redundant()
 
@@ -386,6 +384,7 @@ class Package(object):
 
     def __init_paths(self, src_paths, include_paths, alias_paths, ignore_paths):
         """Initializes package paths."""
+
         def _update(path_container, arg_paths, check_dir=True):
             for path in arg_paths:
                 path = os.path.normpath(path)
@@ -440,9 +439,9 @@ class Package(object):
                 return
             src_match = Package._RE_SRC.match(filename)
             if src_match:
-                (hpaths if src_match.group('h')
-                 else cpaths)[strip_ext(filename)].append(
-                     file_type(_reverse(full_path), full_path))
+                src_container = hpaths if src_match.group('h') else cpaths
+                src_container[strip_ext(filename)].append(
+                    file_type(_reverse(full_path), full_path))
 
         def _gather_files(dir_path):
             for root, _, files in os.walk(dir_path):
@@ -462,6 +461,7 @@ class Package(object):
 
     def __pair_files(self, hpaths, cpaths):
         """Pairs header and implementation files into components."""
+
         # This should probably be solved with a graph algorithm.
         # Find the nodes with the longest matching consecutive ancestors
         # starting from the node (not the root!).
@@ -472,17 +472,21 @@ class Package(object):
         # Therefore, the algorithm to find
         # the lowest common ancestor seems to lead to false answers.
         def _num_consecutive_ancestors(file_one, file_two):
-            return sum(1 for _ in itertools.takewhile(lambda x: x[0] == x[1],
-                                                      zip(file_one.rev_path,
-                                                          file_two.rev_path)))
+            return sum(1
+                       for _ in itertools.takewhile(lambda x: x[0] == x[1],
+                                                    zip(file_one.rev_path,
+                                                        file_two.rev_path)))
 
         def _pair(hfiles, cfiles):
             assert hfiles and cfiles  # Expected to have few elements.
-            candidates = [(x, sorted(((_num_consecutive_ancestors(x, y), y)
-                                      for y in hfiles), reverse=True))
+            candidates = [(x,
+                           sorted(
+                               ((_num_consecutive_ancestors(x, y), y)
+                                for y in hfiles),
+                               reverse=True))
                           for x in cfiles]
-            candidates.sort(reverse=True,
-                            key=lambda x: tuple(y for y, _ in x[1]))
+            candidates.sort(
+                reverse=True, key=lambda x: tuple(y for y, _ in x[1]))
             for cfile, hfile_candidates in candidates:
                 for _, hfile in hfile_candidates:
                     if hfile in hfiles:
@@ -555,8 +559,8 @@ class PackageGroup(object):
         if self.__dep_groups is None:
             self.__dep_groups = set()
             for package in self.packages.values():
-                self.__dep_groups.update(x.group for x in package.dependencies()
-                                         if x.group != self)
+                self.__dep_groups.update(
+                    x.group for x in package.dependencies() if x.group != self)
         return self.__dep_groups
 
     def add_package(self, package):
@@ -572,8 +576,8 @@ class PackageGroup(object):
         """
         if package.name in self.packages:
             raise InvalidArgumentError(
-                '%s is a duplicate package in %s group.' %
-                (package.name, self.name))
+                '%s is a duplicate package in %s group.' % (package.name,
+                                                            self.name))
         self.packages[package.name] = package
 
 
@@ -658,8 +662,7 @@ class DependencyAnalysis(object):
         package_group = PackageGroup(group_name, group_path)
 
         for pkg_config in pkg_group_config['packages']:
-            Package(pkg_config['name'],
-                    package_group,
+            Package(pkg_config['name'], package_group,
                     yaml_optional_list(pkg_config, 'src'),
                     yaml_optional_list(pkg_config, 'include'),
                     yaml_optional_list(pkg_config, 'alias'),
@@ -670,10 +673,12 @@ class DependencyAnalysis(object):
 
     def __gather_include_dirs(self):
         """Gathers include directories from packages."""
+
         def _add_from(groups):
             for group in groups.values():
                 for package in group.packages.values():
                     self.include_dirs.extend(package.include_paths)
+
         _add_from(self.internal_groups)
         _add_from(self.external_groups)
 
@@ -681,11 +686,11 @@ class DependencyAnalysis(object):
         """Gathers aliases for *external* packages lazy include search."""
         for group in self.external_groups.values():
             for package in group.packages.values():
-                self.__package_aliases.extend((x, package)
-                                              for x in package.alias_paths)
+                self.__package_aliases.extend(
+                    (x, package) for x in package.alias_paths)
         self.__package_aliases.sort()
-        assert (len(set(x for x, _ in self.__package_aliases)) ==
-                len(self.__package_aliases)), "Ambiguous aliases to packages"
+        assert (len(set(x for x, _ in self.__package_aliases)) == len(
+            self.__package_aliases)), "Ambiguous aliases to packages"
 
     def __gather_include_patterns(self):
         """Gathers and compiles include patterns into regex objects."""
@@ -708,6 +713,7 @@ class DependencyAnalysis(object):
         Raises:
             AnalysisError: Failure to associate a header to a component.
         """
+
         def _find_external_package(hpath):
             for path, package in reversed(self.__package_aliases):
                 if path_isancestor(path, hpath):
@@ -715,9 +721,8 @@ class DependencyAnalysis(object):
             raise AnalysisError('include error: Cannot associate '
                                 '%s file with any component.' % hpath)
 
-        hpath, package = include.locate(component.working_dir,
-                                        self.include_dirs,
-                                        self.__include_patterns)
+        hpath, package = include.locate(
+            component.working_dir, self.include_dirs, self.__include_patterns)
 
         if hpath is None:
             return False
@@ -727,11 +732,10 @@ class DependencyAnalysis(object):
                 component.dep_components.add(dep_component)
         else:
             if hpath in self._external_components:
-                component.dep_components.add(
-                    self._external_components[hpath])
+                component.dep_components.add(self._external_components[hpath])
             else:
-                dep_component = ExternalComponent(
-                    hpath, package or _find_external_package(hpath))
+                dep_component = ExternalComponent(hpath, package or
+                                                  _find_external_package(hpath))
                 component.dep_components.add(dep_component)
                 self._external_components[hpath] = dep_component
         return True
@@ -768,6 +772,7 @@ class DependencyAnalysis(object):
 
     def analyze(self, printer, args):
         """Runs the analysis."""
+
         def _analyze(graph_name, digraph):
             digraph.analyze()
             digraph.print_cycles(printer)
@@ -803,8 +808,8 @@ class DependencyAnalysis(object):
                     continue
                 printer('\n' + '#' * 80)
                 printer('analyzing dependencies among components in '
-                        'the specified package %s.%s ...' %
-                        (group_name, pkg_name))
+                        'the specified package %s.%s ...' % (group_name,
+                                                             pkg_name))
                 _analyze('_'.join((group_name, pkg_name)),
                          Graph(package.components,
                                lambda x: (i if i.package == package

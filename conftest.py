@@ -12,17 +12,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """Configuration facilities for cppdep tests with pytest."""
 
 from cppdep.cppdep import Include
+
 
 #pylint: disable=invalid-name
 def pytest_assertrepr_compare(op, left, right):
     """Custom assertion messages for cppdep classes."""
     if isinstance(left, Include) and isinstance(right, Include):
         if op in ('==', '!='):
-            return ['Comparing Include directives:',
-                    '    vals: %s %s %s' % (str(left),
-                                            {'==': '!=', '!=': '=='}[op],
-                                            str(right))]
+            return [
+                'Comparing Include directives:',
+                '    vals: %s %s %s' % (str(left), {
+                    '==': '!=',
+                    '!=': '=='
+                }[op], str(right))
+            ]

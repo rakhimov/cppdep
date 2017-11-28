@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """The command-line entry point for the package."""
 
 from __future__ import print_function, absolute_import
@@ -32,17 +31,29 @@ from cppdep import cppdep
 
 def main(argv=None):
     """Runs the dependency analysis and prints results and graphs."""
-    parser = ap.ArgumentParser(description=cppdep.__doc__,
-                               formatter_class=ap.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--version', action='store_true', default=False,
-                        help='show the version information and exit')
-    parser.add_argument('-c', '--config', default='.cppdep.yml',
-                        help="""a YAML file which describes
-                        the source code structure of a C/C++ project""")
-    parser.add_argument('-l', action='store_true', default=False,
-                        help='list reduced dependencies of nodes')
-    parser.add_argument('-L', action='store_true', default=False,
-                        help='list unreduced dependencies of nodes')
+    parser = ap.ArgumentParser(
+        description=cppdep.__doc__,
+        formatter_class=ap.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        '--version',
+        action='store_true',
+        default=False,
+        help='show the version information and exit')
+    parser.add_argument(
+        '-c',
+        '--config',
+        default='.cppdep.yml',
+        help='a YAML file describing the C/C++ project structure')
+    parser.add_argument(
+        '-l',
+        action='store_true',
+        default=False,
+        help='list reduced dependencies of nodes')
+    parser.add_argument(
+        '-L',
+        action='store_true',
+        default=False,
+        help='list unreduced dependencies of nodes')
     parser.add_argument('-o', '--output', metavar='path', help='output file')
     args = parser.parse_args(argv)
     if args.version:
