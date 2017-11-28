@@ -19,12 +19,14 @@ install:
       elif [[ "${TRAVIS_PYTHON_VERSION}" == "2.7" ]]; then
         export RUN_COVERAGE=true;
         pip install coverage codecov pytest-cov;
+        pip install yapf;
       fi
     - pip install -r requirements.txt
 
 script:
     - if [[ $RUN_COVERAGE == true ]]; then
         python -m pytest --cov=cppdep --cov=graph --cov-config .coveragerc && codecov;
+        yapf -d cppdep/*.py;
       else
         python -m pytest;
       fi
