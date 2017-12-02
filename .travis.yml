@@ -8,15 +8,8 @@ python:
 
 os: linux
 
-matrix:
-    include:
-        - os: osx
-          language: generic
-
 install:
-    - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-        pip install -r requirements-test.txt;
-      elif [[ "${TRAVIS_PYTHON_VERSION}" == "2.7" ]]; then
+    - if [[ "${TRAVIS_PYTHON_VERSION}" == "2.7" ]]; then
         export RUN_COVERAGE=true;
         pip install coverage codecov pytest-cov;
         pip install yapf;
