@@ -472,10 +472,9 @@ class Package(object):
         # Therefore, the algorithm to find
         # the lowest common ancestor seems to lead to false answers.
         def _num_consecutive_ancestors(file_one, file_two):
-            return sum(1
-                       for _ in itertools.takewhile(lambda x: x[0] == x[1],
-                                                    zip(file_one.rev_path,
-                                                        file_two.rev_path)))
+            return sum(1 for _ in itertools.takewhile(
+                lambda x: x[0] == x[1], zip(file_one.rev_path,
+                                            file_two.rev_path)))
 
         def _pair(hfiles, cfiles):
             assert hfiles and cfiles  # Expected to have few elements.
@@ -795,10 +794,13 @@ class DependencyAnalysis(object):
                 printer('\n' + '#' * 80)
                 printer('analyzing dependencies among packages in '
                         'the specified package group %s ...' % group_name)
+
+                def _dep_filter(nodes):
+                    return (node if node.group == package_group else node.group
+                            for node in nodes)
+
                 _analyze(group_name,
-                         Graph(package_group.packages.values(),
-                               lambda x: (i if i.group == package_group
-                                          else i.group for i in x),
+                         Graph(package_group.packages.values(), _dep_filter,
                                lambda x: isinstance(x, PackageGroup)))
 
         for group_name, package_group in self.internal_groups.items():
@@ -810,8 +812,11 @@ class DependencyAnalysis(object):
                 printer('analyzing dependencies among components in '
                         'the specified package %s.%s ...' % (group_name,
                                                              pkg_name))
+
+                def _dep_filter(nodes):
+                    return (node if node.package == package else node.package
+                            for node in nodes)
+
                 _analyze('_'.join((group_name, pkg_name)),
-                         Graph(package.components,
-                               lambda x: (i if i.package == package
-                                          else i.package for i in x),
+                         Graph(package.components, _dep_filter,
                                lambda x: isinstance(x, Package)))
