@@ -192,11 +192,12 @@ class Graph(object):
         for cycle, i in sorted(self.cycle2index.items(), key=lambda x: x[1]):
             printer('cycle #%d (%d nodes):' % (i, cycle.number_of_nodes()),
                     ', '.join(sorted(str(x) for x in cycle.nodes())))
-            printer('cycle #%d (%d edges):' % (i, cycle.number_of_edges()),
-                    ' '.join(
-                        sorted(
-                            str(edge[0]) + '->' + str(edge[1])
-                            for edge in cycle.edges())))
+            printer(
+                'cycle #%d (%d edges):' % (i, cycle.number_of_edges()),
+                ' '.join(
+                    sorted(
+                        str(edge[0]) + '->' + str(edge[1])
+                        for edge in cycle.edges())))
             printer()
 
     def print_levels(self, printer, reduced_dependencies=None):

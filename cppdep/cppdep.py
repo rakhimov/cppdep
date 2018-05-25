@@ -395,9 +395,9 @@ class Package(object):
                         '%s is not a directory in %s (group %s).' %
                         (path, self.group.path, self.group.name))
                 if abs_path in path_container:
-                    raise InvalidArgumentError('%s is duplicated in %s.%s' %
-                                               (abs_path, self.group.name,
-                                                self.name))
+                    raise InvalidArgumentError(
+                        '%s is duplicated in %s.%s' %
+                        (abs_path, self.group.name, self.name))
                 path_container.add(abs_path)
 
         _update(self.src_paths, src_paths, check_dir=False)
@@ -574,9 +574,8 @@ class PackageGroup(object):
             InvalidArgumentError: Duplicate package.
         """
         if package.name in self.packages:
-            raise InvalidArgumentError(
-                '%s is a duplicate package in %s group.' % (package.name,
-                                                            self.name))
+            raise InvalidArgumentError('%s is a duplicate package in %s group.'
+                                       % (package.name, self.name))
         self.packages[package.name] = package
 
 
@@ -733,8 +732,8 @@ class DependencyAnalysis(object):
             if hpath in self._external_components:
                 component.dep_components.add(self._external_components[hpath])
             else:
-                dep_component = ExternalComponent(hpath, package or
-                                                  _find_external_package(hpath))
+                dep_component = ExternalComponent(
+                    hpath, package or _find_external_package(hpath))
                 component.dep_components.add(dep_component)
                 self._external_components[hpath] = dep_component
         return True
@@ -785,9 +784,10 @@ class DependencyAnalysis(object):
         if len(self.internal_groups) > 1:
             printer('\n' + '#' * 80)
             printer('analyzing dependencies among all package groups ...')
-            _analyze('system',
-                     Graph(self.internal_groups.values(), iter,
-                           lambda x: x.name in self.external_groups))
+            _analyze(
+                'system',
+                Graph(self.internal_groups.values(), iter,
+                      lambda x: x.name in self.external_groups))
 
         for group_name, package_group in self.internal_groups.items():
             if len(package_group.packages) > 1:
@@ -799,9 +799,10 @@ class DependencyAnalysis(object):
                     return (node if node.group == package_group else node.group
                             for node in nodes)
 
-                _analyze(group_name,
-                         Graph(package_group.packages.values(), _dep_filter,
-                               lambda x: isinstance(x, PackageGroup)))
+                _analyze(
+                    group_name,
+                    Graph(package_group.packages.values(), _dep_filter,
+                          lambda x: isinstance(x, PackageGroup)))
 
         for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
@@ -809,14 +810,15 @@ class DependencyAnalysis(object):
                     assert not package.src_paths
                     continue
                 printer('\n' + '#' * 80)
-                printer('analyzing dependencies among components in '
-                        'the specified package %s.%s ...' % (group_name,
-                                                             pkg_name))
+                printer(
+                    'analyzing dependencies among components in '
+                    'the specified package %s.%s ...' % (group_name, pkg_name))
 
                 def _dep_filter(nodes):
                     return (node if node.package == package else node.package
                             for node in nodes)
 
-                _analyze('_'.join((group_name, pkg_name)),
-                         Graph(package.components, _dep_filter,
-                               lambda x: isinstance(x, Package)))
+                _analyze(
+                    '_'.join((group_name, pkg_name)),
+                    Graph(package.components, _dep_filter,
+                          lambda x: isinstance(x, Package)))
