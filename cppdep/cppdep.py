@@ -473,16 +473,15 @@ class Package(object):
         # the lowest common ancestor seems to lead to false answers.
         def _num_consecutive_ancestors(file_one, file_two):
             return sum(1 for _ in itertools.takewhile(
-                lambda x: x[0] == x[1], zip(file_one.rev_path,
-                                            file_two.rev_path)))
+                lambda x: x[0] == x[1], zip(file_one.rev_path, file_two.
+                                            rev_path)))
 
         def _pair(hfiles, cfiles):
             assert hfiles and cfiles  # Expected to have few elements.
             candidates = [(x,
-                           sorted(
-                               ((_num_consecutive_ancestors(x, y), y)
-                                for y in hfiles),
-                               reverse=True))
+                           sorted(((_num_consecutive_ancestors(x, y), y)
+                                   for y in hfiles),
+                                  reverse=True))
                           for x in cfiles]
             candidates.sort(
                 reverse=True, key=lambda x: tuple(y for y, _ in x[1]))
