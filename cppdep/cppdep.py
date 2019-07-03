@@ -37,8 +37,8 @@ from .graph import Graph
 
 VERSION = '0.2.4'  # The latest release version.
 
-_SCHEMA_FILE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'config_schema.yml')
+_SCHEMA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'config_schema.yml')
 assert os.path.isfile(_SCHEMA_FILE), 'The cppdep schema file is missing.'
 assert safe_load(open(_SCHEMA_FILE))  # Will throw if invalid.
 
@@ -305,8 +305,8 @@ class Component(object):
                      '%s does not include %s.' % (self.cpath, hfile))
             elif hfile != os.path.basename(self.includes_in_c[0].hfile):
                 warn('include issues: include order: '
-                     '%s should be the first include in %s.' % (hfile,
-                                                                self.cpath))
+                     '%s should be the first include in %s.' %
+                     (hfile, self.cpath))
         _remove_duplicates()
         _remove_redundant()
 
@@ -472,9 +472,10 @@ class Package(object):
         # Therefore, the algorithm to find
         # the lowest common ancestor seems to lead to false answers.
         def _num_consecutive_ancestors(file_one, file_two):
-            return sum(1 for _ in itertools.takewhile(
-                lambda x: x[0] == x[1], zip(file_one.rev_path, file_two.
-                                            rev_path)))
+            return sum(
+                1 for _ in
+                itertools.takewhile(lambda x: x[0] == x[1],
+                                    zip(file_one.rev_path, file_two.rev_path)))
 
         def _pair(hfiles, cfiles):
             assert hfiles and cfiles  # Expected to have few elements.
@@ -483,8 +484,8 @@ class Package(object):
                                    for y in hfiles),
                                   reverse=True))
                           for x in cfiles]
-            candidates.sort(
-                reverse=True, key=lambda x: tuple(y for y, _ in x[1]))
+            candidates.sort(reverse=True,
+                            key=lambda x: tuple(y for y, _ in x[1]))
             for cfile, hfile_candidates in candidates:
                 for _, hfile in hfile_candidates:
                     if hfile in hfiles:
@@ -573,8 +574,9 @@ class PackageGroup(object):
             InvalidArgumentError: Duplicate package.
         """
         if package.name in self.packages:
-            raise InvalidArgumentError('%s is a duplicate package in %s group.'
-                                       % (package.name, self.name))
+            raise InvalidArgumentError(
+                '%s is a duplicate package in %s group.' %
+                (package.name, self.name))
         self.packages[package.name] = package
 
 
@@ -694,8 +696,8 @@ class DependencyAnalysis(object):
         for group in self.external_groups.values():
             for package in group.packages.values():
                 self.__include_patterns.append(
-                    (package,
-                     [re.compile(x) for x in package.include_patterns]))
+                    (package, [re.compile(x) for x in package.include_patterns
+                              ]))
 
     def locate(self, include, component):
         """Locates the dependency component.
@@ -718,8 +720,9 @@ class DependencyAnalysis(object):
             raise AnalysisError('include error: Cannot associate '
                                 '%s file with any component.' % hpath)
 
-        hpath, package = include.locate(
-            component.working_dir, self.include_dirs, self.__include_patterns)
+        hpath, package = include.locate(component.working_dir,
+                                        self.include_dirs,
+                                        self.__include_patterns)
 
         if hpath is None:
             return False
@@ -785,8 +788,8 @@ class DependencyAnalysis(object):
             printer('analyzing dependencies among all package groups ...')
             _analyze(
                 'system',
-                Graph(self.internal_groups.values(), iter,
-                      lambda x: x.name in self.external_groups))
+                Graph(self.internal_groups.values(),
+                      iter, lambda x: x.name in self.external_groups))
 
         for group_name, package_group in self.internal_groups.items():
             if len(package_group.packages) > 1:
@@ -800,8 +803,8 @@ class DependencyAnalysis(object):
 
                 _analyze(
                     group_name,
-                    Graph(package_group.packages.values(), _dep_filter,
-                          lambda x: isinstance(x, PackageGroup)))
+                    Graph(package_group.packages.values(),
+                          _dep_filter, lambda x: isinstance(x, PackageGroup)))
 
         for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
@@ -809,9 +812,9 @@ class DependencyAnalysis(object):
                     assert not package.src_paths
                     continue
                 printer('\n' + '#' * 80)
-                printer(
-                    'analyzing dependencies among components in '
-                    'the specified package %s.%s ...' % (group_name, pkg_name))
+                printer('analyzing dependencies among components in '
+                        'the specified package %s.%s ...' %
+                        (group_name, pkg_name))
 
                 def _dep_filter(nodes):
                     return (node if node.package == package else node.package
@@ -819,5 +822,5 @@ class DependencyAnalysis(object):
 
                 _analyze(
                     '_'.join((group_name, pkg_name)),
-                    Graph(package.components, _dep_filter,
-                          lambda x: isinstance(x, Package)))
+                    Graph(package.components,
+                          _dep_filter, lambda x: isinstance(x, Package)))

@@ -222,10 +222,9 @@ class Graph(object):
             """Prints dependencies of the levelized components."""
             if reduced_dependencies is None or self.__is_external(node):
                 return
-            for v in sorted(
-                    self.digraph[node] if reduced_dependencies else set(
-                        self.__dep_filter(node.dependencies())),
-                    key=lambda x: (self.get_level(x), str(x))):
+            for v in sorted(self.digraph[node] if reduced_dependencies else set(
+                    self.__dep_filter(node.dependencies())),
+                            key=lambda x: (self.get_level(x), str(x))):
                 if v in self.node2cycle:
                     cycle = self.node2cycle[v]
                     printer('\t\t%d. %s <%d>' % (self.node2level[cycle], str(v),
@@ -234,9 +233,8 @@ class Graph(object):
                     printer('\t\t%d. %s' % (self.node2level[v], str(v)))
 
         level_num = -1
-        for node, level in sorted(
-                self.node2level.items(),
-                key=lambda x: (x[1], _stabilize(x[0]))):
+        for node, level in sorted(self.node2level.items(),
+                                  key=lambda x: (x[1], _stabilize(x[0]))):
             while level > level_num:
                 level_num += 1
                 printer('level %d:' % level_num)

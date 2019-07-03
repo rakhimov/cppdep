@@ -31,29 +31,25 @@ from cppdep import cppdep
 
 def main(argv=None):
     """Runs the dependency analysis and prints results and graphs."""
-    parser = ap.ArgumentParser(
-        description=cppdep.__doc__,
-        formatter_class=ap.ArgumentDefaultsHelpFormatter)
-    parser.add_argument(
-        '--version',
-        action='store_true',
-        default=False,
-        help='show the version information and exit')
+    parser = ap.ArgumentParser(description=cppdep.__doc__,
+                               formatter_class=ap.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--version',
+                        action='store_true',
+                        default=False,
+                        help='show the version information and exit')
     parser.add_argument(
         '-c',
         '--config',
         default='.cppdep.yml',
         help='a YAML file describing the C/C++ project structure')
-    parser.add_argument(
-        '-l',
-        action='store_true',
-        default=False,
-        help='list reduced dependencies of nodes')
-    parser.add_argument(
-        '-L',
-        action='store_true',
-        default=False,
-        help='list unreduced dependencies of nodes')
+    parser.add_argument('-l',
+                        action='store_true',
+                        default=False,
+                        help='list reduced dependencies of nodes')
+    parser.add_argument('-L',
+                        action='store_true',
+                        default=False,
+                        help='list unreduced dependencies of nodes')
     parser.add_argument('-o', '--output', metavar='path', help='output file')
     args = parser.parse_args(argv)
     if args.version:
