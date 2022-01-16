@@ -21,7 +21,7 @@ import os
 import platform
 import re
 
-import mock
+from unittest import mock
 import pytest
 
 from cppdep import cppdep

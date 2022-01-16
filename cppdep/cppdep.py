@@ -86,7 +86,7 @@ def path_common(paths):
     """Returns common prefix path for the argument absolute normalized paths."""
     if not paths:
         return ''
-    path = os.path.commonprefix(paths)
+    path = os.path.commonprefix(list(paths))
     assert os.path.isabs(path)
     if path[-1] == os.path.sep:
         return os.path.dirname(path)
