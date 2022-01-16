@@ -372,6 +372,8 @@ class Package(object):
         self.ignore_paths = set()
         self.alias_paths = set()
         self.include_patterns = include_patterns
+        if src_paths is None:
+          raise Exception("No src_paths for {}".format(name))
         self.__init_paths(src_paths, include_paths, alias_paths, ignore_paths)
         self.root = path_common(self.src_paths)
         self.components = []
@@ -395,10 +397,10 @@ class Package(object):
                         '%s is not a directory in %s (group %s).' %
                         (path, self.group.path, self.group.name))
                 if abs_path in path_container:
-                    raise InvalidArgumentError(
-                        '%s is duplicated in %s.%s' %
+                    warn('%s is duplicated in %s.%s' %
                         (abs_path, self.group.name, self.name))
-                path_container.add(abs_path)
+                else:
+                    path_container.add(abs_path)
 
         _update(self.src_paths, src_paths, check_dir=False)
         _update(self.ignore_paths, ignore_paths, check_dir=False)
@@ -809,7 +811,7 @@ class DependencyAnalysis(object):
         for group_name, package_group in self.internal_groups.items():
             for pkg_name, package in package_group.packages.items():
                 if not package.components:
-                    assert not package.src_paths
+                    assert not package.src_paths, pkg_name
                     continue
                 printer('\n' + '#' * 80)
                 printer('analyzing dependencies among components in '
